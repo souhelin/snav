@@ -1,2 +1,2 @@
-# Snav-Browser
+# Snav Browser
 Snav Browser for Android
