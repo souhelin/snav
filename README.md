@@ -6,7 +6,7 @@ Snav é um navegador leve, simples e ágil para o uso diário. Ideal para quem q
 
 ## Imagens do App
 
-![Logo do Snav](images/logo.png)  
+![Logo do Snav](image/logo.png)  
 
 ---
 
