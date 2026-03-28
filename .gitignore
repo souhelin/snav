@@ -1,34 +1,98 @@
-# Gradle files
+# =============================================
+#   SNAV BROWSER — .gitignore
+# =============================================
+
+# ---------------------------
+# Gradle
+# ---------------------------
 .gradle/
 build/
+**/build/
 
-# Local configuration file (sdk path, etc)
+# ---------------------------
+# Configuração local (SDK path, etc.)
+# ---------------------------
 local.properties
 
-# Log/OS Files
+# ---------------------------
+# Logs e arquivos do SO
+# ---------------------------
 *.log
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# Android Studio generated files and folders
+# ---------------------------
+# Android Studio / IDEA
+# ---------------------------
+*.iml
+.idea/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+# ---------------------------
+# Outputs gerados pelo build
+# ---------------------------
 captures/
 .externalNativeBuild/
 .cxx/
 *.aab
 *.apk
 output-metadata.json
+*.ap_
 
-# IntelliJ
-*.iml
-.idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
+# ---------------------------
+# ProGuard
+# ---------------------------
+proguard/
+*.map
 
-# Keystore files
+# ---------------------------
+# Bibliotecas locais (JARs)
+# ---------------------------
+app/libs/
+
+# ---------------------------
+# Keystore e assinatura
+# ---------------------------
 *.jks
 *.keystore
+*.p12
+*.ks
+release/
+signing/
 
-# Google Services (e.g. APIs or Firebase)
+# ---------------------------
+# Google Services / Firebase
+# ---------------------------
 google-services.json
+google-services-debug.json
 
-# Android Profiling
+# ---------------------------
+# Profiling e análise
+# ---------------------------
 *.hprof
+*.profraw
+*.profdata
+
+# ---------------------------
+# Arquivos de lint
+# ---------------------------
+lint/
+lint-results*
+lint-results.xml
+
+# ---------------------------
+# Outros
+# ---------------------------
+*.swp
+*.swo
+*~
+.vscode/
