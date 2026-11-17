@@ -1,0 +1,10 @@
+// Top-level build file from the supplied Snav Browser project.
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.12.0'
+        classpath 'com.google.gms:google-services:4.4.3'
+    }
+}
+allprojects { repositories { google(); mavenCentral() } }
+tasks.register('clean', Delete) { delete rootProject.buildDir }
