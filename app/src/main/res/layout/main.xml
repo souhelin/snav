@@ -159,8 +159,7 @@
                     android:progressBackgroundTint="@color/snav_outline"
                     android:indeterminate="true"
                     android:visibility="gone"
-                    android:importantForAccessibility="no" />
-                </LinearLayout>
+                    android:contentDescription="Carregamento da página" />
 
                 <View
                     android:layout_width="match_parent"
