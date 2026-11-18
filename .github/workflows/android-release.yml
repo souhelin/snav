@@ -33,28 +33,21 @@ jobs:
       - name: Validate release signing secrets and decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
 
-          for name in KEYSTORE_BASE64 KEYSTORE_FILE KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
             if [ -z "${!name:-}" ]; then
               echo "::error::Required signing secret $name is missing."
               exit 1
             fi
           done
 
-          case "$KEYSTORE_FILE" in
-            */*|*\\*)
-              echo "::error::KEYSTORE_FILE must be a file name, not a path."
-              exit 1
-              ;;
-          esac
-
-          KEYSTORE_PATH="$RUNNER_TEMP/$KEYSTORE_FILE"
+          # Use a fixed temporary filename; no separate filename secret is needed.
+          KEYSTORE_PATH="$RUNNER_TEMP/snav-release.jks"
           if ! printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
             echo "::error::KEYSTORE_BASE64 is not valid base64."
             exit 1
