@@ -121,6 +121,18 @@
                     android:paddingEnd="16dp"
                     android:background="@color/snav_surface">
 
+                    <ImageButton
+                        android:id="@+id/button_site_info"
+                        android:layout_width="40dp"
+                        android:layout_height="48dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Informações do site"
+                        android:padding="8dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_site_info_round"
+                        android:tint="#757575" />
+
                     <TextView
                         android:id="@+id/text_barra"
                         android:layout_width="0dp"

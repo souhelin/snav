@@ -70,6 +70,7 @@ public class MainActivity extends Activity {
 	private LinearLayout vazio;
 	private WebView webview;
 	private TextView text_barra;
+	private ImageButton button_site_info;
 	private ProgressBar prog;
 	private TextView text1;
 	private TextView text2;
@@ -131,6 +132,7 @@ public class MainActivity extends Activity {
 		webview.getSettings().setJavaScriptEnabled(true);
 		webview.getSettings().setSupportZoom(true);
 		text_barra = findViewById(R.id.text_barra);
+		button_site_info = findViewById(R.id.button_site_info);
 		prog = findViewById(R.id.prog);
 		text1 = findViewById(R.id.text1);
 		text2 = findViewById(R.id.text2);
@@ -194,6 +196,13 @@ public class MainActivity extends Activity {
 				final String _url = _param2;
 				
 				super.onPageFinished(_param1, _param2);
+			}
+		});
+		
+		button_site_info.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View _view) {
+				showSiteInfoBottomSheet();
 			}
 		});
 		
@@ -437,6 +446,130 @@ public class MainActivity extends Activity {
 		});
 	}
 	
+	private int siteInfoDp(float value) {
+		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+	}
+
+	private void addSiteInfoRow(LinearLayout parent, String title, String value) {
+		TextView heading = new TextView(this);
+		heading.setText(title);
+		heading.setTextColor(Color.parseColor("#757575"));
+		heading.setTextSize(12);
+		parent.addView(heading);
+
+		TextView detail = new TextView(this);
+		detail.setText(value);
+		detail.setTextColor(Color.parseColor("#34495E"));
+		detail.setTextSize(14);
+		detail.setTextIsSelectable(true);
+		detail.setPadding(0, siteInfoDp(3), 0, siteInfoDp(12));
+		parent.addView(detail);
+	}
+
+	private void showSiteInfoBottomSheet() {
+		final String currentUrl = webview.getUrl();
+		final Uri pageUri = currentUrl == null ? null : Uri.parse(currentUrl);
+		final String scheme = pageUri == null ? null : pageUri.getScheme();
+		final String host = pageUri == null ? null : pageUri.getHost();
+		final String origin;
+		if (scheme != null && host != null) {
+			int port = pageUri.getPort();
+			origin = scheme + "://" + host + (port >= 0 ? ":" + port : "");
+		} else {
+			origin = null;
+		}
+
+		final Dialog sheet = new Dialog(this);
+		LinearLayout content = new LinearLayout(this);
+		content.setOrientation(LinearLayout.VERTICAL);
+		content.setPadding(siteInfoDp(24), siteInfoDp(22), siteInfoDp(24), siteInfoDp(28));
+		GradientDrawable surface = new GradientDrawable();
+		surface.setColor(Color.WHITE);
+		surface.setCornerRadii(new float[] { siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), 0, 0, 0, 0 });
+		content.setBackground(surface);
+
+		TextView title = new TextView(this);
+		title.setText("Informações do site");
+		title.setTextColor(Color.parseColor("#34495E"));
+		title.setTextSize(20);
+		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		title.setPadding(0, 0, 0, siteInfoDp(18));
+		content.addView(title);
+
+		addSiteInfoRow(content, "ENDEREÇO COMPLETO", currentUrl == null ? "Nenhum endereço aberto" : currentUrl);
+		String connection;
+		if ("https".equalsIgnoreCase(scheme)) {
+			connection = "HTTPS — conexão criptografada";
+		} else if ("http".equalsIgnoreCase(scheme)) {
+			connection = "HTTP — conexão não criptografada";
+		} else {
+			connection = "Não disponível";
+		}
+		addSiteInfoRow(content, "CONEXÃO", connection);
+		addSiteInfoRow(content, "PERMISSÕES DO SITE", "O Snav não concede permissões WebView às páginas. Solicitações de recursos como câmera e microfone permanecem bloqueadas.");
+		addSiteInfoRow(content, "COOKIES E DADOS", "Os cookies são gerenciados pelo WebView. A remoção individual de cookies por domínio ainda não está disponível. O botão abaixo remove o armazenamento web deste domínio.");
+
+		TextView clearData = new TextView(this);
+		clearData.setText("Limpar armazenamento local");
+		clearData.setTextColor(Color.WHITE);
+		clearData.setTextSize(14);
+		clearData.setGravity(Gravity.CENTER);
+		clearData.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		clearData.setMinHeight(siteInfoDp(48));
+		clearData.setPadding(siteInfoDp(16), siteInfoDp(10), siteInfoDp(16), siteInfoDp(10));
+		GradientDrawable actionBg = new GradientDrawable();
+		actionBg.setColor(Color.parseColor("#E67E22"));
+		actionBg.setCornerRadius(siteInfoDp(24));
+		clearData.setBackground(actionBg);
+		clearData.setClickable(true);
+		clearData.setFocusable(true);
+		content.addView(clearData, new LinearLayout.LayoutParams(-1, -2));
+		clearData.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				if (origin == null) {
+					Toast.makeText(MainActivity.this, "Nenhum domínio disponível", Toast.LENGTH_SHORT).show();
+					return;
+				}
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Limpar dados do site")
+					.setMessage("Remover o armazenamento local de " + host + "? Os cookies não serão removidos.")
+					.setNegativeButton("Cancelar", null)
+					.setPositiveButton("Limpar", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							WebStorage.getInstance().deleteOrigin(origin);
+							Toast.makeText(MainActivity.this, "Armazenamento local removido", Toast.LENGTH_SHORT).show();
+						}
+					}).show();
+			}
+		});
+
+		addSiteInfoRow(content, "CONFIGURAÇÕES DO SITE", "JavaScript: " + (webview.getSettings().getJavaScriptEnabled() ? "ativado" : "desativado") + ". Esta configuração é global para o navegador, não específica deste domínio.");
+
+		ScrollView scroll = new ScrollView(this);
+		scroll.setFillViewport(true);
+		scroll.setClipToPadding(false);
+		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+		sheet.setContentView(scroll);
+		sheet.setCancelable(true);
+		Window window = sheet.getWindow();
+		if (window != null) {
+			window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+			window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+			WindowManager.LayoutParams params = window.getAttributes();
+			params.width = WindowManager.LayoutParams.MATCH_PARENT;
+			params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+			params.gravity = Gravity.BOTTOM;
+			params.dimAmount = 0.38f;
+			window.setAttributes(params);
+		}
+		sheet.show();
+		if (sheet.getWindow() != null) {
+			sheet.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+		}
+	}
+
 	private void initializeLogic() {
 		_armazenamento();
 		_open_sans();
