@@ -5,13 +5,14 @@ on:
   push:
     branches:
       - main
+      - feature/md3-full-ui-redesign
 
 permissions:
   contents: read
 
 jobs:
   build-release:
-    name: Build and sign release APK
+    name: Build release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +30,8 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Decode release keystore
+      - name: Prepare optional release signing
+        id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
@@ -38,11 +40,11 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          : "${KEYSTORE_BASE64:?Missing KEYSTORE_BASE64 secret}"
-          : "${KEYSTORE_FILE:?Missing KEYSTORE_FILE secret}"
-          : "${KEYSTORE_PASSWORD:?Missing KEYSTORE_PASSWORD secret}"
-          : "${KEY_ALIAS:?Missing KEY_ALIAS secret}"
-          : "${KEY_PASSWORD:?Missing KEY_PASSWORD secret}"
+          if [ -z "${KEYSTORE_BASE64:-}" ] || [ -z "${KEYSTORE_FILE:-}" ] || [ -z "${KEYSTORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
+            echo "Release signing secrets are incomplete; building an unsigned release APK."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           case "$KEYSTORE_FILE" in
             */*|*\\*)
@@ -55,8 +57,9 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           test -s "$KEYSTORE_PATH"
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Build signed release APK
+      - name: Build release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
