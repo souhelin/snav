@@ -146,15 +146,20 @@
                         android:textSize="15sp"
                         android:fontFamily="sans-medium" />
 
-                    <ProgressBar
-                        android:id="@+id/prog"
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="42dp"
-                        android:layout_height="3dp"
-                        android:max="1000"
-                        android:progressTint="@color/snav_accent"
-                        android:progressBackgroundTint="@color/snav_outline"
-                        android:indeterminate="false" />
+                </LinearLayout>
+
+                <ProgressBar
+                    android:id="@+id/prog"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="3dp"
+                    android:max="100"
+                    android:progressTint="@color/snav_primary"
+                    android:indeterminateTint="@color/snav_primary"
+                    android:progressBackgroundTint="@color/snav_outline"
+                    android:indeterminate="true"
+                    android:visibility="gone"
+                    android:importantForAccessibility="no" />
                 </LinearLayout>
 
                 <View
