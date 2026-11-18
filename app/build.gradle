@@ -15,6 +15,9 @@ def hasReleaseSigning = [
     releaseKeyPassword
 ].every { value -> value != null && !value.trim().isEmpty() }
 
+def launcherSource = file("src/main/assets/ic_launcher_source.png")
+def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons")
+
 android {
     compileSdk 34
 
@@ -27,6 +30,10 @@ android {
         targetSdkVersion 35
         versionCode 1
         versionName "0.2.0"
+    }
+
+    sourceSets {
+        main.res.srcDir(generatedLauncherRes)
     }
 
     signingConfigs {
@@ -52,6 +59,87 @@ android {
             }
         }
     }
+}
+
+// Generate density-specific launcher assets from the original artwork.
+// The square crop removes only excess outer padding; the artwork itself is
+// never redrawn or stretched. Java ImageIO avoids adding a build dependency.
+tasks.register("generateLauncherIcons") {
+    inputs.file(launcherSource)
+    outputs.dir(generatedLauncherRes)
+
+    doLast {
+        if (!launcherSource.exists()) {
+            throw new GradleException("Original launcher artwork is missing: ${launcherSource}")
+        }
+
+        def source = javax.imageio.ImageIO.read(launcherSource)
+        if (source == null || source.width != source.height || source.width < 600) {
+            throw new GradleException("Launcher artwork must be a square PNG of at least 600x600 pixels.")
+        }
+
+        int cropSize = 600
+        int cropLeft = (source.width - cropSize) / 2
+        int cropTop = (source.height - cropSize) / 2
+        def crop = source.getSubimage(cropLeft, cropTop, cropSize, cropSize)
+
+        def densities = [
+            [name: "mdpi", scale: 1, legacy: 48, adaptive: 108],
+            [name: "hdpi", scale: 1.5, legacy: 72, adaptive: 162],
+            [name: "xhdpi", scale: 2, legacy: 96, adaptive: 216],
+            [name: "xxhdpi", scale: 3, legacy: 144, adaptive: 324],
+            [name: "xxxhdpi", scale: 4, legacy: 192, adaptive: 432]
+        ]
+
+        def resRoot = generatedLauncherRes.get().asFile
+        project.delete(resRoot)
+
+        densities.each { density ->
+            def mipmapDir = new File(resRoot, "mipmap-${density.name}")
+            mipmapDir.mkdirs()
+
+            def legacySize = density.legacy as int
+            def legacy = new java.awt.image.BufferedImage(legacySize, legacySize, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            def legacyGraphics = legacy.createGraphics()
+            legacyGraphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+            legacyGraphics.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+            legacyGraphics.drawImage(crop, 0, 0, legacySize, legacySize, null)
+            legacyGraphics.dispose()
+            javax.imageio.ImageIO.write(legacy, "png", new File(mipmapDir, "ic_launcher.png"))
+
+            int adaptiveSize = density.adaptive as int
+            int artworkSize = Math.round(60 * (density.scale as double)) as int
+            def foreground = new java.awt.image.BufferedImage(adaptiveSize, adaptiveSize, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            def foregroundGraphics = foreground.createGraphics()
+            foregroundGraphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+            foregroundGraphics.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+            int offset = (adaptiveSize - artworkSize) / 2
+            foregroundGraphics.drawImage(crop, offset, offset, artworkSize, artworkSize, null)
+            foregroundGraphics.dispose()
+            javax.imageio.ImageIO.write(foreground, "png", new File(mipmapDir, "ic_launcher_foreground.png"))
+        }
+
+        def adaptiveDir = new File(resRoot, "mipmap-anydpi-v26")
+        adaptiveDir.mkdirs()
+        new File(adaptiveDir, "ic_launcher.xml").text = """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
+"""
+
+        def valuesDir = new File(resRoot, "values")
+        valuesDir.mkdirs()
+        new File(valuesDir, "ic_launcher_colors.xml").text = """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#EDF0F1</color>
+</resources>
+"""
+    }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(tasks.named("generateLauncherIcons"))
 }
 
 dependencies {
