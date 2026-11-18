@@ -1,400 +1,478 @@
-<LinearLayout
-	xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res-auto"
-	xmlns:tools="http://schemas.android.com/tools"
-	android:layout_width="match_parent"
-	android:layout_height="match_parent"
-	android:orientation="vertical">
-	<LinearLayout
-		android:id="@+id/linear1"
-		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		android:background="#2C3E50"
-		android:gravity="center_horizontal|center_vertical"
-		android:orientation="horizontal"
-		android:layout_gravity="center_horizontal|center_vertical"
-		android:layout_weight="10">
-		<LinearLayout
-			android:id="@+id/tela1"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
-			android:gravity="center_horizontal|center_vertical"
-			android:orientation="vertical"
-			android:layout_gravity="center_horizontal|center_vertical">
-			<TextView
-				android:id="@+id/text_icon"
-				android:layout_width="wrap_content"
-				android:layout_height="wrap_content"
-				android:padding="8dp"
-				android:text="@string/app_name"
-				android:textSize="50sp"
-				android:textColor="#FAFAFA" />
-			<LinearLayout
-				android:id="@+id/linear_barra_pesquisa"
-				android:layout_width="350dp"
-				android:layout_height="100dp"
-				android:layout_margin="5dp"
-				android:background="#34495E"
-				android:gravity="center_horizontal|center_vertical"
-				android:orientation="horizontal"
-				android:layout_gravity="center_horizontal|center_vertical">
-				<EditText
-					android:id="@+id/edittext1"
-					android:layout_width="match_parent"
-					android:layout_height="120dp"
-					android:padding="8dp"
-					android:gravity="left|center_vertical"
-					android:textSize="16sp"
-					android:textColor="#FAFAFA"
-					android:hint="Insira o que está buscando"
-					android:textColorHint="#FAFAFA"
-					android:layout_gravity="center_horizontal|center_vertical" />
-			</LinearLayout>
-		</LinearLayout>
-		<LinearLayout
-			android:id="@+id/tela2"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
-			android:background="#121212"
-			android:gravity="center_horizontal|center_vertical"
-			android:orientation="vertical"
-			android:weightSum="1"
-			android:layout_gravity="center_horizontal|center_vertical">
-			<LinearLayout
-				android:id="@+id/linear20"
-				android:layout_width="match_parent"
-				android:layout_height="match_parent"
-				android:gravity="center_horizontal|center_vertical"
-				android:orientation="vertical"
-				android:layout_gravity="center_horizontal|center_vertical"
-				android:layout_weight="1">
-				<LinearLayout
-					android:id="@+id/linear_tela2_base"
-					android:layout_width="match_parent"
-					android:layout_height="25dp"
-					android:padding="8dp"
-					android:background="#34495E"
-					android:orientation="horizontal" />
-				<LinearLayout
-					android:id="@+id/linear_b"
-					android:layout_width="match_parent"
-					android:layout_height="59dp"
-					android:background="#34495E"
-					android:gravity="center_horizontal|center_vertical"
-					android:layout_gravity="center_horizontal|center_vertical">
-					<TextView
-						android:id="@+id/text_barra"
-						android:layout_width="wrap_content"
-						android:layout_height="match_parent"
-						android:layout_marginLeft="5dp"
-						android:layout_marginRight="5dp"
-						android:gravity="center_horizontal|center_vertical"
-						android:text="Sair do Navegante"
-						android:textSize="16sp"
-						android:textColor="#ECF0F1"
-						android:layout_gravity="center_horizontal|center_vertical"
-						android:maxLength="25" />
-					<ProgressBar
-						android:id="@+id/prog"
-						android:layout_width="wrap_content"
-						android:layout_height="wrap_content"
-						android:max="1000"
-						android:indeterminate="false"
-						style="?android:progressBarStyleHorizontal"
-						android:layout_gravity="center_horizontal|center_vertical" />
-				</LinearLayout>
-				<LinearLayout
-					android:id="@+id/vazio"
-					android:layout_width="match_parent"
-					android:layout_height="match_parent"
-					android:background="#2C3E50"
-					android:gravity="center_horizontal|center_vertical"
-					android:orientation="vertical">
-					<TextView
-						android:id="@+id/text1"
-						android:layout_width="wrap_content"
-						android:layout_height="wrap_content"
-						android:padding="8dp"
-						android:gravity="center_horizontal|center_vertical"
-						android:text="Sem dados pesquisados no arquivo"
-						android:textSize="16sp"
-						android:textColor="#9E9E9E"
-						android:layout_gravity="center_horizontal|center_vertical" />
-					<TextView
-						android:id="@+id/text2"
-						android:layout_width="wrap_content"
-						android:layout_height="wrap_content"
-						android:padding="8dp"
-						android:gravity="center_horizontal|center_vertical"
-						android:text="Faça sua primeira pesquisa"
-						android:textSize="16sp"
-						android:textColor="#ECF0F1"
-						android:layout_gravity="center_horizontal|center_vertical" />
-				</LinearLayout>
-				<WebView
-					android:id="@+id/webview"
-					android:layout_width="match_parent"
-					android:layout_height="match_parent"
-					android:background="#34495E"
-					android:layout_weight="1" />
-			</LinearLayout>
-		</LinearLayout>
-		<LinearLayout
-			android:id="@+id/tela3"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
-			android:background="#2C3E50"
-			android:gravity="center_horizontal|center_vertical"
-			android:orientation="vertical"
-			android:layout_gravity="center_horizontal|center_vertical">
-			<ScrollView
-				android:id="@+id/vscroll1"
-				android:layout_width="match_parent"
-				android:layout_height="match_parent">
-				<LinearLayout
-					android:id="@+id/linear33"
-					android:layout_width="match_parent"
-					android:layout_height="wrap_content"
-					android:orientation="vertical">
-					<LinearLayout
-						android:id="@+id/linear_tela3_base"
-						android:layout_width="match_parent"
-						android:layout_height="25dp"
-						android:padding="8dp"
-						android:orientation="horizontal" />
-					<LinearLayout
-						android:id="@+id/linearmenu2"
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:orientation="horizontal">
-						<HorizontalScrollView
-							android:id="@+id/hscroll1"
-							android:layout_width="match_parent"
-							android:layout_height="match_parent">
-							<LinearLayout
-								android:id="@+id/linear25"
-								android:layout_width="wrap_content"
-								android:layout_height="match_parent"
-								android:orientation="horizontal">
-								<LinearLayout
-									android:id="@+id/linear_copiar_URL"
-									android:layout_width="wrap_content"
-									android:layout_height="match_parent"
-									android:layout_margin="5dp"
-									android:gravity="center_horizontal|center_vertical"
-									android:orientation="vertical"
-									android:layout_gravity="center_horizontal|center_vertical">
-									<ImageView
-										android:id="@+id/imageview57"
-										android:layout_width="50dp"
-										android:layout_height="50dp"
-										android:src="@drawable/ic_content_copy_grey"
-										android:scaleType="fitCenter"
-										android:scaleX="0.5"
-										android:scaleY="0.5"
-										android:layout_gravity="center_horizontal|center_vertical" />
-									<TextView
-										android:id="@+id/text14"
-										android:layout_width="wrap_content"
-										android:layout_height="wrap_content"
-										android:padding="8dp"
-										android:gravity="center_horizontal|center_vertical"
-										android:text="Capturar\nlink"
-										android:textSize="16sp"
-										android:textColor="#9E9E9E"
-										android:layout_gravity="center_horizontal|center_vertical" />
-								</LinearLayout>
-								<LinearLayout
-									android:id="@+id/linear_tradutor_google"
-									android:layout_width="wrap_content"
-									android:layout_height="match_parent"
-									android:layout_margin="5dp"
-									android:gravity="center_horizontal|center_vertical"
-									android:orientation="vertical"
-									android:layout_gravity="center_horizontal|center_vertical">
-									<ImageView
-										android:id="@+id/imageview63"
-										android:layout_width="50dp"
-										android:layout_height="50dp"
-										android:src="@drawable/ic_translate_grey"
-										android:scaleType="fitCenter"
-										android:scaleX="0.5"
-										android:scaleY="0.5"
-										android:layout_gravity="center_horizontal|center_vertical" />
-									<TextView
-										android:id="@+id/text19"
-										android:layout_width="wrap_content"
-										android:layout_height="wrap_content"
-										android:padding="8dp"
-										android:gravity="center_horizontal|center_vertical"
-										android:text="Inter\npretar"
-										android:textSize="16sp"
-										android:textColor="#9E9E9E"
-										android:layout_gravity="center_horizontal|center_vertical" />
-								</LinearLayout>
-								<LinearLayout
-									android:id="@+id/linear_modo_leitura"
-									android:layout_width="wrap_content"
-									android:layout_height="wrap_content"
-									android:layout_margin="5dp"
-									android:gravity="center_horizontal|center_vertical"
-									android:orientation="vertical"
-									android:layout_gravity="center_horizontal|center_vertical">
-									<ImageView
-										android:id="@+id/imageview92"
-										android:layout_width="50dp"
-										android:layout_height="50dp"
-										android:src="@drawable/icon_text_snippet_round"
-										android:scaleType="fitCenter"
-										android:scaleX="0.5"
-										android:scaleY="0.5"
-										android:layout_gravity="center_horizontal|center_vertical" />
-									<TextView
-										android:id="@+id/text7"
-										android:layout_width="wrap_content"
-										android:layout_height="wrap_content"
-										android:padding="8dp"
-										android:gravity="center_horizontal|center_vertical"
-										android:text="Modo\nLeitura"
-										android:textSize="16sp"
-										android:textColor="#9E9E9E"
-										android:layout_gravity="center_horizontal|center_vertical" />
-								</LinearLayout>
-								<LinearLayout
-									android:id="@+id/linear_abrir_no_navegador"
-									android:layout_width="wrap_content"
-									android:layout_height="wrap_content"
-									android:layout_margin="5dp"
-									android:gravity="center_horizontal|center_vertical"
-									android:orientation="vertical"
-									android:layout_gravity="center_horizontal|center_vertical">
-									<ImageView
-										android:id="@+id/imageview58"
-										android:layout_width="50dp"
-										android:layout_height="50dp"
-										android:src="@drawable/ic_open_in_browser_grey"
-										android:scaleType="fitCenter"
-										android:scaleX="0.5"
-										android:scaleY="0.5"
-										android:layout_gravity="center_horizontal|center_vertical" />
-									<TextView
-										android:id="@+id/text15"
-										android:layout_width="wrap_content"
-										android:layout_height="wrap_content"
-										android:padding="8dp"
-										android:gravity="center_horizontal|center_vertical"
-										android:text="Visitar no\nnavegador"
-										android:textSize="16sp"
-										android:textColor="#9E9E9E"
-										android:layout_gravity="center_horizontal|center_vertical" />
-								</LinearLayout>
-							</LinearLayout>
-						</HorizontalScrollView>
-					</LinearLayout>
-					<LinearLayout
-						android:id="@+id/linear_escurecer"
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:layout_margin="5dp"
-						android:padding="8dp"
-						android:gravity="center_horizontal|center_vertical"
-						android:orientation="horizontal"
-						android:layout_gravity="center_horizontal|center_vertical">
-						<CheckBox
-							android:id="@+id/checkbox_brilho"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:padding="8dp"
-							android:gravity="left|center_vertical"
-							android:text="Escurecer"
-							android:textSize="16sp"
-							android:textColor="#9E9E9E"
-							android:layout_gravity="center_horizontal|center_vertical" />
-					</LinearLayout>
-					<LinearLayout
-						android:id="@+id/linear_JavaScript"
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:layout_margin="5dp"
-						android:padding="8dp"
-						android:gravity="center_horizontal|center_vertical"
-						android:orientation="horizontal"
-						android:layout_gravity="center_horizontal|center_vertical">
-						<CheckBox
-							android:id="@+id/checkbox_javascript2"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:padding="8dp"
-							android:gravity="left|center_vertical"
-							android:text="Javascript"
-							android:textSize="16sp"
-							android:textColor="#9E9E9E"
-							android:checked="true"
-							android:layout_gravity="center_horizontal|center_vertical" />
-					</LinearLayout>
-					<LinearLayout
-						android:id="@+id/linear_limpar_dados2"
-						android:layout_width="match_parent"
-						android:layout_height="wrap_content"
-						android:layout_margin="5dp"
-						android:padding="8dp"
-						android:gravity="left"
-						android:orientation="horizontal"
-						android:layout_gravity="center_horizontal|center_vertical">
-						<TextView
-							android:id="@+id/text5"
-							android:layout_width="wrap_content"
-							android:layout_height="wrap_content"
-							android:padding="8dp"
-							android:gravity="center_horizontal|center_vertical"
-							android:text="Limpeza geral"
-							android:textSize="16sp"
-							android:textColor="#9E9E9E"
-							android:layout_gravity="center_horizontal|center_vertical" />
-					</LinearLayout>
-				</LinearLayout>
-			</ScrollView>
-		</LinearLayout>
-	</LinearLayout>
-	<LinearLayout
-		android:id="@+id/linear_c"
-		android:layout_width="match_parent"
-		android:layout_height="59dp"
-		android:padding="8dp"
-		android:background="#34495E"
-		android:gravity="center_horizontal|center_vertical"
-		android:orientation="horizontal"
-		android:layout_gravity="center_horizontal|center_vertical">
-		<TextView
-			android:id="@+id/b1"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="25dp"
-			android:layout_marginRight="25dp"
-			android:padding="8dp"
-			android:gravity="center_horizontal|center_vertical"
-			android:text="Navegante"
-			android:textSize="16sp"
-			android:textColor="#9E9E9E"
-			android:layout_gravity="center_horizontal|center_vertical" />
-		<TextView
-			android:id="@+id/b2"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_marginLeft="25dp"
-			android:layout_marginRight="25dp"
-			android:padding="8dp"
-			android:gravity="center_horizontal|center_vertical"
-			android:text="Ferramenta "
-			android:textSize="16sp"
-			android:textColor="#9E9E9E"
-			android:layout_gravity="center_horizontal|center_vertical" />
-	</LinearLayout>
-	<LinearLayout
-		android:id="@+id/linear82"
-		android:layout_width="match_parent"
-		android:layout_height="50dp"
-		android:padding="8dp"
-		android:background="#34495E"
-		android:orientation="horizontal" />
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/snav_background">
+
+    <LinearLayout
+        android:id="@+id/linear1"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:background="@color/snav_background">
+
+        <!-- Home / search -->
+        <LinearLayout
+            android:id="@+id/tela1"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:background="@color/snav_background">
+
+            <Space
+                android:layout_width="1dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/text_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/app_name"
+                android:textColor="@color/snav_primary"
+                android:textSize="38sp"
+                android:textStyle="bold"
+                android:letterSpacing="-0.03"
+                android:fontFamily="sans" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Uma navegação simples e rápida"
+                android:textColor="@color/snav_on_surface_variant"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:id="@+id/linear_barra_pesquisa"
+                android:layout_width="match_parent"
+                android:layout_height="58dp"
+                android:layout_marginTop="30dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="18dp"
+                android:paddingEnd="14dp"
+                android:background="@drawable/snav_search_field">
+
+                <EditText
+                    android:id="@+id/edittext1"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@android:color/transparent"
+                    android:singleLine="true"
+                    android:imeOptions="actionSearch"
+                    android:inputType="textUri"
+                    android:padding="0dp"
+                    android:hint="Pesquisar ou inserir endereço"
+                    android:textColor="@color/snav_on_surface"
+                    android:textColorHint="@color/snav_on_surface_variant"
+                    android:textSize="16sp"
+                    android:selectAllOnFocus="true" />
+
+                <TextView
+                    android:layout_width="38dp"
+                    android:layout_height="38dp"
+                    android:gravity="center"
+                    android:text="⌕"
+                    android:textColor="@color/snav_accent"
+                    android:textSize="28sp"
+                    android:importantForAccessibility="no" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="1dp"
+                android:layout_height="0dp"
+                android:layout_weight="1.2" />
+        </LinearLayout>
+
+        <!-- Browser -->
+        <LinearLayout
+            android:id="@+id/tela2"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/snav_surface">
+
+            <LinearLayout
+                android:id="@+id/linear20"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:background="@color/snav_surface">
+
+                <LinearLayout
+                    android:id="@+id/linear_tela2_base"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:orientation="horizontal"
+                    android:background="@color/snav_surface" />
+
+                <LinearLayout
+                    android:id="@+id/linear_b"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:background="@color/snav_surface">
+
+                    <TextView
+                        android:id="@+id/text_barra"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center_vertical"
+                        android:maxLines="1"
+                        android:ellipsize="middle"
+                        android:text="Snav Browser"
+                        android:textColor="@color/snav_on_surface"
+                        android:textSize="15sp"
+                        android:fontFamily="sans-medium" />
+
+                    <ProgressBar
+                        android:id="@+id/prog"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="42dp"
+                        android:layout_height="3dp"
+                        android:max="1000"
+                        android:progressTint="@color/snav_accent"
+                        android:progressBackgroundTint="@color/snav_outline"
+                        android:indeterminate="false" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/snav_outline" />
+
+                <LinearLayout
+                    android:id="@+id/vazio"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="28dp"
+                    android:background="@color/snav_surface">
+
+                    <TextView
+                        android:id="@+id/text1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nenhuma página aberta"
+                        android:textColor="@color/snav_on_surface"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/text2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:padding="8dp"
+                        android:text="Toque para voltar à pesquisa"
+                        android:textColor="@color/snav_on_surface_variant"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <WebView
+                    android:id="@+id/webview"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:background="@color/snav_surface" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Browser tools -->
+        <LinearLayout
+            android:id="@+id/tela3"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:background="@color/snav_background">
+
+            <ScrollView
+                android:id="@+id/vscroll1"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/linear33"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:paddingTop="20dp"
+                    android:paddingBottom="24dp">
+
+                    <LinearLayout
+                        android:id="@+id/linear_tela3_base"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingBottom="18dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ferramentas"
+                            android:textColor="@color/snav_on_surface"
+                            android:textSize="24sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/linearmenu2"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <HorizontalScrollView
+                            android:id="@+id/hscroll1"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:scrollbars="none">
+
+                            <LinearLayout
+                                android:id="@+id/linear25"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingBottom="16dp">
+
+                                <LinearLayout
+                                    android:id="@+id/linear_copiar_URL"
+                                    android:layout_width="82dp"
+                                    android:layout_height="92dp"
+                                    android:layout_marginEnd="8dp"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:background="@drawable/snav_tool_surface"
+                                    android:clickable="true"
+                                    android:focusable="true">
+                                    <ImageView
+                                        android:id="@+id/imageview57"
+                                        android:layout_width="28dp"
+                                        android:layout_height="28dp"
+                                        android:src="@drawable/ic_content_copy_grey"
+                                        android:scaleType="fitCenter" />
+                                    <TextView
+                                        android:id="@+id/text14"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="8dp"
+                                        android:text="Copiar link"
+                                        android:textColor="@color/snav_on_surface"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:id="@+id/linear_tradutor_google"
+                                    android:layout_width="82dp"
+                                    android:layout_height="92dp"
+                                    android:layout_marginEnd="8dp"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:background="@drawable/snav_tool_surface"
+                                    android:clickable="true"
+                                    android:focusable="true">
+                                    <ImageView
+                                        android:id="@+id/imageview63"
+                                        android:layout_width="28dp"
+                                        android:layout_height="28dp"
+                                        android:src="@drawable/ic_translate_grey"
+                                        android:scaleType="fitCenter" />
+                                    <TextView
+                                        android:id="@+id/text19"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="8dp"
+                                        android:text="Traduzir"
+                                        android:textColor="@color/snav_on_surface"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:id="@+id/linear_modo_leitura"
+                                    android:layout_width="82dp"
+                                    android:layout_height="92dp"
+                                    android:layout_marginEnd="8dp"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:background="@drawable/snav_tool_surface"
+                                    android:clickable="true"
+                                    android:focusable="true">
+                                    <ImageView
+                                        android:id="@+id/imageview92"
+                                        android:layout_width="28dp"
+                                        android:layout_height="28dp"
+                                        android:src="@drawable/icon_text_snippet_round"
+                                        android:scaleType="fitCenter" />
+                                    <TextView
+                                        android:id="@+id/text7"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="8dp"
+                                        android:text="Leitura"
+                                        android:textColor="@color/snav_on_surface"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:id="@+id/linear_abrir_no_navegador"
+                                    android:layout_width="82dp"
+                                    android:layout_height="92dp"
+                                    android:gravity="center"
+                                    android:orientation="vertical"
+                                    android:background="@drawable/snav_tool_surface"
+                                    android:clickable="true"
+                                    android:focusable="true">
+                                    <ImageView
+                                        android:id="@+id/imageview58"
+                                        android:layout_width="28dp"
+                                        android:layout_height="28dp"
+                                        android:src="@drawable/ic_open_in_browser_grey"
+                                        android:scaleType="fitCenter" />
+                                    <TextView
+                                        android:id="@+id/text15"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="8dp"
+                                        android:text="Abrir fora"
+                                        android:textColor="@color/snav_on_surface"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+                            </LinearLayout>
+                        </HorizontalScrollView>
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="Preferências"
+                        android:textColor="@color/snav_on_surface"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:id="@+id/linear_escurecer"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+                        <CheckBox
+                            android:id="@+id/checkbox_brilho"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:buttonTint="@color/snav_accent"
+                            android:gravity="center_vertical"
+                            android:text="Escurecer páginas"
+                            android:textColor="@color/snav_on_surface"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/linear_JavaScript"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+                        <CheckBox
+                            android:id="@+id/checkbox_javascript2"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:buttonTint="@color/snav_accent"
+                            android:checked="true"
+                            android:gravity="center_vertical"
+                            android:text="JavaScript"
+                            android:textColor="@color/snav_on_surface"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@color/snav_outline" />
+
+                    <LinearLayout
+                        android:id="@+id/linear_limpar_dados2"
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:clickable="true"
+                        android:focusable="true">
+                        <TextView
+                            android:id="@+id/text5"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
+                            android:text="Limpar dados de navegação"
+                            android:textColor="@color/snav_error"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Compact bottom navigation -->
+    <LinearLayout
+        android:id="@+id/linear_c"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@color/snav_surface"
+        android:elevation="4dp">
+
+        <TextView
+            android:id="@+id/b1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="Início"
+            android:textColor="@color/snav_primary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/b2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="Ferramentas"
+            android:textColor="@color/snav_on_surface_variant"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/linear82"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="horizontal"
+        android:background="@color/snav_surface" />
 </LinearLayout>
