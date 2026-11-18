@@ -446,6 +446,57 @@ public class MainActivity extends Activity {
 		});
 	}
 	
+	private final Handler progressHandler = new Handler(Looper.getMainLooper());
+	private Runnable showProgressRunnable;
+	private boolean pageLoading = false;
+
+	private void beginPageProgress() {
+		pageLoading = true;
+		progressHandler.removeCallbacks(showProgressRunnable);
+		prog.animate().cancel();
+		prog.setAlpha(1f);
+		prog.setProgress(0);
+		prog.setIndeterminate(true);
+
+		showProgressRunnable = new Runnable() {
+			@Override
+			public void run() {
+				if (pageLoading) {
+					prog.setVisibility(View.VISIBLE);
+				}
+			}
+		};
+		progressHandler.postDelayed(showProgressRunnable, 120);
+	}
+
+	private void finishPageProgress() {
+		if (!pageLoading) {
+			return;
+		}
+		pageLoading = false;
+		progressHandler.removeCallbacks(showProgressRunnable);
+		prog.setIndeterminate(false);
+		prog.setProgress(100);
+
+		if (prog.getVisibility() != View.VISIBLE) {
+			prog.setProgress(0);
+			return;
+		}
+
+		prog.animate()
+			.alpha(0f)
+			.setDuration(160)
+			.withEndAction(new Runnable() {
+				@Override
+				public void run() {
+					prog.setVisibility(View.GONE);
+					prog.setAlpha(1f);
+					prog.setProgress(0);
+				}
+			})
+			.start();
+	}
+
 	private int siteInfoDp(float value) {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
 	}
@@ -723,7 +774,19 @@ public class MainActivity extends Activity {
 		}
 		
 		// WebViewClient
-		webview.setWebViewClient(new android.webkit.WebViewClient());
+		webview.setWebViewClient(new android.webkit.WebViewClient() {
+			@Override
+			public void onPageStarted(WebView view, String url, Bitmap favicon) {
+				super.onPageStarted(view, url, favicon);
+				beginPageProgress();
+			}
+
+			@Override
+			public void onPageFinished(WebView view, String url) {
+				super.onPageFinished(view, url);
+				finishPageProgress();
+			}
+		});
 		
 		// WebChromeClient
 		webview.setWebChromeClient(new android.webkit.WebChromeClient() {
@@ -739,12 +802,15 @@ public class MainActivity extends Activity {
 			
 			@Override
 			public void onProgressChanged(WebView v, int p) {
-				prog.setScaleX(p / 100f);
-				
-				if (p == 100) {
-					prog.setVisibility(View.GONE);
-				} else {
-					prog.setVisibility(View.VISIBLE);
+				if (!pageLoading) {
+					beginPageProgress();
+				}
+				if (p > 0) {
+					prog.setIndeterminate(false);
+					prog.setProgress(Math.min(100, p));
+				}
+				if (p >= 100) {
+					finishPageProgress();
 				}
 			}
 			
