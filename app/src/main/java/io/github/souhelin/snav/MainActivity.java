@@ -453,13 +453,13 @@ public class MainActivity extends Activity {
 	private void addSiteInfoRow(LinearLayout parent, String title, String value) {
 		TextView heading = new TextView(this);
 		heading.setText(title);
-		heading.setTextColor(Color.parseColor("#757575"));
+		heading.setTextColor(Color.parseColor("#DCE1E6"));
 		heading.setTextSize(12);
 		parent.addView(heading);
 
 		TextView detail = new TextView(this);
 		detail.setText(value);
-		detail.setTextColor(Color.parseColor("#34495E"));
+		detail.setTextColor(Color.WHITE);
 		detail.setTextSize(14);
 		detail.setTextIsSelectable(true);
 		detail.setPadding(0, siteInfoDp(3), 0, siteInfoDp(12));
@@ -484,13 +484,13 @@ public class MainActivity extends Activity {
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(siteInfoDp(24), siteInfoDp(22), siteInfoDp(24), siteInfoDp(28));
 		GradientDrawable surface = new GradientDrawable();
-		surface.setColor(Color.WHITE);
+		surface.setColor(Color.parseColor("#34495E"));
 		surface.setCornerRadii(new float[] { siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), 0, 0, 0, 0 });
 		content.setBackground(surface);
 
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
-		title.setTextColor(Color.parseColor("#34495E"));
+		title.setTextColor(Color.WHITE);
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		title.setPadding(0, 0, 0, siteInfoDp(18));
