@@ -1,29 +1,59 @@
+// Top-level build file for the Snav Browser Android application.
 plugins {
-	id 'com.android.application'
+    id 'com.android.application'
 }
 
+def releaseKeystorePath = System.getenv("KEYSTORE_PATH")
+def releaseKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
+def releaseKeyAlias = System.getenv("KEY_ALIAS")
+def releaseKeyPassword = System.getenv("KEY_PASSWORD")
+
+def hasReleaseSigning = [
+    releaseKeystorePath,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword
+].every { value -> value != null && !value.trim().isEmpty() }
+
 android {
-	compileSdk 34
-	
-	useLibrary 'org.apache.http.legacy'
-	
-	defaultConfig {
-		applicationId "io.github.souhelin.snav"
-		namespace "io.github.souhelin.snav"
-		minSdkVersion 21
-		targetSdkVersion 35
-		versionCode 1
-		versionName "0.2.0"
-	}
-	
-	buildTypes {
-		release {
-			minifyEnabled false
-			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-		}
-	}
+    compileSdk 34
+
+    useLibrary 'org.apache.http.legacy'
+
+    defaultConfig {
+        applicationId "io.github.souhelin.snav"
+        namespace "io.github.souhelin.snav"
+        minSdkVersion 21
+        targetSdkVersion 35
+        versionCode 1
+        versionName "0.2.0"
+    }
+
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            // Local release builds remain possible without credentials.
+            // CI supplies all four values and produces a signed APK.
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
 }
 
 dependencies {
-	implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
 }
