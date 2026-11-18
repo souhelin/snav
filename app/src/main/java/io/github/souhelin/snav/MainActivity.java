@@ -708,10 +708,11 @@ public class MainActivity extends Activity {
 	
 	public void _internet() {
 		//internet
-		// Barra de progresso
-		final View prog = findViewById(R.id.prog);
-		prog.setPivotX(0);
-		prog.setScaleX(0f);
+		// Barra de progresso MD3
+		prog.setVisibility(View.GONE);
+		prog.setAlpha(1f);
+		prog.setProgress(0);
+		prog.setIndeterminate(true);
 		
 		// Cookies
 		android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
