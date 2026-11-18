@@ -453,7 +453,9 @@ public class MainActivity extends Activity {
 
 	private void beginPageProgress() {
 		pageLoading = true;
-		progressHandler.removeCallbacks(showProgressRunnable);
+		if (showProgressRunnable != null) {
+			progressHandler.removeCallbacks(showProgressRunnable);
+		}
 		if (progressAnimator != null) {
 			progressAnimator.cancel();
 		}
@@ -478,7 +480,9 @@ public class MainActivity extends Activity {
 			return;
 		}
 		pageLoading = false;
-		progressHandler.removeCallbacks(showProgressRunnable);
+		if (showProgressRunnable != null) {
+			progressHandler.removeCallbacks(showProgressRunnable);
+		}
 		if (progressAnimator != null) {
 			progressAnimator.cancel();
 		}
