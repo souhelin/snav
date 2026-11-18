@@ -447,12 +447,16 @@ public class MainActivity extends Activity {
 	}
 	
 	private final Handler progressHandler = new Handler(Looper.getMainLooper());
+	private ObjectAnimator progressAnimator;
 	private Runnable showProgressRunnable;
 	private boolean pageLoading = false;
 
 	private void beginPageProgress() {
 		pageLoading = true;
 		progressHandler.removeCallbacks(showProgressRunnable);
+		if (progressAnimator != null) {
+			progressAnimator.cancel();
+		}
 		prog.animate().cancel();
 		prog.setAlpha(1f);
 		prog.setProgress(0);
@@ -475,6 +479,9 @@ public class MainActivity extends Activity {
 		}
 		pageLoading = false;
 		progressHandler.removeCallbacks(showProgressRunnable);
+		if (progressAnimator != null) {
+			progressAnimator.cancel();
+		}
 		prog.setIndeterminate(false);
 		prog.setProgress(100);
 
@@ -808,7 +815,12 @@ public class MainActivity extends Activity {
 				}
 				if (p > 0) {
 					prog.setIndeterminate(false);
-					prog.setProgress(Math.min(100, p));
+					if (progressAnimator != null) {
+						progressAnimator.cancel();
+					}
+					progressAnimator = ObjectAnimator.ofInt(prog, "progress", prog.getProgress(), Math.min(100, p));
+					progressAnimator.setDuration(100);
+					progressAnimator.start();
 				}
 				if (p >= 100) {
 					finishPageProgress();
