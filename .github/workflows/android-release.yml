@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-release:
-    name: Build release APK
+    name: Build signed release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -30,8 +30,7 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Prepare optional release signing
-        id: signing
+      - name: Validate release signing secrets and decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
@@ -40,24 +39,33 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -z "${KEYSTORE_BASE64:-}" ] || [ -z "${KEYSTORE_FILE:-}" ] || [ -z "${KEYSTORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
-            echo "Release signing secrets are incomplete; building an unsigned release APK."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+
+          for name in KEYSTORE_BASE64 KEYSTORE_FILE KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Required signing secret $name is missing."
+              exit 1
+            fi
+          done
 
           case "$KEYSTORE_FILE" in
             */*|*\\*)
-              echo "KEYSTORE_FILE must be a file name, not a path."
+              echo "::error::KEYSTORE_FILE must be a file name, not a path."
               exit 1
               ;;
           esac
 
           KEYSTORE_PATH="$RUNNER_TEMP/$KEYSTORE_FILE"
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
-          test -s "$KEYSTORE_PATH"
+          if ! printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
+            echo "::error::KEYSTORE_BASE64 is not valid base64."
+            exit 1
+          fi
+          if [ ! -s "$KEYSTORE_PATH" ]; then
+            echo "::error::Decoded keystore is empty."
+            exit 1
+          fi
+
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
           echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
-          echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build release APK
         env:
@@ -66,10 +74,20 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: gradle --no-daemon :app:assembleRelease
 
-      - name: Upload release APK
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -s "$APK" ]; then
+            echo "::error::Release APK was not generated."
+            exit 1
+          fi
+          apksigner verify --verbose --print-certs "$APK"
+
+      - name: Upload signed release APK
         uses: actions/upload-artifact@v4
         with:
-          name: snav-browser-release
+          name: snav-browser-release-signed
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 14
