@@ -1155,6 +1155,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(siteInfoDp(24), siteInfoDp(22), siteInfoDp(24), siteInfoDp(28));
+		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
