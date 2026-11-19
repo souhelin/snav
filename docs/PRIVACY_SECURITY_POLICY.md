@@ -8,7 +8,7 @@ Este documento define o comportamento que o Snav deve adotar. Itens identificado
 
 ## 1. Estado verificado na base atual
 
-A inspeção da branch `main` em 19/11/2026 confirmou:
+A inspeção inicial da branch `main` em 19/11/2026 confirmou:
 
 - O manifesto declara `android:usesCleartextTraffic="false"`.
 - O manifesto declara `android:allowBackup="false"`.
@@ -16,7 +16,7 @@ A inspeção da branch `main` em 19/11/2026 confirmou:
 - O WebView está habilitado para JavaScript por padrão e existe um controle de interface para desativá-lo.
 - A limpeza atualmente visível limpa cache e histórico do WebView.
 - Os diagnósticos registram eventos de navegação e host, evitando registrar o URL completo nesses eventos.
-- Não foi localizada, na inspeção realizada, uma implementação de bloqueio de rastreadores, política explícita de cookies de terceiros, permissões por origem, limpeza completa por site ou fluxo de confirmação de download.
+- A base inicial já bloqueava cookies de terceiros, exibia confirmação de download, ativava Safe Browsing e bloqueava conteúdo misto. A inspeção inicial não encontrou bloqueio de rastreadores, diálogo HTTPS-First ou gestão de permissões por origem.
 
 Esses pontos são uma fotografia da base inspecionada, não uma certificação de segurança completa.
 
@@ -37,13 +37,13 @@ Esses pontos são uma fotografia da base inspecionada, não uma certificação d
 
 - Cookies próprios (first-party): **permitidos** por padrão para preservar sessões e funcionamento dos sites.
 - Cookies de terceiros: **bloqueados** por padrão, com controle explícito nas configurações.
-- O usuário deve poder revisar e alterar a política de cookies.
+- O usuário pode revisar e alterar a política em Preferências; a escolha é persistida localmente.
 - A mudança de política deve ser aplicada aos WebViews existentes e novos, sem criar instâncias desnecessárias.
 
 ### Implementação exigida
 
 - Usar `CookieManager` e `WebSettings` de forma compatível com a API mínima do projeto.
-- Aplicar `setAcceptThirdPartyCookies(webView, false)` por WebView em Android compatível; validar o comportamento na matriz de versões suportadas.
+- Aplicar `setAcceptThirdPartyCookies(webView, false)` por WebView em Android compatível; o switch persistente altera essa preferência. Em versões anteriores à API 21, a API não oferece esse controle.
 - Manter cookies first-party habilitados, salvo escolha expressa do usuário.
 - Não apagar todos os cookies quando o usuário solicitar a remoção de dados de apenas um site.
 - Não tratar bloqueio de cookies de terceiros como bloqueio completo de rastreadores.
