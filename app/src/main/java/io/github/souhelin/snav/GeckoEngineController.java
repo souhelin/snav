@@ -168,7 +168,7 @@ public final class GeckoEngineController {
                 }
                 if (uri.equals("about:blank")) return GeckoResult.allow();
                 if (uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
-                    String readerTarget = parsed.getQueryParameter("url");
+                    String readerTarget = readerTargetFromUri(uri);
                     Uri readerUri = readerTarget == null ? null : Uri.parse(readerTarget);
                     if (readerUri != null && "https".equalsIgnoreCase(readerUri.getScheme())
                         && readerUri.getHost() != null && readerUri.getUserInfo() == null) {
@@ -263,6 +263,23 @@ public final class GeckoEngineController {
         this.listener = listener;
     }
 
+    private static String readerTargetFromUri(String value) {
+        if (value == null || !value.regionMatches(true, 0, "about:reader?", 0, 13)) return null;
+        int queryStart = value.indexOf('?');
+        if (queryStart < 0 || queryStart + 1 >= value.length()) return null;
+        String[] parameters = value.substring(queryStart + 1).split("&");
+        for (String parameter : parameters) {
+            int separator = parameter.indexOf('=');
+            if (separator < 0) continue;
+            String name = Uri.decode(parameter.substring(0, separator).replace("+", "%20"));
+            if ("url".equals(name)) {
+                String target = Uri.decode(parameter.substring(separator + 1).replace("+", "%20"));
+                return target == null || target.trim().isEmpty() ? null : target;
+            }
+        }
+        return null;
+    }
+
     public void loadUri(String uri, boolean doNotTrack) {
         ensureOpen();
         if (uri == null || uri.trim().isEmpty()) throw new IllegalArgumentException("URI must not be empty");
@@ -272,7 +289,7 @@ public final class GeckoEngineController {
         boolean blank = uri.equals("about:blank");
         boolean reader = false;
         if (uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
-            String target = parsed.getQueryParameter("url");
+            String target = readerTargetFromUri(uri);
             Uri targetUri = target == null ? null : Uri.parse(target);
             reader = targetUri != null && "https".equalsIgnoreCase(targetUri.getScheme())
                 && targetUri.getHost() != null && targetUri.getUserInfo() == null;
