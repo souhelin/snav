@@ -66,6 +66,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private boolean javaScriptEnabled = true;
 	private boolean readerMode;
 	private String readerOriginalUri;
+	private GeckoSession.SessionState pendingSessionState;
+	private String pendingRestoreUri;
+	private static final String STATE_GECKO_SESSION = "snav_gecko_session_state";
+	private static final String STATE_GECKO_URI = "snav_gecko_current_uri";
 	private GeckoSession.PermissionDelegate.Callback pendingAndroidPermissionCallback;
 	private String pendingAndroidPermissionOrigin;
 	private GeckoSession.PermissionDelegate.MediaCallback pendingMediaPermissionCallback;
@@ -142,6 +146,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onCreate(Bundle _savedInstanceState) {
 		super.onCreate(_savedInstanceState);
 		setContentView(R.layout.main);
+		if (_savedInstanceState != null) {
+			if (Build.VERSION.SDK_INT >= 33) {
+				pendingSessionState = _savedInstanceState.getParcelable(STATE_GECKO_SESSION, GeckoSession.SessionState.class);
+			} else {
+				pendingSessionState = (GeckoSession.SessionState) _savedInstanceState.getParcelable(STATE_GECKO_SESSION);
+			}
+			pendingRestoreUri = _savedInstanceState.getString(STATE_GECKO_URI);
+		}
 		startDiagnostics();
 		initialize(_savedInstanceState);
 		initializeLogic();
@@ -737,7 +749,19 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	@Override
-	protected void onResume() {
+		@Override
+	protected void onSaveInstanceState(Bundle outState) {
+		if (geckoEngine != null) {
+			geckoEngine.flushSessionState();
+			GeckoSession.SessionState state = geckoEngine.getSessionState();
+			if (state != null) outState.putParcelable(STATE_GECKO_SESSION, state);
+			String uri = geckoEngine.getCurrentUri();
+			if (uri != null) outState.putString(STATE_GECKO_URI, uri);
+		}
+		super.onSaveInstanceState(outState);
+	}
+
+protected void onResume() {
 		super.onResume();
 		if (geckoEngine != null) geckoEngine.setActive(true);
 		logDiagnostic("Ciclo de vida: onResume");
@@ -1726,6 +1750,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             },
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
+        if (pendingSessionState != null) {
+            geckoEngine.restoreState(pendingSessionState);
+            pendingSessionState = null;
+        } else if (pendingRestoreUri != null && pendingRestoreUri.startsWith("https://")) {
+            loadUrlWithPrivacyHeaders(pendingRestoreUri);
+        }
+        pendingRestoreUri = null;
         installGeckoPermissionDelegate();
         setupPullToRefresh();
     }
