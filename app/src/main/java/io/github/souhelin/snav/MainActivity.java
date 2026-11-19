@@ -789,6 +789,15 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			closeResponseBody(pendingGeckoDownload);
 			pendingGeckoDownload = null;
 		}
+		if (pendingAndroidPermissionCallback != null) {
+			pendingAndroidPermissionCallback.reject();
+			pendingAndroidPermissionCallback = null;
+		}
+		if (pendingMediaPermissionCallback != null) {
+			pendingMediaPermissionCallback.reject();
+			pendingMediaPermissionCallback = null;
+		}
+		pendingAndroidPermissions = null;
 		if (downloadExecutor != null) downloadExecutor.shutdown();
 		if (geckoEngine != null) {
 			geckoEngine.close();
@@ -1400,7 +1409,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void handleGeckoDownload(final WebResponse response) {
-		if (response == null || response.body == null || !response.isSecure
+		if (response == null || response.body == null || response.uri == null || !response.isSecure
 			|| response.statusCode < 200 || response.statusCode >= 300) {
 			closeResponseBody(response);
 			Toast.makeText(this, "Download bloqueado: resposta inválida ou conexão não segura.", Toast.LENGTH_LONG).show();
@@ -1413,7 +1422,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			return;
 		}
 		String mime = responseHeader(response, "Content-Type");
-		String disposition = responseHeader(response, "Content-Disposition");
 		String disposition = responseHeader(response, "Content-Disposition");
 		final String name = guessDownloadFileName(response.uri, disposition);
 		response.setReadTimeoutMillis(120000);
@@ -1458,7 +1466,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void saveGeckoDownload(final WebResponse response, final String fileName) {
-		downloadExecutor.execute(new Runnable() {
+		if (downloadExecutor == null || downloadExecutor.isShutdown()) {
+			closeResponseBody(response);
+			return;
+		}
+		try {
+			downloadExecutor.execute(new Runnable() {
 			@Override public void run() {
 				Uri mediaUri = null;
 				java.io.File legacyFile = null;
@@ -1492,11 +1505,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						ready.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0);
 						getContentResolver().update(mediaUri, ready, null, null);
 					} else if (legacyFile != null) {
-						android.media.MediaScannerConnection.scanFile(MainActivity.this,
+						android.media.MediaScannerConnection.scanFile(getApplicationContext(),
 							new String[] { legacyFile.getAbsolutePath() }, null, null);
 					}
 					runOnUiThread(new Runnable() {
-						@Override public void run() { Toast.makeText(MainActivity.this, "Download salvo em Downloads", Toast.LENGTH_LONG).show(); }
+						@Override public void run() {
+							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Download salvo em Downloads", Toast.LENGTH_LONG).show();
+						}
 					});
 				} catch (final Exception error) {
 					if (mediaUri != null) getContentResolver().delete(mediaUri, null, null);
@@ -1504,11 +1519,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					closeResponseBody(response);
 					logDiagnostic("Falha ao salvar download Gecko: " + error.getClass().getSimpleName());
 					runOnUiThread(new Runnable() {
-						@Override public void run() { Toast.makeText(MainActivity.this, "Falha ao salvar o download", Toast.LENGTH_LONG).show(); }
+						@Override public void run() {
+							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Falha ao salvar o download", Toast.LENGTH_LONG).show();
+						}
 					});
 				}
 			}
-		});
+			});
+		} catch (java.util.concurrent.RejectedExecutionException error) {
+			closeResponseBody(response);
+		}
 	}
 	private void setupUnsplashWallpaper() {
 		if (checkbox_wallpaper == null) return;
