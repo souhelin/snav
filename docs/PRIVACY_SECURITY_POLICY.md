@@ -71,7 +71,7 @@ Esses pontos são uma fotografia da base inspecionada, não uma certificação d
 - Se uma navegação HTTP permanecer necessária, mostrar um diálogo MD3 antes de continuar, identificando que a conexão não é criptografada.
 - A ação principal deve ser voltar/cancelar; continuar em HTTP deve exigir escolha consciente e valer apenas para aquela navegação, salvo preferência futura explícita.
 - Nunca ignorar erros de certificado TLS. O comportamento padrão é cancelar.
-- Não habilitar cleartext globalmente para contornar sites incompatíveis.
+- O manifesto permite cleartext para suportar a navegação HTTP após consentimento explícito; essa exceção é restrita por código aos fluxos de navegação e download. Novos clientes de rede não podem usar HTTP em segundo plano.
 
 ## 6. Permissões de sites
 
