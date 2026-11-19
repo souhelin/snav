@@ -32,7 +32,7 @@ import android.webkit.*;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.*;
-import android.widget.CheckBox;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -49,7 +49,7 @@ import java.util.TimerTask;
 import java.util.regex.*;
 import org.json.*;
 
-public class MainActivity extends Activity {
+public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	private Timer _timer = new Timer();
 	
@@ -95,8 +95,8 @@ public class MainActivity extends Activity {
 	private TextView text7;
 	private ImageView imageview58;
 	private TextView text15;
-	private CheckBox checkbox_brilho;
-	private CheckBox checkbox_javascript2;
+	private MaterialSwitch checkbox_brilho;
+	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
 	private TextView b2;
@@ -171,7 +171,7 @@ public class MainActivity extends Activity {
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				focusSearchField();
+				openSearchScreen();
 			}
 		});
 
@@ -180,7 +180,7 @@ public class MainActivity extends Activity {
 			searchAction.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View view) {
-					focusSearchField();
+					openSearchScreen();
 				}
 			});
 		}
@@ -188,9 +188,7 @@ public class MainActivity extends Activity {
 		linear_b.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				tela1.setVisibility(View.VISIBLE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.GONE);
+				openSearchScreen();
 			}
 		});
 		
@@ -235,9 +233,7 @@ public class MainActivity extends Activity {
 		text2.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				tela1.setVisibility(View.VISIBLE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.GONE);
+				openSearchScreen();
 			}
 		});
 		
@@ -426,12 +422,10 @@ public class MainActivity extends Activity {
 			public void onCheckedChanged(CompoundButton _param1, boolean _param2) {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
-					checkbox_brilho.setChecked(true);
-					Dados.edit().putString("brilho", "ativado").commit();
+					Dados.edit().putString("brilho", "ativado").apply();
 					webview.setAlpha((float)(0.5d));
 				} else {
-					checkbox_brilho.setChecked(false);
-					Dados.edit().putString("brilho", "desativado").commit();
+					Dados.edit().putString("brilho", "desativado").apply();
 					webview.setAlpha((float)(1.0d));
 				}
 			}
@@ -442,13 +436,11 @@ public class MainActivity extends Activity {
 			public void onCheckedChanged(CompoundButton _param1, boolean _param2) {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
-					checkbox_javascript2.setChecked(true);
-					Dados.edit().putString("java", "ativado").commit();
+					Dados.edit().putString("java", "ativado").apply();
 					webview.getSettings().setJavaScriptEnabled(true); 
 				} else {
-					checkbox_javascript2.setChecked(false);
 					webview.getSettings().setJavaScriptEnabled(false); 
-					Dados.edit().putString("java", "desativado").commit();
+					Dados.edit().putString("java", "desativado").apply();
 				}
 			}
 		});
@@ -473,12 +465,22 @@ public class MainActivity extends Activity {
 	}
 	
 
-	private void focusSearchField() {
+	private void openSearchScreen() {
+		if (tela1 != null) tela1.setVisibility(View.VISIBLE);
+		if (tela2 != null) tela2.setVisibility(View.GONE);
+		if (tela3 != null) tela3.setVisibility(View.GONE);
 		if (edittext1 == null) return;
+
+		edittext1.setShowSoftInputOnFocus(true);
 		edittext1.requestFocus();
+		getWindow().setSoftInputMode(
+			android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+				| android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+		);
 		edittext1.post(new Runnable() {
 			@Override
 			public void run() {
+				if (isFinishing() || !edittext1.isShown()) return;
 				android.view.inputmethod.InputMethodManager keyboard =
 					(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 				if (keyboard != null) {
