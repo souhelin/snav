@@ -10,7 +10,7 @@ Este documento define o comportamento que o Snav deve adotar. Itens identificado
 
 A inspeção inicial da branch `main` em 19/11/2026 confirmou:
 
-- O manifesto declara `android:usesCleartextTraffic="false"`.
+- O manifesto declara `android:usesCleartextTraffic="true"` para permitir HTTP somente após o aviso explícito do Snav; a proteção depende dos interceptadores de navegação e da confirmação de downloads. Essa permissão é global no nível Android e exige revisão obrigatória em qualquer novo cliente de rede.
 - O manifesto declara `android:allowBackup="false"`.
 - O tratamento atual de erro SSL cancela a navegação; não deve existir opção de ignorar certificados.
 - O WebView está habilitado para JavaScript por padrão e existe um controle de interface para desativá-lo.
