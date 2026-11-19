@@ -105,3 +105,9 @@ Este arquivo registra mudanças confirmadas no repositório. Itens de privacidad
 - Política de rede endurecida: cleartext global desativado; navegação HTTP só tenta upgrade HTTPS; downloads HTTP rejeitados.
 - Tela de informações do site ganhou atalho às configurações Android e limpeza da autorização de geolocalização WebView para a origem.
 - Documentadas limitações não contornáveis com as APIs públicas do Android WebView: cabeçalho DNT universal, remoção integral de cookies por origem, revogação individual de câmera/microfone e notificações web por origem.
+
+
+## Correção — crash na animação Pull to Refresh
+
+- Corrigido o uso da `SpringForce` resolvida pelo Material Motion: agora os parâmetros oficiais de damping e stiffness são aplicados à mola da `SpringAnimation` que já possui posição final definida em 0°.
+- Evita iniciar a animação com a posição final não inicializada, causa do crash `Final position of the spring cannot be greater than the max value` registrado no Android 16.
