@@ -62,12 +62,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private Timer _timer = new Timer();
 	
 	private double toque = 0;
-	private static final String[] TRACKER_DOMAINS = new String[] {
-		"doubleclick.net", "googlesyndication.com", "google-analytics.com",
-		"googletagmanager.com", "adservice.google.com", "connect.facebook.net",
-		"facebook.net", "hotjar.com", "scorecardresearch.com", "clarity.ms",
-		"quantserve.com", "taboola.com", "outbrain.com"
-	};
 	private GeckoEngineController geckoEngine;
 	private int geckoScrollY;
 	private boolean javaScriptEnabled = true;
@@ -400,9 +394,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
 					Dados.edit().putString("java", "ativado").apply();
-					geckoEngine.setJavaScriptEnabled(true); 
+					javaScriptEnabled = true;
+					if (geckoEngine != null) geckoEngine.setJavaScriptEnabled(true); 
 				} else {
-					geckoEngine.setJavaScriptEnabled(false); 
+					javaScriptEnabled = false;
+					if (geckoEngine != null) geckoEngine.setJavaScriptEnabled(false); 
 					Dados.edit().putString("java", "desativado").apply();
 				}
 			}
@@ -974,6 +970,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		boolean granted = grantResults != null && grantResults.length > 0;
 		for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
+		boolean permissionsGranted = grantResults != null && grantResults.length > 0;
+		for (int result : grantResults) permissionsGranted = permissionsGranted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
 		if (requestCode == 4103) {
 			GeckoSession.PermissionDelegate.Callback callback = pendingAndroidPermissionCallback;
 			pendingAndroidPermissionCallback = null;
@@ -987,6 +985,18 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			pendingGeckoDownloadName = null;
 			if (response != null) {
 				if (granted) saveGeckoDownload(response, name);
+				else {
+					closeResponseBody(response);
+					Toast.makeText(this, "Permissão negada. Download cancelado.", Toast.LENGTH_LONG).show();
+				}
+			}
+		} else if (requestCode == 4104) {
+			WebResponse response = pendingGeckoDownload;
+			String name = pendingGeckoDownloadName;
+			pendingGeckoDownload = null;
+			pendingGeckoDownloadName = null;
+			if (response != null) {
+				if (permissionsGranted) saveGeckoDownload(response, name);
 				else {
 					closeResponseBody(response);
 					Toast.makeText(this, "Permissão negada. Download cancelado.", Toast.LENGTH_LONG).show();
@@ -1627,6 +1637,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 }
                 @Override public void onContentProcessCrashed() {
                     logDiagnostic("Processo de conteúdo Gecko encerrou inesperadamente");
+                    if (geckoEngine != null && geckoEngine.getCurrentUri() != null && geckoEngine.getCurrentUri().startsWith("https://")) geckoEngine.reload();
                     finishPageProgress();
                     setLoadStopIcon(false);
                     Toast.makeText(MainActivity.this, "A página encontrou um problema. Tente recarregar.", Toast.LENGTH_LONG).show();
