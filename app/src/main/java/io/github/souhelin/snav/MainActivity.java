@@ -1002,7 +1002,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			pendingAndroidPermissions = null;
 			boolean permissionsGranted = areAndroidPermissionsGranted(requested);
 			if (!permissionsGranted && Build.VERSION.SDK_INT >= 23 && requested != null) {
+				boolean locationAvailable = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+					|| checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
 				for (String permission : requested) {
+					boolean locationPermission = android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission)
+						|| android.Manifest.permission.ACCESS_COARSE_LOCATION.equals(permission);
+					if (locationPermission && locationAvailable) continue;
 					if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED
 						&& !shouldShowRequestPermissionRationale(permission)) {
 						Dados.edit().putBoolean(permissionDenialKey(permission), true).apply();
@@ -1164,14 +1169,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						callback.reject();
 						return;
 					}
-					if (Build.VERSION.SDK_INT >= 23
-						&& checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-						if (isPermissionPermanentlyDenied(permission)) {
-							callback.reject();
-							return;
-						}
-						missing.add(permission);
+					if (Build.VERSION.SDK_INT < 23 || checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) continue;
+					if (android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission)
+						&& checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) continue;
+					if (android.Manifest.permission.ACCESS_COARSE_LOCATION.equals(permission)
+						&& checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) continue;
+					if (isPermissionPermanentlyDenied(permission)) {
+						callback.reject();
+						return;
 					}
+					missing.add(permission);
 				}
 				if (missing.isEmpty() || Build.VERSION.SDK_INT < 23) {
 					callback.grant();
@@ -1241,9 +1248,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private boolean isPermissionPermanentlyDenied(String permission) {
-		return Build.VERSION.SDK_INT >= 23
-			&& checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED
-			&& Dados.getBoolean(permissionDenialKey(permission), false);
+		if (Build.VERSION.SDK_INT < 23 || Dados == null
+			|| checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+		if (android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission)
+			|| android.Manifest.permission.ACCESS_COARSE_LOCATION.equals(permission)) {
+			if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+				|| checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+		}
+		return Dados.getBoolean(permissionDenialKey(permission), false);
 	}
 
 	private void clearGrantedPermissionDenials() {
