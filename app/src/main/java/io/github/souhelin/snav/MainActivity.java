@@ -1139,7 +1139,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			});
 		}
 		return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked",
-			"Content-Type", new java.io.ByteArrayInputStream(new byte[0]));
+			new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
 	}
 
 	private void showInsecureConnectionDialog(final WebView view, final String url) {
