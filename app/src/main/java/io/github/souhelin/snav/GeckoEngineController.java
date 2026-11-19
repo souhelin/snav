@@ -1,6 +1,7 @@
 package io.github.souhelin.snav;
 
 import android.content.Context;
+import android.net.Uri;
 
 import org.mozilla.geckoview.ContentBlocking;
 import org.mozilla.geckoview.GeckoResult;
@@ -140,13 +141,31 @@ public final class GeckoEngineController {
             ) {
                 String uri = request == null ? null : request.uri;
                 if (uri == null) return GeckoResult.deny();
-                if (uri.regionMatches(true, 0, "https://", 0, 8)
-                    || uri.equals("about:blank")
-                    || uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
+                Uri parsed = Uri.parse(uri);
+                if ("https".equalsIgnoreCase(parsed.getScheme())
+                    && parsed.getHost() != null && parsed.getUserInfo() == null) {
+                    if (request.target == GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW) {
+                        if (request.hasUserGesture) {
+                            currentSession.load(new GeckoSession.Loader()
+                                .uri(uri)
+                                .flags(GeckoSession.LOAD_FLAGS_BYPASS_LOAD_URI_DELEGATE));
+                        }
+                        return GeckoResult.deny();
+                    }
                     return GeckoResult.allow();
                 }
+                if (uri.equals("about:blank")) return GeckoResult.allow();
+                if (uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
+                    String readerTarget = parsed.getQueryParameter("url");
+                    Uri readerUri = readerTarget == null ? null : Uri.parse(readerTarget);
+                    if (readerUri != null && "https".equalsIgnoreCase(readerUri.getScheme())
+                        && readerUri.getHost() != null && readerUri.getUserInfo() == null) {
+                        return GeckoResult.allow();
+                    }
+                    return GeckoResult.deny();
+                }
                 Listener callback = GeckoEngineController.this.listener;
-                if (uri.regionMatches(true, 0, "http://", 0, 7)) {
+                if ("http".equalsIgnoreCase(parsed.getScheme())) {
                     if (!closed && callback != null) callback.onInsecureNavigationBlocked(uri, request.triggerUri);
                 } else if (!closed && callback != null) {
                     callback.onExternalNavigationRequested(uri);
@@ -242,10 +261,19 @@ public final class GeckoEngineController {
     public void loadUri(String uri, boolean doNotTrack) {
         ensureOpen();
         if (uri == null || uri.trim().isEmpty()) throw new IllegalArgumentException("URI must not be empty");
-        if (!uri.regionMatches(true, 0, "https://", 0, 8)
-            && !uri.equals("about:blank")
-            && !uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
-            throw new SecurityException("Only HTTPS and internal reader pages are allowed");
+        Uri parsed = Uri.parse(uri);
+        boolean https = "https".equalsIgnoreCase(parsed.getScheme())
+            && parsed.getHost() != null && parsed.getUserInfo() == null;
+        boolean blank = uri.equals("about:blank");
+        boolean reader = false;
+        if (uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
+            String target = parsed.getQueryParameter("url");
+            Uri targetUri = target == null ? null : Uri.parse(target);
+            reader = targetUri != null && "https".equalsIgnoreCase(targetUri.getScheme())
+                && targetUri.getHost() != null && targetUri.getUserInfo() == null;
+        }
+        if (!https && !blank && !reader) {
+            throw new SecurityException("Only valid HTTPS pages and internal reader pages are allowed");
         }
         if (doNotTrack) {
             Map<String, String> headers = new java.util.HashMap<>();
