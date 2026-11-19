@@ -64,8 +64,8 @@
                     android:inputType="textUri"
                     android:padding="0dp"
                     android:hint="Pesquisar ou inserir endereço"
-                    android:textColor="#FAFAFA"
-                    android:textColorHint="#D5DDE5"
+                    android:textColor="@color/snav_on_surface"
+                    android:textColorHint="@color/snav_on_surface_variant"
                     android:textSize="16sp"
                     android:selectAllOnFocus="true" />
 
@@ -131,6 +131,18 @@
                         android:scaleType="fitCenter"
                         android:src="@drawable/ms_tune"
                         android:tint="@color/snav_on_surface_variant" />
+
+                    <ImageButton
+                        android:id="@+id/button_load_stop"
+                        android:layout_width="40dp"
+                        android:layout_height="48dp"
+                        android:layout_marginEnd="4dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Atualizar página"
+                        android:padding="10dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ms_refresh"
+                        android:tint="@color/snav_primary" />
 
                     <TextView
                         android:id="@+id/text_barra"
@@ -434,6 +446,25 @@
                             android:checked="true"
                             android:gravity="center_vertical"
                             android:text="JavaScript"
+                            android:textColor="@color/snav_on_surface"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/linear_wallpaper"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/checkbox_wallpaper"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            style="@style/SnavMaterialSwitch"
+                            android:minHeight="48dp"
+                            android:gravity="center_vertical"
+                            android:text="Wallpaper Unsplash"
                             android:textColor="@color/snav_on_surface"
                             android:textSize="14sp" />
                     </LinearLayout>
