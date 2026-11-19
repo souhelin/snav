@@ -39,6 +39,8 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDragHandleView;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import org.mozilla.geckoview.TranslationsController;
 import com.google.android.material.motion.MotionUtils;
 import androidx.dynamicanimation.animation.DynamicAnimation;
@@ -895,19 +897,26 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		subtitle.setTextSize(13);
 		subtitle.setPadding(0, dp(6), 0, dp(16));
 		content.addView(subtitle);
-		TextView fromLabel = new TextView(this);
-		fromLabel.setText("Idioma da página");
-		fromLabel.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
-		content.addView(fromLabel);
-		final Spinner fromSpinner = new Spinner(this);
-		content.addView(fromSpinner, new LinearLayout.LayoutParams(-1, dp(52)));
-		TextView toLabel = new TextView(this);
-		toLabel.setText("Traduzir para");
-		toLabel.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
-		toLabel.setPadding(0, dp(10), 0, 0);
-		content.addView(toLabel);
-		final Spinner toSpinner = new Spinner(this);
-		content.addView(toSpinner, new LinearLayout.LayoutParams(-1, dp(52)));
+		final TextInputLayout fromLayout = new TextInputLayout(this);
+		fromLayout.setHint("Idioma da página");
+		fromLayout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		final MaterialAutoCompleteTextView fromInput = new MaterialAutoCompleteTextView(this);
+		fromInput.setInputType(android.text.InputType.TYPE_NULL);
+		fromInput.setKeyListener(null);
+		fromInput.setThreshold(0);
+		fromLayout.addView(fromInput, new LinearLayout.LayoutParams(-1, -2));
+		content.addView(fromLayout, new LinearLayout.LayoutParams(-1, -2));
+		final TextInputLayout toLayout = new TextInputLayout(this);
+		toLayout.setHint("Traduzir para");
+		toLayout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+		final MaterialAutoCompleteTextView toInput = new MaterialAutoCompleteTextView(this);
+		toInput.setInputType(android.text.InputType.TYPE_NULL);
+		toInput.setKeyListener(null);
+		toInput.setThreshold(0);
+		toLayout.addView(toInput, new LinearLayout.LayoutParams(-1, -2));
+		LinearLayout.LayoutParams toParams = new LinearLayout.LayoutParams(-1, -2);
+		toParams.topMargin = dp(12);
+		content.addView(toLayout, toParams);
 		final TextView status = new TextView(this);
 		status.setText("Carregando idiomas disponíveis…");
 		status.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
@@ -960,14 +969,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 									ArrayList<String> targetNames = new ArrayList<>();
 									for (TranslationsController.Language language : sourceLanguages) sourceNames.add(language.localizedDisplayName);
 									for (TranslationsController.Language language : targetLanguages) targetNames.add(language.localizedDisplayName);
-									ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, sourceNames);
-									sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-									fromSpinner.setAdapter(sourceAdapter);
-									ArrayAdapter<String> targetAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, targetNames);
-									targetAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-									toSpinner.setAdapter(targetAdapter);
-									fromSpinner.setSelection(findLanguageIndex(sourceLanguages, detectedPageLanguage));
-									toSpinner.setSelection(findLanguageIndex(targetLanguages, "pt"));
+									ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(MainActivity.this, com.google.android.material.R.layout.support_simple_spinner_dropdown_item, sourceNames);
+									fromInput.setAdapter(sourceAdapter);
+									ArrayAdapter<String> targetAdapter = new ArrayAdapter<>(MainActivity.this, com.google.android.material.R.layout.support_simple_spinner_dropdown_item, targetNames);
+									toInput.setAdapter(targetAdapter);
+									fromInput.setText(sourceNames.get(findLanguageIndex(sourceLanguages, detectedPageLanguage)), false);
+									toInput.setText(targetNames.get(findLanguageIndex(targetLanguages, "pt")), false);
 									status.setText(detectedPageLanguage == null
 										? "Selecione o idioma de origem. A detecção automática será usada quando disponível."
 										: "Idioma detectado: " + detectedPageLanguage);
@@ -990,8 +997,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		translate.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
 				if (sourceLanguages.isEmpty() || targetLanguages.isEmpty() || geckoEngine == null) return;
-				final String from = sourceLanguages.get(fromSpinner.getSelectedItemPosition()).code;
-				final String to = targetLanguages.get(toSpinner.getSelectedItemPosition()).code;
+				int fromIndex = sourceNames.indexOf(fromInput.getText().toString());
+				int toIndex = targetNames.indexOf(toInput.getText().toString());
+				if (fromIndex < 0 || toIndex < 0) {
+					status.setText("Selecione os dois idiomas.");
+					return;
+				}
+				final String from = sourceLanguages.get(fromIndex).code;
+				final String to = targetLanguages.get(toIndex).code;
 				if (from.equalsIgnoreCase(to)) {
 					status.setText("Escolha idiomas diferentes.");
 					return;
