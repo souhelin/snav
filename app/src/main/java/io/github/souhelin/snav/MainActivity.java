@@ -257,10 +257,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				openSearchScreen();
+			@Override public void onClick(View view) { openSearchScreen(); }
+		});
+		edittext1.setFocusableInTouchMode(true);
+		edittext1.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+			@Override public void onFocusChange(View view, boolean hasFocus) {
+				if (hasFocus) showSearchKeyboard();
 			}
+		});
+		edittext1.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) { showSearchKeyboard(); }
 		});
 
 		ImageView searchAction = findViewById(R.id.image_search_action);
@@ -423,20 +429,20 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (edittext1 == null) return;
 
 		edittext1.setShowSoftInputOnFocus(true);
+		getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
 		edittext1.requestFocus();
-		getWindow().setSoftInputMode(
-			android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
-				| android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-		);
+		showSearchKeyboard();
+	}
+
+	private void showSearchKeyboard() {
+		if (edittext1 == null) return;
 		edittext1.post(new Runnable() {
-			@Override
-			public void run() {
-				if (isFinishing() || !edittext1.isShown()) return;
+			@Override public void run() {
+				if (isFinishing() || isDestroyed() || !edittext1.isShown() || !edittext1.hasFocus()) return;
 				android.view.inputmethod.InputMethodManager keyboard =
 					(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-				if (keyboard != null) {
-					keyboard.showSoftInput(edittext1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
-				}
+				if (keyboard != null) keyboard.showSoftInput(edittext1,
+					android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
 			}
 		});
 	}
@@ -1315,6 +1321,32 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
 	}
 
+	private String domainForAddressBar(String uri) {
+		if (uri == null || uri.trim().isEmpty()) return "Snav Browser";
+		String candidate = uri;
+		if (uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
+			if (readerOriginalUri != null) candidate = readerOriginalUri;
+			else {
+				int queryStart = uri.indexOf('?');
+				if (queryStart >= 0) {
+					for (String parameter : uri.substring(queryStart + 1).split("&")) {
+						int separator = parameter.indexOf('=');
+						if (separator > 0 && "url".equals(Uri.decode(parameter.substring(0, separator)))) {
+							candidate = Uri.decode(parameter.substring(separator + 1).replace("+", "%20"));
+							break;
+						}
+					}
+				}
+			}
+		}
+		try {
+			String host = Uri.parse(candidate).getHost();
+			return host == null || host.trim().isEmpty() ? "Snav Browser" : host;
+		} catch (RuntimeException ignored) {
+			return "Snav Browser";
+		}
+	}
+
 	private void loadUrlWithPrivacyHeaders(String url) {
 		if (geckoEngine == null || url == null) return;
 		try { geckoEngine.loadUri(url, Dados.getBoolean("do_not_track", false)); }
@@ -2128,15 +2160,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     readerMode = uri != null && uri.regionMatches(true, 0, "about:reader?", 0, 13);
                     if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(readerMode ? 0.65f : 1f);
                     if (!readerMode && readerOriginalUri != null && uri != null && uri.equals(readerOriginalUri)) readerOriginalUri = null;
-                    if (uri == null) {
-                        text_barra.setText("Snav Browser");
-                        return;
-                    }
-                    Uri parsed = Uri.parse(uri);
-                    text_barra.setText(parsed.getHost() == null ? uri : parsed.getHost());
+                    text_barra.setText(domainForAddressBar(uri));
                 }
                 @Override public void onTitleChanged(String title) {
-                    if (title != null && !title.trim().isEmpty()) text_barra.setText(title);
+                    // The address bar intentionally displays the domain, never the page title.
                 }
                 @Override public void onInsecureNavigationBlocked(String uri, String source) {
                     showInsecureConnectionDialog(uri);
