@@ -15,11 +15,27 @@
         <item name="colorOnSurfaceVariant">@color/snav_on_surface_variant</item>
         <item name="colorOutline">@color/snav_on_surface_variant</item>
         <item name="materialSwitchStyle">@style/SnavMaterialSwitch</item>
+        <item name="bottomSheetDialogTheme">@style/SnavBottomSheetDialog</item>
         <item name="android:statusBarColor">@color/snav_background</item>
         <item name="android:navigationBarColor">@color/snav_surface</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <style name="SnavBottomSheetDialog" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/SnavModalBottomSheet</item>
+    </style>
+
+    <style name="SnavModalBottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="backgroundTint">@color/snav_surface</item>
+        <item name="shapeAppearance">@style/SnavBottomSheetShape</item>
+    </style>
+
+    <style name="SnavBottomSheetShape" parent="ShapeAppearance.Material3.Corner.ExtraLarge">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+
     <style name="FullScreen" parent="@style/AppTheme">
         <item name="android:windowFullscreen">true</item>
     </style>
