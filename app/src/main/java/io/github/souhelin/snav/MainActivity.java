@@ -749,7 +749,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	@Override
-		@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		if (geckoEngine != null) {
 			geckoEngine.flushSessionState();
@@ -761,7 +760,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		super.onSaveInstanceState(outState);
 	}
 
-protected void onResume() {
+	@Override
+	protected void onResume() {
 		super.onResume();
 		if (geckoEngine != null) geckoEngine.setActive(true);
 		logDiagnostic("Ciclo de vida: onResume");
@@ -1127,7 +1127,7 @@ protected void onResume() {
 	private boolean isSecureOrigin(String uri) {
 		if (uri == null) return false;
 		Uri parsed = Uri.parse(uri);
-		return "https".equalsIgnoreCase(parsed.getScheme()) && parsed.getHost() != null;
+		return "https".equalsIgnoreCase(parsed.getScheme()) && parsed.getHost() != null && parsed.getUserInfo() == null;
 	}
 
 	private void installGeckoPermissionDelegate() {
@@ -1756,6 +1756,7 @@ protected void onResume() {
             },
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
+        installGeckoPermissionDelegate();
         if (pendingSessionState != null) {
             geckoEngine.restoreState(pendingSessionState);
             pendingSessionState = null;
@@ -1763,7 +1764,6 @@ protected void onResume() {
             loadUrlWithPrivacyHeaders(pendingRestoreUri);
         }
         pendingRestoreUri = null;
-        installGeckoPermissionDelegate();
         setupPullToRefresh();
     }
 	
