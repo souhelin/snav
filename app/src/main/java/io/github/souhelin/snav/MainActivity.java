@@ -1110,7 +1110,9 @@ protected void onResume() {
 		final Uri parsed = Uri.parse(url);
 		if (parsed.getHost() == null || parsed.getUserInfo() != null) return;
 		final String host = parsed.getHost();
-		final String secureUrl = parsed.buildUpon().scheme("https").build().toString();
+		Uri.Builder secureBuilder = parsed.buildUpon().scheme("https");
+		if (parsed.getPort() == 80) secureBuilder.port(-1);
+		final String secureUrl = secureBuilder.build().toString();
 		new AlertDialog.Builder(this)
 			.setTitle("HTTP bloqueado")
 			.setMessage("O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS?")
@@ -1718,6 +1720,10 @@ protected void onResume() {
                     }
                 }
                 @Override public void onLocationChanged(String uri) {
+                    if (uri == null) {
+                        text_barra.setText("Snav Browser");
+                        return;
+                    }
                     Uri parsed = Uri.parse(uri);
                     text_barra.setText(parsed.getHost() == null ? uri : parsed.getHost());
                 }
