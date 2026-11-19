@@ -54,7 +54,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private Timer _timer = new Timer();
 	
 	private double toque = 0;
-	private boolean allowInsecureNavigationOnce = false;
 	private PermissionRequest pendingWebPermissionRequest;
 	private String pendingGeolocationOrigin;
 	private GeolocationPermissions.Callback pendingGeolocationCallback;
@@ -329,10 +328,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						@Override
 						public boolean shouldOverrideUrlLoading(WebView view, String url) {
 							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
-							if (allowInsecureNavigationOnce) {
-								allowInsecureNavigationOnce = false;
-								return false;
-							}
 						showInsecureConnectionDialog(view, url);
 						return true;
 					}
@@ -404,10 +399,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						@Override
 						public boolean shouldOverrideUrlLoading(WebView view, String url) {
 							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
-							if (allowInsecureNavigationOnce) {
-								allowInsecureNavigationOnce = false;
-								return false;
-							}
 						showInsecureConnectionDialog(view, url);
 						return true;
 					}
@@ -510,7 +501,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		String destination = resolveNavigationInput(input);
 		if (destination == null) return false;
 
-		webview.loadUrl(destination);
+		if (destination.regionMatches(true, 0, "http://", 0, 7)) {
+			showInsecureConnectionDialog(webview, destination);
+		} else {
+			webview.loadUrl(destination);
+		}
 		tela1.setVisibility(View.GONE);
 		tela2.setVisibility(View.VISIBLE);
 		tela3.setVisibility(View.GONE);
@@ -1123,13 +1118,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			.setMessage("A conexão com " + host + " usa HTTP e não é criptografada. Seus dados podem ser interceptados. Deseja continuar mesmo assim?")
 			.setPositiveButton("Continuar", new DialogInterface.OnClickListener() {
 				@Override public void onClick(DialogInterface dialog, int which) {
-					allowInsecureNavigationOnce = true;
 					view.loadUrl(url);
 				}
 			})
 			.setNegativeButton("Voltar", null)
 			.setOnCancelListener(new DialogInterface.OnCancelListener() {
-				@Override public void onCancel(DialogInterface dialog) { allowInsecureNavigationOnce = false; }
+				@Override public void onCancel(DialogInterface dialog) { }
 			}).show();
 	}
 
@@ -1293,10 +1287,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 				String target = request == null ? null : request.getUrl().toString();
 				if (target == null || !target.regionMatches(true, 0, "http://", 0, 7)) return false;
-				if (allowInsecureNavigationOnce) {
-					allowInsecureNavigationOnce = false;
-					return false;
-				}
 				showInsecureConnectionDialog(view, target);
 				return true;
 			}
@@ -1304,10 +1294,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public boolean shouldOverrideUrlLoading(WebView view, String url) {
 				if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
-				if (allowInsecureNavigationOnce) {
-					allowInsecureNavigationOnce = false;
-					return false;
-				}
 				showInsecureConnectionDialog(view, url);
 				return true;
 			}
