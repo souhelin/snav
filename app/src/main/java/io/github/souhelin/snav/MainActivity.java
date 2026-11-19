@@ -1102,9 +1102,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
 				Dados.edit().putBoolean("third_party_cookies", checked).apply();
 				CookieManager.getInstance().setAcceptThirdPartyCookies(webview, checked);
-				android.widget.Toast.makeText(MainActivity.this,
+				com.google.android.material.snackbar.Snackbar.make(linear33,
 					checked ? "Cookies de terceiros permitidos" : "Cookies de terceiros bloqueados",
-					android.widget.Toast.LENGTH_SHORT).show();
+					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
 			}
 		});
 		int insertAt = Math.max(0, linear33.getChildCount() - 1);
