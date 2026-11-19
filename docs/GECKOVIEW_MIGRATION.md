@@ -1,45 +1,60 @@
 # GeckoView migration — implementation notes
 
-## Dependency and runtime
+## Current branch state
 
-Snav now resolves GeckoView from Mozilla's Maven repository and pins the stable
-artifact version declared in `app/build.gradle`. Java source/target compatibility
-is set to Java 17 as required by current GeckoView consumer documentation.
+This branch contains the GeckoView dependency, Mozilla Maven repository,
+process-scoped runtime/session controller, Gecko navigation/progress/content
+callbacks, an HTTPS-only runtime policy, third-party cookie isolation, cookie
+purging, and query-parameter stripping.
 
-`GeckoEngineController` provides a process-scoped `GeckoRuntime` and an
-Activity/view-scoped `GeckoSession`. It exposes the core operations needed by
-the browser UI: load, reload, stop, back, and close.
+**The production browser has not yet been switched to GeckoView.** The layout
+still declares a WebView and MainActivity still contains WebView clients,
+WebChromeClient, CookieManager, WebStorage, JavaScript injection, permission
+callbacks, and the legacy download listener. The controller is not wired into
+MainActivity. Do not merge this branch or ship an APK as a GeckoView browser yet.
 
-## Important migration boundary
+## Nine integration workstreams still required
 
-This commit does **not** switch the production browser surface yet. The existing
-`MainActivity` still contains Android WebView-specific callbacks and APIs for
-navigation interception, TLS errors, downloads, JavaScript injection, file
-chooser, geolocation, and runtime permissions. Replacing the XML WebView alone
-would break these paths.
+1. **Browser surface:** replace the WebView element in `main.xml` with
+   `org.mozilla.geckoview.GeckoView`, preserve sizing, accessibility, and
+   existing Snav UI.
+2. **Activity ownership:** instantiate one controller per browser surface,
+   connect its listener, and close/recover sessions according to Activity and
+   content-process lifecycle.
+3. **Navigation:** migrate URL loading, back/forward, reload, stop, redirect,
+   external intents, and HTTPS-only handling to GeckoSession delegates.
+4. **Progress and metadata:** migrate page progress, URL/title updates, error
+   reporting, connection information, and back-state updates.
+5. **Tracking and cookies:** remove WebView request interception and use
+   Gecko content blocking and cookie behavior. Keep the existing preference
+   controls truthful; do not show a toggle that does not affect the engine.
+6. **Permissions and prompts:** migrate location, camera, microphone, JavaScript
+   prompts, file chooser, and fullscreen handling. Deny by default and require
+   explicit, origin-aware consent plus Android runtime permission.
+7. **Downloads and storage:** migrate external responses to a safe download
+   pipeline, preserve user confirmation and HTTPS checks, and implement clear
+   history/cache/site-data actions with Gecko storage APIs.
+8. **Browser tools:** migrate reader mode and JavaScript controls to supported
+   Gecko APIs or a narrowly scoped WebExtension/content script. Do not retain
+   WebView-only JavaScript injection or silently remove these features.
+9. **Validation and release:** run debug and release builds, R8/resource
+   shrinking, tests, emulator/device smoke tests, process-death recovery, and
+   inspect APK/AAB size and supported ABIs.
 
-The next integration change must migrate those responsibilities to GeckoSession
-delegates (NavigationDelegate, ProgressDelegate, ContentBlockingDelegate,
-PermissionDelegate, PromptDelegate, and ContentDelegate), then replace the
-WebView view in `main.xml` and remove the `android.webkit` dependency from
-`MainActivity`. Do not ship a mixed or fallback engine if the product decision
-is GeckoView-only.
+## Security decisions
 
-## Security and release checks
-
-- Keep TLS errors fail-closed; never add a certificate-error bypass.
-- Reimplement third-party tracker blocking using Gecko content-blocking APIs
-  rather than WebView request interception.
-- Grant camera, microphone, location, and file access only after explicit
-  origin-aware user consent.
-- Keep downloads constrained to safe destination handling and user-initiated
-  actions.
-- Verify release shrinking against the GeckoView AAR and inspect final APK/AAB
-  size and ABI contents.
-- Update GeckoView regularly for Mozilla security fixes.
+- Gecko runtime is configured for HTTPS-only connections; HTTP navigation is
+  rejected by the controller.
+- Third-party cookies use dynamic first-party isolation; tracking cookies are
+  purged when eligible and query parameters are stripped.
+- Web-origin permissions are not granted implicitly. The Activity must add an
+  explicit permission UX before enabling camera, microphone, or location.
+- Never bypass certificate validation or weaken TLS to make a site load.
+- Do not reintroduce a WebView fallback: the product decision is GeckoView-only.
 
 ## Validation status
 
-No Android build or device test was run by the GitHub editing operation. The
-current MainActivity remains WebView-backed; this is preparatory integration,
-not a completed engine replacement.
+The GitHub edits are source changes only. No Gradle build, R8 run, emulator
+test, or physical-device test has been executed in this environment. A CI
+workflow is added on this branch to compile the debug variant on pushes and
+pull requests. A green CI build is necessary but not sufficient for release.
