@@ -968,27 +968,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-		boolean granted = grantResults != null && grantResults.length > 0;
-		for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
 		boolean permissionsGranted = grantResults != null && grantResults.length > 0;
-		for (int result : grantResults) permissionsGranted = permissionsGranted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
+		if (grantResults != null) {
+			for (int result : grantResults) {
+				permissionsGranted = permissionsGranted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
+			}
+		}
 		if (requestCode == 4103) {
 			GeckoSession.PermissionDelegate.Callback callback = pendingAndroidPermissionCallback;
 			pendingAndroidPermissionCallback = null;
 			if (callback != null) {
-				if (granted) callback.grant(); else callback.reject();
-			}
-		} else if (requestCode == 4104) {
-			WebResponse response = pendingGeckoDownload;
-			String name = pendingGeckoDownloadName;
-			pendingGeckoDownload = null;
-			pendingGeckoDownloadName = null;
-			if (response != null) {
-				if (granted) saveGeckoDownload(response, name);
-				else {
-					closeResponseBody(response);
-					Toast.makeText(this, "Permissão negada. Download cancelado.", Toast.LENGTH_LONG).show();
-				}
+				if (permissionsGranted) callback.grant(); else callback.reject();
 			}
 		} else if (requestCode == 4104) {
 			WebResponse response = pendingGeckoDownload;
