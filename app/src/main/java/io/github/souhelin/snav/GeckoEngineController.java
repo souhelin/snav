@@ -42,6 +42,7 @@ public final class GeckoEngineController {
     private boolean canGoBack;
     private boolean canGoForward;
     private String currentUri;
+    private GeckoSession.SessionState sessionState;
 
     public GeckoEngineController(Context context, GeckoView view, Listener listener,
                                  boolean javaScriptEnabled, boolean trackingProtectionEnabled) {
@@ -123,6 +124,11 @@ public final class GeckoEngineController {
             public void onProgressChange(GeckoSession currentSession, int progress) {
                 Listener callback = GeckoEngineController.this.listener;
                 if (!closed && callback != null) callback.onProgressChanged(progress);
+            }
+
+            @Override
+            public void onSessionStateChange(GeckoSession currentSession, GeckoSession.SessionState state) {
+                sessionState = state == null ? null : new GeckoSession.SessionState(state);
             }
         });
 
@@ -207,6 +213,23 @@ public final class GeckoEngineController {
     }
 
     public GeckoSession getSession() { ensureOpen(); return session; }
+    public GeckoSession.SessionState getSessionState() {
+        ensureOpen();
+        return sessionState == null ? null : new GeckoSession.SessionState(sessionState);
+    }
+
+    public void flushSessionState() {
+        ensureOpen();
+        session.flushSessionState();
+    }
+
+    public void restoreState(GeckoSession.SessionState state) {
+        ensureOpen();
+        if (state == null) return;
+        sessionState = new GeckoSession.SessionState(state);
+        session.restoreState(sessionState);
+    }
+
     public String getCurrentUri() { ensureOpen(); return currentUri; }
     public boolean canGoBack() { ensureOpen(); return canGoBack; }
     public boolean canGoForward() { ensureOpen(); return canGoForward; }
@@ -277,6 +300,7 @@ public final class GeckoEngineController {
                     view.setSession(session);
                     session.loadUri("about:blank");
                     currentUri = "about:blank";
+                    sessionState = null;
                     canGoBack = false;
                     canGoForward = false;
                     result.complete(null);
