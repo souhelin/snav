@@ -730,7 +730,7 @@ public class MainActivity extends Activity {
 		cookieManager.setAcceptCookie(true);
 		
 		if (android.os.Build.VERSION.SDK_INT >= 21) {
-			cookieManager.setAcceptThirdPartyCookies(webview, true);
+			cookieManager.setAcceptThirdPartyCookies(webview, false);
 		}
 		
 		// Layout WebView
@@ -756,10 +756,14 @@ public class MainActivity extends Activity {
 		s.setSaveFormData(true);
 		
 		s.setSupportMultipleWindows(true);
-		s.setJavaScriptCanOpenWindowsAutomatically(true);
+		s.setJavaScriptCanOpenWindowsAutomatically(false);
 		
-		s.setAllowFileAccess(true);
-		s.setAllowContentAccess(true);
+		s.setAllowFileAccess(false);
+		s.setAllowContentAccess(false);
+		if (android.os.Build.VERSION.SDK_INT >= 16) {
+			s.setAllowFileAccessFromFileURLs(false);
+			s.setAllowUniversalAccessFromFileURLs(false);
+		}
 		
 		try {
 			s.setSafeBrowsingEnabled(true);
@@ -767,7 +771,7 @@ public class MainActivity extends Activity {
 		
 		if (android.os.Build.VERSION.SDK_INT >= 21) {
 			s.setMixedContentMode(
-			WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+			WebSettings.MIXED_CONTENT_NEVER_ALLOW
 			);
 		}
 		
@@ -2028,7 +2032,7 @@ public class MainActivity extends Activity {
 				final String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
 				
 				// Verifica permissão no Sketchware/Android
-				if (android.os.Build.VERSION.SDK_INT >= 23) {
+				if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28) {
 					if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_DENIED) {
 						requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
 					}
