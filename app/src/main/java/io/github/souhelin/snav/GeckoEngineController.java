@@ -2,6 +2,9 @@ package io.github.souhelin.snav;
 
 import android.content.Context;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
 
 import org.mozilla.geckoview.ContentBlocking;
 import org.mozilla.geckoview.GeckoResult;
@@ -37,6 +40,9 @@ public final class GeckoEngineController {
 
     private final GeckoView view;
     private final GeckoSession session;
+    private final Handler mainHandler;
+    private final HandlerThread storageThread;
+    private final Handler storageHandler;
     private Listener listener;
     private boolean closed;
     private boolean canGoBack;
@@ -51,6 +57,10 @@ public final class GeckoEngineController {
         }
         this.view = view;
         this.listener = listener;
+        mainHandler = new Handler(Looper.getMainLooper());
+        storageThread = new HandlerThread("SnavGeckoStorage");
+        storageThread.start();
+        storageHandler = new Handler(storageThread.getLooper());
 
         synchronized (GeckoEngineController.class) {
             if (runtime == null) {
@@ -300,14 +310,87 @@ public final class GeckoEngineController {
     public GeckoResult<Void> clearSiteData(String host) {
         ensureOpen();
         if (host == null || host.trim().isEmpty()) throw new IllegalArgumentException("Host is required");
-        return clearAndReattach(runtime.getStorageController().clearDataFromHost(
-            host, StorageController.ClearFlags.SITE_DATA | StorageController.ClearFlags.SITE_SETTINGS));
+        return clearAndReattach(host,
+            StorageController.ClearFlags.SITE_DATA | StorageController.ClearFlags.SITE_SETTINGS, false);
     }
 
     public GeckoResult<Void> clearBrowsingData() {
         ensureOpen();
         session.purgeHistory();
-        return clearAndReattach(runtime.getStorageController().clearData(StorageController.ClearFlags.ALL));
+        return clearAndReattach(null, StorageController.ClearFlags.ALL, true);
+    }
+
+    private GeckoResult<Void> clearAndReattach(final String host, final long flags, final boolean allHosts) {
+        view.releaseSession();
+        if (session.isOpen()) session.close();
+        final GeckoResult<Void> result = new GeckoResult<Void>(mainHandler);
+        boolean posted = storageHandler.post(new Runnable() {
+            @Override public void run() {
+                if (closed) {
+                    mainHandler.post(new Runnable() {
+                        @Override public void run() {
+                            result.completeExceptionally(new IllegalStateException("Gecko engine is closed"));
+                        }
+                    });
+                    return;
+                }
+                final GeckoResult<Void> clearing;
+                try {
+                    StorageController storage = runtime.getStorageController();
+                    clearing = allHosts ? storage.clearData(flags) : storage.clearDataFromHost(host, flags);
+                } catch (final Throwable error) {
+                    mainHandler.post(new Runnable() {
+                        @Override public void run() {
+                            if (!closed) reattachSession(false);
+                            result.completeExceptionally(error);
+                        }
+                    });
+                    return;
+                }
+                clearing.accept(
+                    new GeckoResult.Consumer<Void>() {
+                        @Override public void accept(Void ignored) {
+                            mainHandler.post(new Runnable() {
+                                @Override public void run() {
+                                    if (closed) {
+                                        result.completeExceptionally(new IllegalStateException("Gecko engine is closed"));
+                                        return;
+                                    }
+                                    reattachSession(true);
+                                    result.complete(null);
+                                }
+                            });
+                        }
+                    },
+                    new GeckoResult.Consumer<Throwable>() {
+                        @Override public void accept(final Throwable error) {
+                            mainHandler.post(new Runnable() {
+                                @Override public void run() {
+                                    if (!closed) reattachSession(false);
+                                    result.completeExceptionally(error);
+                                }
+                            });
+                        }
+                    });
+            }
+        });
+        if (!posted) result.completeExceptionally(new IllegalStateException("Storage worker is unavailable"));
+        return result;
+    }
+
+    private void reattachSession(boolean dataCleared) {
+        if (closed) return;
+        session.open(runtime);
+        view.setSession(session);
+        if (dataCleared) {
+            sessionState = null;
+            currentUri = "about:blank";
+            canGoBack = false;
+            canGoForward = false;
+            session.loadUri("about:blank");
+        } else if (sessionState != null) {
+            session.restoreState(sessionState);
+        }
     }
 
     private GeckoResult<Void> clearAndReattach(GeckoResult<Void> clearing) {
@@ -343,6 +426,7 @@ public final class GeckoEngineController {
         listener = null;
         GeckoSession detached = view.releaseSession();
         if (detached != null && detached.isOpen()) detached.close();
+        storageThread.quitSafely();
     }
 
     private void ensureOpen() {
