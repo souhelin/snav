@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -52,6 +53,7 @@ public final class UnsplashWallpaperManager {
 
     public void load(boolean enabled, final Callback callback) {
         if (!enabled || callback == null) return;
+        final WeakReference<Callback> callbackReference = new WeakReference<Callback>(callback);
         EXECUTOR.execute(new Runnable() {
             @Override
             public void run() {
@@ -60,11 +62,11 @@ public final class UnsplashWallpaperManager {
                 if (!cached.isEmpty()) {
                     File selected = cached.get(random.nextInt(cached.size()));
                     Bitmap bitmap = decodeWallpaper(selected);
-                    if (bitmap != null) notifyReady(callback, bitmap);
+                    if (bitmap != null) notifyReady(callbackReference, bitmap);
                 }
                 if (!hasInternet()) return;
 
-                boolean delivered = !cached.isEmpty();
+                boolean delivered = false;
                 for (int i = 0; i < MAX_IMAGES; i++) {
                     File target = new File(cacheDirectory, "wallpaper_" + i + ".img");
                     if (target.isFile() && target.length() > 0) continue;
@@ -72,7 +74,7 @@ public final class UnsplashWallpaperManager {
                     if (!delivered) {
                         Bitmap bitmap = decodeWallpaper(target);
                         if (bitmap != null) {
-                            notifyReady(callback, bitmap);
+                            notifyReady(callbackReference, bitmap);
                             delivered = true;
                         }
                     }
@@ -168,11 +170,13 @@ public final class UnsplashWallpaperManager {
         return BitmapFactory.decodeFile(file.getAbsolutePath(), options);
     }
 
-    private void notifyReady(final Callback callback, final Bitmap bitmap) {
+    private void notifyReady(final WeakReference<Callback> callbackReference, final Bitmap bitmap) {
         mainHandler.post(new Runnable() {
             @Override
             public void run() {
-                callback.onWallpaperReady(bitmap);
+                Callback callback = callbackReference.get();
+                if (callback != null) callback.onWallpaperReady(bitmap);
+                else if (!bitmap.isRecycled()) bitmap.recycle();
             }
         });
     }
