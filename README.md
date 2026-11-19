@@ -67,4 +67,4 @@ A release exige configuração de assinatura válida no ambiente. Não considere
 
 ## Licença
 
-Apache License 2.0. Consulte [LICENSE](LICENSE).
+MIT License. Consulte [LICENSE](LICENSE).
