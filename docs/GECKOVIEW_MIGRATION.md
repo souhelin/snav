@@ -33,8 +33,7 @@ Implemented integrations:
 - Site-specific and global browsing-data clearing use GeckoView's
   `StorageController`. Sessions are detached and closed before clearing,
   then reopened to avoid immediate data recreation by an open session.
-- Mozilla Maven repository configured at the root build level; Java 17 and
-  GeckoView dependency are configured in the app module.
+- Mozilla Maven repository configured at the root build level; Java 17, GeckoView 160.0.20261104181552, compileSdk 37, and Build Tools 36.0.0 are configured in the app module. The project uses AGP 9.1.1 / Gradle 9.3.1 because GeckoView's AndroidX Core 1.19.1 dependency requires AGP 9.1 and API 37. Jetifier is disabled because the app's dependencies are AndroidX-native; Gradle concurrency is capped and the heap is configured for the large GeckoView AAR.
 
 ## Security behavior
 
@@ -63,15 +62,16 @@ Implemented integrations:
   selection; it needs runtime verification on supported Android versions.
 - The broad GeckoView R8 keep rule is retained until a release/R8 build can
   prove which JNI/reflective entry points are safe to narrow. This may reduce
-  code shrinking and should be revisited with measured release outputs.
+  code shrinking and should be revisited with measured release outputs. The
+  GeckoView AAR is approximately 233 MB before packaging; final APK/AAB size
+  and runtime memory must be measured rather than inferred from the AAR size.
 
 ## Validation status
 
 Source changes are committed to `feature/geckoview-engine` and a draft PR
 exists: https://github.com/souhelin/Snav-Browser/pull/6
 
-**No successful Gradle build, R8 release build, emulator test, or physical
-device test has been verified yet.** The branch contains a GitHub Actions
+**The first CI run exposed a missing GeckoView artifact version; after pinning the published stable 160 artifact, the next run exposed AAR metadata requirements (AGP 9.1.0+ and API 37). The toolchain has since been upgraded to AGP 9.1.1 / Gradle 9.3.1 / API 37, but this exact revision still needs a fresh CI result. No successful build, R8 release build, emulator test, or physical device test has been verified yet.** The branch contains a GitHub Actions
 debug-build workflow, but the available commit status query returned no
 checks. A green build and device smoke tests are still required before this
 can be considered release-ready or merged.
