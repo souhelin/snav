@@ -1059,6 +1059,275 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 
+
+	private boolean isSecureOrigin(String uri) {
+		if (uri == null) return false;
+		Uri parsed = Uri.parse(uri);
+		return "https".equalsIgnoreCase(parsed.getScheme()) && parsed.getHost() != null;
+	}
+
+	private void installGeckoPermissionDelegate() {
+		geckoEngine.getSession().setPermissionDelegate(new GeckoSession.PermissionDelegate() {
+			@Override
+			public void onAndroidPermissionsRequest(GeckoSession session, String[] permissions,
+				GeckoSession.PermissionDelegate.Callback callback) {
+				if (!isSecureOrigin(geckoEngine.getCurrentUri()) || permissions == null || permissions.length == 0) {
+					callback.reject();
+					return;
+				}
+				java.util.ArrayList<String> missing = new java.util.ArrayList<String>();
+				for (String permission : permissions) {
+					if (!android.Manifest.permission.CAMERA.equals(permission)
+						&& !android.Manifest.permission.RECORD_AUDIO.equals(permission)
+						&& !android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission)
+						&& !android.Manifest.permission.ACCESS_COARSE_LOCATION.equals(permission)) {
+						callback.reject();
+						return;
+					}
+					if (Build.VERSION.SDK_INT >= 23
+						&& checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+						missing.add(permission);
+					}
+				}
+				if (missing.isEmpty() || Build.VERSION.SDK_INT < 23) {
+					callback.grant();
+					return;
+				}
+				if (pendingAndroidPermissionCallback != null) pendingAndroidPermissionCallback.reject();
+				pendingAndroidPermissionCallback = callback;
+				requestPermissions(missing.toArray(new String[missing.size()]), 4103);
+			}
+
+			@Override
+			public GeckoResult<Integer> onContentPermissionRequest(GeckoSession session,
+				final GeckoSession.PermissionDelegate.ContentPermission permission) {
+				if (!isSecureOrigin(permission.uri)
+					|| permission.permission != GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
+					return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+				}
+				final GeckoResult<Integer> result = new GeckoResult<Integer>();
+				permission.notifyShown();
+				Uri origin = Uri.parse(permission.uri);
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Permitir localização?")
+					.setMessage("O site " + origin.getHost() + " solicita acesso à sua localização. Permita somente se iniciou essa ação.")
+					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) {
+							result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW);
+						}
+					})
+					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) {
+							result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+						}
+					})
+					.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override public void onCancel(DialogInterface dialog) {
+							result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+						}
+					}).show();
+				return result;
+			}
+
+			@Override
+			public void onMediaPermissionRequest(GeckoSession session, String uri,
+				final GeckoSession.PermissionDelegate.MediaSource[] video,
+				final GeckoSession.PermissionDelegate.MediaSource[] audio,
+				final GeckoSession.PermissionDelegate.MediaCallback callback) {
+				if (!isSecureOrigin(uri) || (video == null && audio == null)) {
+					callback.reject();
+					return;
+				}
+				if (video != null && Build.VERSION.SDK_INT >= 23
+					&& checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+					callback.reject();
+					return;
+				}
+				if (audio != null && Build.VERSION.SDK_INT >= 23
+					&& checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+					callback.reject();
+					return;
+				}
+				String host = Uri.parse(uri).getHost();
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Permissão de mídia")
+					.setMessage(host + " solicita acesso à câmera e/ou ao microfone. Permita somente se iniciou uma chamada ou gravação.")
+					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) {
+							callback.grant(video == null || video.length == 0 ? null : video[0],
+								audio == null || audio.length == 0 ? null : audio[0]);
+						}
+					})
+					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) { callback.reject(); }
+					})
+					.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override public void onCancel(DialogInterface dialog) { callback.reject(); }
+					}).show();
+			}
+		});
+	}
+
+	private void openExternalUri(String value) {
+		if (value == null) return;
+		Uri uri = Uri.parse(value);
+		String scheme = uri.getScheme();
+		if (scheme == null || uri.getUserInfo() != null
+			|| "file".equalsIgnoreCase(scheme) || "content".equalsIgnoreCase(scheme)
+			|| "javascript".equalsIgnoreCase(scheme) || "data".equalsIgnoreCase(scheme)) {
+			return;
+		}
+		if (!"mailto".equalsIgnoreCase(scheme) && !"tel".equalsIgnoreCase(scheme)
+			&& !"sms".equalsIgnoreCase(scheme) && !"geo".equalsIgnoreCase(scheme)) return;
+		try {
+			startActivity(new Intent(Intent.ACTION_VIEW, uri));
+		} catch (ActivityNotFoundException error) {
+			Toast.makeText(this, "Não há aplicativo disponível para abrir este endereço", Toast.LENGTH_SHORT).show();
+		}
+	}
+
+	private void saveHistoryVisit(String uri) {
+		if (uri == null || !uri.startsWith("https://")) return;
+		String current = Dados.getString("gecko_history_v1", "");
+		java.util.LinkedHashSet<String> entries = new java.util.LinkedHashSet<String>();
+		entries.add(uri);
+		if (!current.isEmpty()) {
+			for (String entry : current.split("\\n")) {
+				if (!entry.isEmpty() && !entry.equals(uri) && entries.size() < 100) entries.add(entry);
+			}
+		}
+		StringBuilder value = new StringBuilder();
+		for (String entry : entries) {
+			if (value.length() > 0) value.append('\n');
+			value.append(entry);
+		}
+		Dados.edit().putString("gecko_history_v1", value.toString()).apply();
+	}
+
+	private void clearGeckoBrowsingData() {
+		if (geckoEngine == null) return;
+		geckoEngine.clearBrowsingData().accept(
+			new GeckoResult.Consumer<Void>() {
+				@Override public void accept(Void ignored) {
+					Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
+				}
+			},
+			new GeckoResult.Consumer<Throwable>() {
+				@Override public void accept(Throwable error) {
+					logDiagnostic("Falha ao limpar dados: " + error.getClass().getSimpleName());
+					Toast.makeText(MainActivity.this, "Não foi possível limpar os dados", Toast.LENGTH_LONG).show();
+				}
+			});
+	}
+
+	private String responseHeader(WebResponse response, String name) {
+		if (response == null || response.headers == null) return null;
+		for (java.util.Map.Entry<String, String> entry : response.headers.entrySet()) {
+			if (name.equalsIgnoreCase(entry.getKey())) return entry.getValue();
+		}
+		return null;
+	}
+
+	private void closeResponseBody(WebResponse response) {
+		if (response != null && response.body != null) {
+			try { response.body.close(); } catch (IOException ignored) {}
+		}
+	}
+
+	private void handleGeckoDownload(final WebResponse response) {
+		if (response == null || response.body == null || !response.isSecure
+			|| response.statusCode < 200 || response.statusCode >= 300) {
+			closeResponseBody(response);
+			Toast.makeText(this, "Download bloqueado: resposta inválida ou conexão não segura.", Toast.LENGTH_LONG).show();
+			return;
+		}
+		Uri uri = Uri.parse(response.uri);
+		if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) {
+			closeResponseBody(response);
+			Toast.makeText(this, "Download bloqueado: somente HTTPS é permitido.", Toast.LENGTH_LONG).show();
+			return;
+		}
+		String mime = responseHeader(response, "Content-Type");
+		String disposition = responseHeader(response, "Content-Disposition");
+		final String name = URLUtil.guessFileName(response.uri, disposition, mime)
+			.replace('/', '_').replace('\\', '_').replace(':', '_');
+		response.setReadTimeoutMillis(120000);
+		new AlertDialog.Builder(this)
+			.setTitle("Download")
+			.setMessage("Deseja salvar " + name + " na pasta Downloads?")
+			.setPositiveButton("Baixar", new DialogInterface.OnClickListener() {
+				@Override public void onClick(DialogInterface dialog, int which) {
+					if (Build.VERSION.SDK_INT < 29 && Build.VERSION.SDK_INT >= 23
+						&& checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+						pendingGeckoDownload = response;
+						pendingGeckoDownloadName = name;
+						requestPermissions(new String[] { android.Manifest.permission.WRITE_EXTERNAL_STORAGE }, 4104);
+					} else {
+						saveGeckoDownload(response, name);
+					}
+				}
+			})
+			.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
+				@Override public void onClick(DialogInterface dialog, int which) { closeResponseBody(response); }
+			})
+			.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				@Override public void onCancel(DialogInterface dialog) { closeResponseBody(response); }
+			}).show();
+	}
+
+	private void saveGeckoDownload(final WebResponse response, final String fileName) {
+		downloadExecutor.execute(new Runnable() {
+			@Override public void run() {
+				Uri mediaUri = null;
+				java.io.File legacyFile = null;
+				try {
+					java.io.OutputStream output;
+					if (Build.VERSION.SDK_INT >= 29) {
+						android.content.ContentValues values = new android.content.ContentValues();
+						values.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+						String mime = responseHeader(response, "Content-Type");
+						values.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime == null ? "application/octet-stream" : mime.split(";")[0].trim());
+						values.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+						values.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1);
+						mediaUri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+						if (mediaUri == null) throw new IOException("Não foi possível criar o arquivo de download");
+						output = getContentResolver().openOutputStream(mediaUri);
+					} else {
+						java.io.File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+						if (!directory.exists() && !directory.mkdirs()) throw new IOException("Não foi possível criar a pasta Downloads");
+						legacyFile = new java.io.File(directory, fileName);
+						output = new java.io.FileOutputStream(legacyFile);
+					}
+					if (output == null) throw new IOException("Destino de download indisponível");
+					try (java.io.InputStream input = response.body; java.io.OutputStream stream = output) {
+						byte[] buffer = new byte[32768];
+						int read;
+						while ((read = input.read(buffer)) != -1) stream.write(buffer, 0, read);
+						stream.flush();
+					}
+					if (Build.VERSION.SDK_INT >= 29 && mediaUri != null) {
+						android.content.ContentValues ready = new android.content.ContentValues();
+						ready.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0);
+						getContentResolver().update(mediaUri, ready, null, null);
+					} else if (legacyFile != null) {
+						android.media.MediaScannerConnection.scanFile(MainActivity.this,
+							new String[] { legacyFile.getAbsolutePath() }, null, null);
+					}
+					runOnUiThread(new Runnable() {
+						@Override public void run() { Toast.makeText(MainActivity.this, "Download salvo em Downloads", Toast.LENGTH_LONG).show(); }
+					});
+				} catch (final Exception error) {
+					if (mediaUri != null) getContentResolver().delete(mediaUri, null, null);
+					if (legacyFile != null && legacyFile.exists()) legacyFile.delete();
+					closeResponseBody(response);
+					logDiagnostic("Falha ao salvar download Gecko: " + error.getClass().getSimpleName());
+					runOnUiThread(new Runnable() {
+						@Override public void run() { Toast.makeText(MainActivity.this, "Falha ao salvar o download", Toast.LENGTH_LONG).show(); }
+					});
+				}
+			}
+		});
+	}
 	private void setupUnsplashWallpaper() {
 		if (checkbox_wallpaper == null) return;
 		if (!checkbox_wallpaper.isChecked()) {
