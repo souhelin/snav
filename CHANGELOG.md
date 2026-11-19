@@ -71,3 +71,12 @@ Este arquivo registra mudanças confirmadas no repositório. Itens de privacidad
 3. Implementar limpeza por site com indicação explícita dos tipos de dados removidos.
 4. Avaliar um bloqueador leve de rastreadores, medindo impacto e compatibilidade.
 5. Adicionar HTTPS-First e Do Not Track somente após validar cobertura e limitações do WebView.
+
+
+## Proteções de privacidade — feature/privacy-protection-and-policies
+
+- Adicionado filtro local e desativável para domínios conhecidos de rastreadores de terceiros.
+- Adicionada preferência Do Not Track opcional para navegações iniciadas pelo Snav.
+- A ação de limpeza por site agora tenta expirar cookies visíveis no caminho raiz além de remover DOM storage.
+- Corrigidas as descrições das permissões no painel de informações do site.
+- Documentadas limitações de cobertura do filtro, cabeçalho DNT, limpeza por origem e permissão global de cleartext.
