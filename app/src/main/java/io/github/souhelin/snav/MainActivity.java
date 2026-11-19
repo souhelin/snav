@@ -1349,31 +1349,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 	}
 
-	private void saveHistoryVisit(String uri) {
-		if (uri == null || !uri.startsWith("https://")) return;
-		String current = Dados.getString("gecko_history_v1", "");
-		java.util.LinkedHashSet<String> entries = new java.util.LinkedHashSet<String>();
-		entries.add(uri);
-		if (!current.isEmpty()) {
-			for (String entry : current.split("\\n")) {
-				if (!entry.isEmpty() && !entry.equals(uri) && entries.size() < 100) entries.add(entry);
-			}
-		}
-		StringBuilder value = new StringBuilder();
-		for (String entry : entries) {
-			if (value.length() > 0) value.append('\n');
-			value.append(entry);
-		}
-		Dados.edit().putString("gecko_history_v1", value.toString()).apply();
-	}
-
-	private void clearGeckoBrowsingData() {
+		private void clearGeckoBrowsingData() {
 		if (geckoEngine == null) return;
 		geckoEngine.clearBrowsingData().accept(
 			new GeckoResult.Consumer<Void>() {
 				@Override public void accept(Void ignored) {
-					Dados.edit().remove("gecko_history_v1").apply();
-					Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
+							Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
 				}
 			},
 			new GeckoResult.Consumer<Throwable>() {
