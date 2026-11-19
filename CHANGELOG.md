@@ -1,3 +1,20 @@
+## 2026-11-19 — Wallpaper Unsplash e atualização por gesto
+
+### Adicionado
+- Fonte exclusiva de wallpapers em imagens hospedadas no CDN oficial `images.unsplash.com`, com fotografias de natureza, paisagens e lugares.
+- Switch persistente para ativar ou desativar o wallpaper na tela de ferramentas.
+- Cache local persistente limitado a oito imagens, baixadas em segundo plano por HTTPS e reutilizadas sem conexão.
+- Enquadramento central proporcional com recorte para preencher a tela, sem deformar as imagens.
+- Controle único de carregar/interromper alinhado à direita da barra de endereço, sem animação própria ao alternar entre atualizar e interromper.
+- Gesto Pull to Refresh no topo da página, com rotação vinculada ao gesto e retorno por SpringAnimation usando o token Material `motionSpringFastSpatial`, incluindo velocidade inicial do arrasto.
+- Dependência AndroidX Dynamic Animation declarada explicitamente para usar a API de mola recomendada pelo Material Components para Views.
+
+### Corrigido
+- Contraste do texto digitado no campo de pesquisa no tema claro.
+
+### Verificação
+- Compilação e testes locais ainda não foram executados neste ambiente; validar com `./gradlew test assembleDebug` antes de integrar à `main`.
+
 # Histórico de alterações — Snav Browser
 
 Este arquivo registra mudanças confirmadas no repositório. Itens de privacidade ainda em planejamento ficam separados do histórico de recursos implementados.
@@ -88,3 +105,9 @@ Este arquivo registra mudanças confirmadas no repositório. Itens de privacidad
 - Política de rede endurecida: cleartext global desativado; navegação HTTP só tenta upgrade HTTPS; downloads HTTP rejeitados.
 - Tela de informações do site ganhou atalho às configurações Android e limpeza da autorização de geolocalização WebView para a origem.
 - Documentadas limitações não contornáveis com as APIs públicas do Android WebView: cabeçalho DNT universal, remoção integral de cookies por origem, revogação individual de câmera/microfone e notificações web por origem.
+
+
+## Correção — crash na animação Pull to Refresh
+
+- Corrigido o uso da `SpringForce` resolvida pelo Material Motion: agora os parâmetros oficiais de damping e stiffness são aplicados à mola da `SpringAnimation` que já possui posição final definida em 0°.
+- Evita iniciar a animação com a posição final não inicializada, causa do crash `Final position of the spring cannot be greater than the max value` registrado no Android 16.
