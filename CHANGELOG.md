@@ -80,3 +80,11 @@ Este arquivo registra mudanças confirmadas no repositório. Itens de privacidad
 - A ação de limpeza por site agora tenta expirar cookies visíveis no caminho raiz além de remover DOM storage.
 - Corrigidas as descrições das permissões no painel de informações do site.
 - Documentadas limitações de cobertura do filtro, cabeçalho DNT, limpeza por origem e permissão global de cleartext.
+
+
+## Revisão das seis pendências de privacidade
+
+- Filtro local aplicado também ao cliente de Service Worker em Android API 24+, quando há Referer disponível.
+- Política de rede endurecida: cleartext global desativado; navegação HTTP só tenta upgrade HTTPS; downloads HTTP rejeitados.
+- Tela de informações do site ganhou atalho às configurações Android e limpeza da autorização de geolocalização WebView para a origem.
+- Documentadas limitações não contornáveis com as APIs públicas do Android WebView: cabeçalho DNT universal, remoção integral de cookies por origem, revogação individual de câmera/microfone e notificações web por origem.
