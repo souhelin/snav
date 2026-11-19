@@ -110,6 +110,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private UnsplashWallpaperManager wallpaperManager;
 	private UnsplashWallpaperManager.Callback wallpaperCallback;
 	private float pullStartY;
+	private float pullStartX;
 	private float pullDistance;
 	private boolean pullTracking;
 	private boolean pullConsumed;
@@ -1363,7 +1364,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 
 	private void setupUnsplashWallpaper() {
-		if (checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) return;
+		if (checkbox_wallpaper == null) return;
+		if (!checkbox_wallpaper.isChecked()) {
+			tela1.setBackgroundColor(getResources().getColor(R.color.snav_background));
+			text_icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
+			return;
+		}
+		text_icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		if (wallpaperManager == null) wallpaperManager = new UnsplashWallpaperManager(this);
 		wallpaperCallback = new UnsplashWallpaperManager.Callback() {
 			@Override
@@ -1412,14 +1419,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				switch (event.getActionMasked()) {
 					case android.view.MotionEvent.ACTION_DOWN:
 						pullStartY = event.getY();
+						pullStartX = event.getX();
 						pullDistance = 0f;
-						pullTracking = webview.getScrollY() <= 0;
+						pullTracking = webview.getScrollY() <= 0 && !pageLoading;
 						pullConsumed = false;
 						return false;
 					case android.view.MotionEvent.ACTION_MOVE:
 						if (!pullTracking || webview.getScrollY() > 0) return false;
+						float horizontalDistance = Math.abs(event.getX() - pullStartX);
 						pullDistance = event.getY() - pullStartY;
-						if (pullDistance <= 0f) return false;
+						if (pullDistance <= 0f || horizontalDistance > pullDistance) return false;
 						button_load_stop.setRotation(Math.min(180f, pullDistance * 0.8f));
 						if (pullDistance > getDip(12)) pullConsumed = true;
 						return pullConsumed;
