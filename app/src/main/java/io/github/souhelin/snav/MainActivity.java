@@ -220,7 +220,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				public void onClick(View view) {
 					if (pullRotationSpring != null) pullRotationSpring.cancel();
 					button_load_stop.setRotation(0f);
-					if (pageLoading) {
+					if (pageLoading && geckoEngine != null) {
 						geckoEngine.stop();
 						finishPageProgress();
 					} else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
@@ -340,7 +340,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_tradutor_google.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				String url = geckoView.getUrl();
+				String url = geckoEngine == null ? null : geckoEngine.getCurrentUri();
 				if (url != null) {
 					loadUrlWithPrivacyHeaders("https://translate.google.com/translate?sl=en&tl=pt&hl=pt-BR&u=" + url.replace("https://", "") + "&client=webapp");
 					SketchwareUtil.showMessage(getApplicationContext(), "Traduzindo");
@@ -375,7 +375,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public void onClick(View _view) {
 				intent.setAction(Intent.ACTION_VIEW);
-				intent.setData(Uri.parse(geckoView.getUrl()));
+				intent.setData(Uri.parse(geckoEngine.getCurrentUri()));
 				startActivity(intent);
 			}
 		});
@@ -744,11 +744,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if (geckoEngine != null) geckoEngine.setActive(true);
 		logDiagnostic("Ciclo de vida: onResume");
 	}
 
 	@Override
 	protected void onPause() {
+		if (geckoEngine != null) geckoEngine.setActive(false);
 		logDiagnostic("Ciclo de vida: onPause");
 		super.onPause();
 	}
@@ -761,6 +763,15 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (pullVelocityTracker != null) {
 			pullVelocityTracker.recycle();
 			pullVelocityTracker = null;
+		}
+		if (pendingGeckoDownload != null) {
+			closeResponseBody(pendingGeckoDownload);
+			pendingGeckoDownload = null;
+		}
+		if (downloadExecutor != null) downloadExecutor.shutdown();
+		if (geckoEngine != null) {
+			geckoEngine.close();
+			geckoEngine = null;
 		}
 		super.onDestroy();
 	}
@@ -961,13 +972,25 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		boolean granted = grantResults != null && grantResults.length > 0;
+		for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
 		if (requestCode == 4103) {
 			GeckoSession.PermissionDelegate.Callback callback = pendingAndroidPermissionCallback;
 			pendingAndroidPermissionCallback = null;
 			if (callback != null) {
-				boolean granted = grantResults != null && grantResults.length > 0;
-				for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
 				if (granted) callback.grant(); else callback.reject();
+			}
+		} else if (requestCode == 4104) {
+			WebResponse response = pendingGeckoDownload;
+			String name = pendingGeckoDownloadName;
+			pendingGeckoDownload = null;
+			pendingGeckoDownloadName = null;
+			if (response != null) {
+				if (granted) saveGeckoDownload(response, name);
+				else {
+					closeResponseBody(response);
+					Toast.makeText(this, "Permissão negada. Download cancelado.", Toast.LENGTH_LONG).show();
+				}
 			}
 		}
 	}
@@ -1398,7 +1421,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						button_load_stop.setRotation(0f);
 						return false;
 					case android.view.MotionEvent.ACTION_MOVE:
-						if (!pullTracking || geckoView.getScrollY() > 0) return false;
+						if (!pullTracking || geckoScrollY > 0) return false;
 						float horizontalDistance = Math.abs(event.getX() - pullStartX);
 						pullDistance = event.getY() - pullStartY;
 						if (horizontalDistance > pullDistance) {
@@ -1429,7 +1452,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						if (event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
 						if (rotation > 0f) animatePullRelease(rotationVelocity);
 						if (refresh && geckoEngine != null && geckoEngine.getCurrentUri() != null) {
-							geckoView.reload();
+							geckoEngine.reload();
 							return true;
 						}
 						return false;
@@ -1475,7 +1498,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		_armazenamento();
 		_open_sans();
 		_interfaces();
-		_download();
 		_internet();
 		_gone();
 	}
@@ -1630,15 +1652,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 	
 	
-	public void _criação() {
 		
-	}
 	
-	
-	public void _download() {
-		// GeckoView delivers downloads through ContentDelegate.onExternalResponse.
-	}
-	
+		
 	
 	@Deprecated
 	public void showMessage(String _s) {
