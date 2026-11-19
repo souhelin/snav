@@ -33,6 +33,11 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.*;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.motion.MotionUtils;
+import androidx.dynamicanimation.animation.DynamicAnimation;
+import androidx.dynamicanimation.animation.SpringAnimation;
+import androidx.dynamicanimation.animation.SpringForce;
+import android.view.VelocityTracker;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -114,7 +119,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private float pullDistance;
 	private boolean pullTracking;
 	private boolean pullConsumed;
-	private ValueAnimator pullSpringAnimator;
+	private SpringAnimation pullRotationSpring;
+	private VelocityTracker pullVelocityTracker;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
@@ -205,6 +211,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			button_load_stop.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View view) {
+					if (pullRotationSpring != null) pullRotationSpring.cancel();
+					button_load_stop.setRotation(0f);
 					if (pageLoading) {
 						webview.stopLoading();
 						finishPageProgress();
@@ -889,7 +897,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onDestroy() {
 		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
 		wallpaperCallback = null;
-		if (pullSpringAnimator != null) pullSpringAnimator.cancel();
+		if (pullRotationSpring != null) pullRotationSpring.cancel();
+		if (pullVelocityTracker != null) {
+			pullVelocityTracker.recycle();
+			pullVelocityTracker = null;
+		}
 		super.onDestroy();
 	}
 
@@ -1419,13 +1431,18 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		webview.setOnTouchListener(new View.OnTouchListener() {
 			@Override
 			public boolean onTouch(View view, android.view.MotionEvent event) {
+				if (pullVelocityTracker != null) pullVelocityTracker.addMovement(event);
 				switch (event.getActionMasked()) {
 					case android.view.MotionEvent.ACTION_DOWN:
+						if (pullVelocityTracker != null) pullVelocityTracker.recycle();
+						pullVelocityTracker = VelocityTracker.obtain();
+						pullVelocityTracker.addMovement(event);
 						pullStartY = event.getY();
 						pullStartX = event.getX();
 						pullDistance = 0f;
 						pullTracking = webview.getScrollY() <= 0 && !pageLoading;
 						pullConsumed = false;
+						if (pullRotationSpring != null) pullRotationSpring.cancel();
 						return false;
 					case android.view.MotionEvent.ACTION_MOVE:
 						if (!pullTracking || webview.getScrollY() > 0) return false;
@@ -1446,9 +1463,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						boolean refresh = event.getActionMasked() == android.view.MotionEvent.ACTION_UP
 							&& pullTracking && pullConsumed && pullDistance >= getDip(72);
 						float rotation = button_load_stop.getRotation();
+						float rotationVelocity = 0f;
+						if (pullVelocityTracker != null) {
+							pullVelocityTracker.computeCurrentVelocity(1000);
+							rotationVelocity = Math.max(-3600f, Math.min(3600f,
+								pullVelocityTracker.getYVelocity() * 0.8f));
+							pullVelocityTracker.recycle();
+							pullVelocityTracker = null;
+						}
 						pullTracking = false;
 						pullConsumed = false;
-						animatePullRelease(rotation);
+						if (rotation > 0f) animatePullRelease(rotation, rotationVelocity);
 						if (refresh && webview.getUrl() != null) {
 							webview.reload();
 							return true;
@@ -1460,29 +1485,24 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 	}
 
-	private void animatePullRelease(float startRotation) {
+	private void animatePullRelease(float startRotation, float initialVelocity) {
 		if (button_load_stop == null) return;
-		if (pullSpringAnimator != null) pullSpringAnimator.cancel();
+		if (pullRotationSpring != null) pullRotationSpring.cancel();
 		if (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()) {
 			button_load_stop.setRotation(0f);
 			return;
 		}
-		ValueAnimator spring = ValueAnimator.ofFloat(0f, 1f);
-		pullSpringAnimator = spring;
-		spring.setDuration(420);
-		spring.setInterpolator(new TimeInterpolator() {
-			@Override public float getInterpolation(float input) {
-				return (float) (1.0d - Math.exp(-7.0d * input) * Math.cos(10.5d * input));
-			}
-		});
-		spring.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-			@Override public void onAnimationUpdate(ValueAnimator animation) {
-				float progress = (Float) animation.getAnimatedValue();
-				button_load_stop.setRotation(startRotation * (1f - progress));
-			}
-		});
-		spring.start();
+
+		SpringForce spatialSpring = MotionUtils.resolveThemeSpringForce(
+			this, com.google.android.material.R.attr.motionSpringFastSpatial);
+		pullRotationSpring = new SpringAnimation(
+			button_load_stop, DynamicAnimation.ROTATION, 0f);
+		pullRotationSpring.setSpring(spatialSpring);
+		pullRotationSpring.setStartVelocity(initialVelocity);
+		pullRotationSpring.setMinimumVisibleChange(DynamicAnimation.MIN_VISIBLE_CHANGE_ROTATION_DEGREES);
+		pullRotationSpring.start();
 	}
+
 
 	private void setLoadStopIcon(boolean loading) {
 		if (button_load_stop == null) return;
