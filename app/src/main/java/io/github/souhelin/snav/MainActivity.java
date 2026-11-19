@@ -327,6 +327,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					linear_modo_leitura.setAlpha((float)(0.5d));
 					webview.setWebViewClient(new WebViewClient(){
 						@Override
+						public boolean shouldOverrideUrlLoading(WebView view, String url) {
+							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
+							if (allowInsecureNavigationOnce) {
+								allowInsecureNavigationOnce = false;
+								return false;
+							}
+						showInsecureConnectionDialog(view, url);
+						return true;
+					}
+						@Override
+						public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
+							handler.cancel();
+						}
+
+						@Override
 						public void onPageFinished(WebView v, String url){
 							String js =
 							"javascript:(function(){"
@@ -386,6 +401,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				} else {
 					linear_modo_leitura.setAlpha((float)(1.0d));
 					webview.setWebViewClient(new WebViewClient(){
+						@Override
+						public boolean shouldOverrideUrlLoading(WebView view, String url) {
+							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
+							if (allowInsecureNavigationOnce) {
+								allowInsecureNavigationOnce = false;
+								return false;
+							}
+						showInsecureConnectionDialog(view, url);
+						return true;
+					}
+						@Override
+						public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
+							handler.cancel();
+						}
+
 						@Override
 						public void onPageFinished(WebView v, String url){
 							String js =
