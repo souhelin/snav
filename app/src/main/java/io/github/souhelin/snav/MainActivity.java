@@ -35,6 +35,11 @@ import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.WebResponse;
 import android.widget.*;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.bottomsheet.BottomSheetDragHandleView;
+import com.google.android.material.button.MaterialButton;
+import org.mozilla.geckoview.TranslationsController;
 import com.google.android.material.motion.MotionUtils;
 import androidx.dynamicanimation.animation.DynamicAnimation;
 import androidx.dynamicanimation.animation.SpringAnimation;
@@ -66,6 +71,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private boolean javaScriptEnabled = true;
 	private boolean readerMode;
 	private String readerOriginalUri;
+	private volatile String detectedPageLanguage;
+	private HandlerThread translationThread;
+	private Handler translationHandler;
 	private GeckoSession.SessionState pendingSessionState;
 	private String pendingRestoreUri;
 	private static final String STATE_GECKO_SESSION = "snav_gecko_session_state";
@@ -347,37 +355,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 		
 		linear_tradutor_google.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				String url = geckoEngine == null ? null : geckoEngine.getCurrentUri();
-				if (url != null) {
-					loadUrlWithPrivacyHeaders("https://translate.google.com/translate?sl=en&tl=pt&hl=pt-BR&u=" + url.replace("https://", "") + "&client=webapp");
-					SketchwareUtil.showMessage(getApplicationContext(), "Traduzindo");
-				} else {
-					SketchwareUtil.showMessage(getApplicationContext(), "Nenhuma URL encontrada para traduzir");
-				}
-				
-			}
+			@Override public void onClick(View view) { showTranslationBottomSheet(); }
 		});
 		
 		linear_modo_leitura.setOnClickListener(new View.OnClickListener() {
-			@Override public void onClick(View view) {
-				String current = geckoEngine == null ? null : geckoEngine.getCurrentUri();
-				if (current == null || !current.startsWith("https://")) {
-					Toast.makeText(MainActivity.this, "Abra uma página HTTPS para usar o modo leitura", Toast.LENGTH_SHORT).show();
-					return;
-				}
-				if (!readerMode) {
-					readerOriginalUri = current;
-					readerMode = true;
-					linear_modo_leitura.setAlpha(0.5f);
-					geckoEngine.loadUri("about:reader?url=" + Uri.encode(current), Dados.getBoolean("do_not_track", false));
-				} else {
-					readerMode = false;
-					linear_modo_leitura.setAlpha(1f);
-					if (readerOriginalUri != null) geckoEngine.loadUri(readerOriginalUri, Dados.getBoolean("do_not_track", false));
-				}
-			}
+			@Override public void onClick(View view) { showReaderOptionsBottomSheet(); }
 		});
 		
 		linear_abrir_no_navegador.setOnClickListener(new View.OnClickListener() {
@@ -802,6 +784,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		pendingAndroidPermissions = null;
 		if (downloadExecutor != null) downloadExecutor.shutdown();
+		if (translationThread != null) translationThread.quitSafely();
 		if (geckoEngine != null) {
 			geckoEngine.close();
 			geckoEngine = null;
@@ -873,6 +856,259 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			.start();
 	}
 
+	private void ensureTranslationThread() {
+		if (translationThread != null && translationThread.isAlive()) return;
+		translationThread = new HandlerThread("SnavTranslations");
+		translationThread.start();
+		translationHandler = new Handler(translationThread.getLooper());
+	}
+
+	private int findLanguageIndex(List<TranslationsController.Language> languages, String code) {
+		if (languages == null || code == null) return 0;
+		for (int i = 0; i < languages.size(); i++) {
+			if (code.equalsIgnoreCase(languages.get(i).code)) return i;
+		}
+		return 0;
+	}
+
+	private void showTranslationBottomSheet() {
+		if (geckoEngine == null || !isSecureOrigin(geckoEngine.getCurrentUri())) {
+			Toast.makeText(this, "Abra uma página HTTPS para traduzir", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		final BottomSheetDialog sheet = new BottomSheetDialog(this);
+		LinearLayout content = new LinearLayout(this);
+		content.setOrientation(LinearLayout.VERTICAL);
+		content.setPadding(dp(24), dp(8), dp(24), dp(28));
+		content.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(32)));
+		TextView title = new TextView(this);
+		title.setText("Traduzir página");
+		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextSize(20);
+		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		content.addView(title);
+		TextView subtitle = new TextView(this);
+		subtitle.setText("A tradução é processada pelo mecanismo do GeckoView com modelos de idioma. Os modelos necessários podem ser baixados na primeira utilização.");
+		subtitle.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		subtitle.setTextSize(13);
+		subtitle.setPadding(0, dp(6), 0, dp(16));
+		content.addView(subtitle);
+		TextView fromLabel = new TextView(this);
+		fromLabel.setText("Idioma da página");
+		fromLabel.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		content.addView(fromLabel);
+		final Spinner fromSpinner = new Spinner(this);
+		content.addView(fromSpinner, new LinearLayout.LayoutParams(-1, dp(52)));
+		TextView toLabel = new TextView(this);
+		toLabel.setText("Traduzir para");
+		toLabel.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		toLabel.setPadding(0, dp(10), 0, 0);
+		content.addView(toLabel);
+		final Spinner toSpinner = new Spinner(this);
+		content.addView(toSpinner, new LinearLayout.LayoutParams(-1, dp(52)));
+		final TextView status = new TextView(this);
+		status.setText("Carregando idiomas disponíveis…");
+		status.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		status.setTextSize(12);
+		status.setPadding(0, dp(8), 0, dp(12));
+		content.addView(status);
+		LinearLayout actions = new LinearLayout(this);
+		actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+		MaterialButton restore = new MaterialButton(this);
+		restore.setText("Original");
+		restore.setTextColor(getResources().getColor(R.color.snav_primary));
+		restore.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
+		actions.addView(restore);
+		MaterialButton translate = new MaterialButton(this);
+		translate.setText("Traduzir");
+		translate.setEnabled(false);
+		actions.addView(translate);
+		content.addView(actions);
+		ScrollView scroll = new ScrollView(this);
+		scroll.setFillViewport(true);
+		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+		sheet.setContentView(scroll);
+		sheet.show();
+		sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+		sheet.getBehavior().setSkipCollapsed(true);
+
+		final ArrayList<TranslationsController.Language> sourceLanguages = new ArrayList<>();
+		final ArrayList<TranslationsController.Language> targetLanguages = new ArrayList<>();
+		ensureTranslationThread();
+		translationHandler.post(new Runnable() {
+			@Override public void run() {
+				TranslationsController.RuntimeTranslation.listSupportedLanguages().accept(
+					new GeckoResult.Consumer<TranslationsController.RuntimeTranslation.TranslationSupport>() {
+						@Override public void accept(final TranslationsController.RuntimeTranslation.TranslationSupport support) {
+							runOnUiThread(new Runnable() {
+								@Override public void run() {
+									if (isFinishing() || isDestroyed() || !sheet.isShowing()) return;
+									if (support == null || support.fromLanguages == null || support.toLanguages == null
+										|| support.fromLanguages.isEmpty() || support.toLanguages.isEmpty()) {
+										status.setText("O mecanismo não disponibilizou idiomas para este dispositivo.");
+										return;
+									}
+									sourceLanguages.clear();
+									targetLanguages.clear();
+									sourceLanguages.addAll(support.fromLanguages);
+									targetLanguages.addAll(support.toLanguages);
+									Collections.sort(sourceLanguages);
+									Collections.sort(targetLanguages);
+									ArrayList<String> sourceNames = new ArrayList<>();
+									ArrayList<String> targetNames = new ArrayList<>();
+									for (TranslationsController.Language language : sourceLanguages) sourceNames.add(language.localizedDisplayName);
+									for (TranslationsController.Language language : targetLanguages) targetNames.add(language.localizedDisplayName);
+									ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, sourceNames);
+									sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+									fromSpinner.setAdapter(sourceAdapter);
+									ArrayAdapter<String> targetAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, targetNames);
+									targetAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+									toSpinner.setAdapter(targetAdapter);
+									fromSpinner.setSelection(findLanguageIndex(sourceLanguages, detectedPageLanguage));
+									toSpinner.setSelection(findLanguageIndex(targetLanguages, "pt"));
+									status.setText(detectedPageLanguage == null
+										? "Selecione o idioma de origem. A detecção automática será usada quando disponível."
+										: "Idioma detectado: " + detectedPageLanguage);
+									translate.setEnabled(true);
+								}
+							});
+						}
+					},
+					new GeckoResult.Consumer<Throwable>() {
+						@Override public void accept(final Throwable error) {
+							runOnUiThread(new Runnable() {
+								@Override public void run() {
+									if (!isFinishing() && !isDestroyed() && sheet.isShowing()) status.setText("Não foi possível carregar os idiomas. Verifique a disponibilidade do mecanismo de tradução.");
+								}
+							});
+						}
+					});
+			}
+		});
+		translate.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (sourceLanguages.isEmpty() || targetLanguages.isEmpty() || geckoEngine == null) return;
+				final String from = sourceLanguages.get(fromSpinner.getSelectedItemPosition()).code;
+				final String to = targetLanguages.get(toSpinner.getSelectedItemPosition()).code;
+				if (from.equalsIgnoreCase(to)) {
+					status.setText("Escolha idiomas diferentes.");
+					return;
+				}
+				status.setText("Iniciando tradução e preparando modelos…");
+				translate.setEnabled(false);
+				translationHandler.post(new Runnable() {
+					@Override public void run() {
+						geckoEngine.getSession().getSessionTranslation().translate(from, to,
+							new TranslationsController.SessionTranslation.TranslationOptions.Builder().downloadModel(true).build()
+						).accept(
+							new GeckoResult.Consumer<Void>() {
+								@Override public void accept(Void ignored) {
+									runOnUiThread(new Runnable() {
+										@Override public void run() {
+											if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Tradução iniciada", Toast.LENGTH_SHORT).show();
+											sheet.dismiss();
+										}
+									});
+								}
+							},
+							new GeckoResult.Consumer<Throwable>() {
+								@Override public void accept(final Throwable error) {
+									runOnUiThread(new Runnable() {
+										@Override public void run() {
+											translate.setEnabled(true);
+											status.setText("Falha ao iniciar tradução. O par de idiomas pode não estar disponível.");
+											logDiagnostic("Falha na tradução Gecko: " + error.getClass().getSimpleName());
+										}
+									});
+								}
+							}
+						);
+					}
+				});
+			}
+		});
+		restore.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (geckoEngine == null) return;
+				translationHandler.post(new Runnable() {
+					@Override public void run() {
+						geckoEngine.getSession().getSessionTranslation().restoreOriginalPage().accept(
+							new GeckoResult.Consumer<Void>() {
+								@Override public void accept(Void ignored) {
+									runOnUiThread(new Runnable() {
+										@Override public void run() { sheet.dismiss(); }
+									});
+								}
+							},
+							new GeckoResult.Consumer<Throwable>() {
+								@Override public void accept(Throwable error) {
+									runOnUiThread(new Runnable() {
+										@Override public void run() { status.setText("A página já está no idioma original ou não foi possível restaurá-la."); }
+									});
+								}
+							}
+						);
+					}
+				});
+			}
+		});
+	}
+
+	private void showReaderOptionsBottomSheet() {
+		final String current = geckoEngine == null ? null : geckoEngine.getCurrentUri();
+		if (current == null || !isSecureOrigin(current) && !readerMode) {
+			Toast.makeText(this, "Abra uma página HTTPS para usar o modo leitura", Toast.LENGTH_SHORT).show();
+			return;
+		}
+		final BottomSheetDialog sheet = new BottomSheetDialog(this);
+		LinearLayout content = new LinearLayout(this);
+		content.setOrientation(LinearLayout.VERTICAL);
+		content.setPadding(dp(24), dp(8), dp(24), dp(28));
+		content.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(32)));
+		TextView title = new TextView(this);
+		title.setText("Modo de leitura");
+		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextSize(20);
+		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		content.addView(title);
+		TextView description = new TextView(this);
+		description.setText("O Snav usa a visualização de leitura integrada ao GeckoView para apresentar o conteúdo principal da página sem a interface original do site.");
+		description.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		description.setTextSize(14);
+		description.setPadding(0, dp(8), 0, dp(20));
+		content.addView(description);
+		MaterialButton action = new MaterialButton(this);
+		action.setText(readerMode ? "Voltar à página original" : "Ativar modo de leitura");
+		content.addView(action, new LinearLayout.LayoutParams(-1, -2));
+		action.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (geckoEngine == null) return;
+				if (!readerMode) {
+					readerOriginalUri = current;
+					readerMode = true;
+					linear_modo_leitura.setAlpha(0.65f);
+					geckoEngine.loadUri("about:reader?url=" + Uri.encode(current), Dados.getBoolean("do_not_track", false));
+				} else {
+					readerMode = false;
+					linear_modo_leitura.setAlpha(1f);
+					if (readerOriginalUri != null) geckoEngine.loadUri(readerOriginalUri, Dados.getBoolean("do_not_track", false));
+				}
+				sheet.dismiss();
+			}
+		});
+		ScrollView scroll = new ScrollView(this);
+		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+		sheet.setContentView(scroll);
+		sheet.show();
+		sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+		sheet.getBehavior().setSkipCollapsed(true);
+	}
+
+
 	private int siteInfoDp(float value) {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
 	}
@@ -880,13 +1116,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void addSiteInfoRow(LinearLayout parent, String title, String value) {
 		TextView heading = new TextView(this);
 		heading.setText(title);
-		heading.setTextColor(Color.parseColor("#DCE1E6"));
+		heading.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
 		heading.setTextSize(12);
 		parent.addView(heading);
 
 		TextView detail = new TextView(this);
 		detail.setText(value);
-		detail.setTextColor(Color.WHITE);
+		detail.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		detail.setTextSize(14);
 		detail.setTextIsSelectable(true);
 		detail.setPadding(0, siteInfoDp(3), 0, siteInfoDp(12));
@@ -898,14 +1134,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		final Uri pageUri = currentUrl == null ? null : Uri.parse(currentUrl);
 		final String scheme = pageUri == null ? null : pageUri.getScheme();
 		final String host = pageUri == null ? null : pageUri.getHost();
-		final Dialog sheet = new Dialog(this);
+		final BottomSheetDialog sheet = new BottomSheetDialog(this);
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(siteInfoDp(24), siteInfoDp(22), siteInfoDp(24), siteInfoDp(28));
-		GradientDrawable surface = new GradientDrawable();
-		surface.setColor(Color.parseColor("#34495E"));
-		surface.setCornerRadii(new float[] { siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), 0, 0, 0, 0 });
-		content.setBackground(surface);
+		content.setBackgroundColor(getResources().getColor(R.color.snav_surface));
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
 		title.setTextColor(Color.WHITE);
@@ -984,18 +1217,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
 		sheet.setContentView(scroll);
 		sheet.setCancelable(true);
-		Window window = sheet.getWindow();
-		if (window != null) {
-			window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-			window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-			WindowManager.LayoutParams params = window.getAttributes();
-			params.width = WindowManager.LayoutParams.MATCH_PARENT;
-			params.height = WindowManager.LayoutParams.WRAP_CONTENT;
-			params.gravity = Gravity.BOTTOM;
-			params.dimAmount = 0.38f;
-			window.setAttributes(params);
-		}
 		sheet.show();
+		sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+		sheet.getBehavior().setSkipCollapsed(true);
 		if (sheet.getWindow() != null) sheet.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
 	}
 
@@ -1903,6 +2127,18 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
         installGeckoPermissionDelegate();
+        geckoEngine.getSession().setTranslationsSessionDelegate(
+            new TranslationsController.SessionTranslation.Delegate() {
+                @Override public void onTranslationStateChange(
+                    GeckoSession session,
+                    TranslationsController.SessionTranslation.TranslationState state
+                ) {
+                    if (state != null && state.detectedLanguages != null
+                        && state.detectedLanguages.docLangTag != null) {
+                        detectedPageLanguage = state.detectedLanguages.docLangTag;
+                    }
+                }
+            });
         if (pendingSessionState != null) {
             geckoEngine.restoreState(pendingSessionState);
             pendingSessionState = null;
