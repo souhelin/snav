@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - feature/md3-full-ui-redesign
+      - feature/unsplash-wallpaper-pull-refresh
 
 permissions:
   contents: read
