@@ -1431,7 +1431,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		webview.setOnTouchListener(new View.OnTouchListener() {
 			@Override
 			public boolean onTouch(View view, android.view.MotionEvent event) {
-				if (pullVelocityTracker != null) pullVelocityTracker.addMovement(event);
+				if (event.getActionMasked() != android.view.MotionEvent.ACTION_DOWN
+					&& pullVelocityTracker != null) pullVelocityTracker.addMovement(event);
 				switch (event.getActionMasked()) {
 					case android.view.MotionEvent.ACTION_DOWN:
 						if (pullVelocityTracker != null) pullVelocityTracker.recycle();
@@ -1443,6 +1444,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						pullTracking = webview.getScrollY() <= 0 && !pageLoading;
 						pullConsumed = false;
 						if (pullRotationSpring != null) pullRotationSpring.cancel();
+						button_load_stop.setRotation(0f);
 						return false;
 					case android.view.MotionEvent.ACTION_MOVE:
 						if (!pullTracking || webview.getScrollY() > 0) return false;
@@ -1508,7 +1510,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (button_load_stop == null) return;
 		button_load_stop.setImageResource(loading ? R.drawable.ms_stop : R.drawable.ms_refresh);
 		button_load_stop.setContentDescription(loading ? "Interromper carregamento" : "Atualizar página");
-		if (!loading) button_load_stop.setRotation(0f);
 	}
 
 	private void initializeLogic() {
