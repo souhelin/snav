@@ -114,6 +114,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private float pullDistance;
 	private boolean pullTracking;
 	private boolean pullConsumed;
+	private ValueAnimator pullSpringAnimator;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
@@ -888,6 +889,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onDestroy() {
 		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
 		wallpaperCallback = null;
+		if (pullSpringAnimator != null) pullSpringAnimator.cancel();
 		super.onDestroy();
 	}
 
@@ -1413,6 +1415,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	private void setupPullToRefresh() {
 		if (webview == null || button_load_stop == null) return;
+		webview.setOverScrollMode(View.OVER_SCROLL_NEVER);
 		webview.setOnTouchListener(new View.OnTouchListener() {
 			@Override
 			public boolean onTouch(View view, android.view.MotionEvent event) {
@@ -1453,7 +1456,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	private void animatePullRelease(float startRotation) {
 		if (button_load_stop == null) return;
+		if (pullSpringAnimator != null) pullSpringAnimator.cancel();
+		if (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()) {
+			button_load_stop.setRotation(0f);
+			return;
+		}
 		ValueAnimator spring = ValueAnimator.ofFloat(0f, 1f);
+		pullSpringAnimator = spring;
 		spring.setDuration(420);
 		spring.setInterpolator(new TimeInterpolator() {
 			@Override public float getInterpolation(float input) {
