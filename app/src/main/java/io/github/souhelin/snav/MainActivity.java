@@ -54,6 +54,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private Timer _timer = new Timer();
 	
 	private double toque = 0;
+	private static final String[] TRACKER_DOMAINS = new String[] {
+		"doubleclick.net", "googlesyndication.com", "google-analytics.com",
+		"googletagmanager.com", "adservice.google.com", "connect.facebook.net",
+		"facebook.net", "hotjar.com", "scorecardresearch.com", "clarity.ms",
+		"quantserve.com", "taboola.com", "outbrain.com"
+	};
 	private PermissionRequest pendingWebPermissionRequest;
 	private String pendingGeolocationOrigin;
 	private GeolocationPermissions.Callback pendingGeolocationCallback;
@@ -1213,24 +1219,20 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			if (!name.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) continue;
 			manager.setCookie(url, name + "=; Path=/; Max-Age=0; SameSite=Lax");
 		}
-		if (Build.VERSION.SDK_INT >= 21) manager.flush();
+
 	}
 
 	private boolean shouldBlockThirdPartyTracker(WebView view, WebResourceRequest request) {
 		if (!Dados.getBoolean("tracker_blocking", true) || view == null || request == null) return false;
 		Uri resource = request.getUrl();
-		Uri page = Uri.parse(view.getUrl() == null ? "" : view.getUrl());
+		String referrer = request.getRequestHeaders().get("Referer");
+		if (referrer == null || referrer.trim().isEmpty()) return false;
+		Uri page = Uri.parse(referrer);
 		String resourceHost = resource == null ? null : resource.getHost();
 		String pageHost = page.getHost();
 		if (resourceHost == null || pageHost == null || resourceHost.equalsIgnoreCase(pageHost)) return false;
 		if (isSameSiteHost(resourceHost, pageHost)) return false;
-		String[] trackerDomains = new String[] {
-			"doubleclick.net", "googlesyndication.com", "google-analytics.com",
-			"googletagmanager.com", "adservice.google.com", "connect.facebook.net",
-			"facebook.net", "hotjar.com", "scorecardresearch.com", "clarity.ms",
-			"quantserve.com", "taboola.com", "outbrain.com"
-		};
-		for (String domain : trackerDomains) {
+		for (String domain : TRACKER_DOMAINS) {
 			if (resourceHost.equalsIgnoreCase(domain)
 				|| resourceHost.toLowerCase(java.util.Locale.US).endsWith("." + domain)) return true;
 		}
