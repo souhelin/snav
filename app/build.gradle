@@ -19,7 +19,7 @@ def launcherSource = file("src/main/assets/ic_launcher_source.png")
 def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons")
 
 android {
-    compileSdk 34
+    compileSdk 35
 
     useLibrary 'org.apache.http.legacy'
 
@@ -143,5 +143,6 @@ tasks.named("preBuild").configure {
 }
 
 dependencies {
+    implementation 'com.google.android.material:material:1.13.0'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 }
