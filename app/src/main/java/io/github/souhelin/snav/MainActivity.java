@@ -150,7 +150,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	private Intent intent = new Intent();
 	private SharedPreferences Dados;
-	private AlertDialog.Builder Limpar_Dialog;
 	private TimerTask time;
 	
 	@Override
@@ -256,7 +255,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			});
 		}
 
-		Limpar_Dialog = new AlertDialog.Builder(this);
 		
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -301,50 +299,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		
 		linear_limpar_dados2.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				Limpar_Dialog.setTitle("Limpar Dados de Navegação");
-				Limpar_Dialog.setMessage("Você deseja limpar todos os dados de navegação?");
-				Limpar_Dialog.setPositiveButton("SIM", new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface _dialog, int _which) {
-						clearGeckoBrowsingData();
-					}
-				});
-				Limpar_Dialog.setNegativeButton("NÃO", null);
-				
-				// Cria e exibe
-				final AlertDialog d = Limpar_Dialog.create();
-				d.show();
-				
-				// Customização do Fundo (Cor 34495E e Raio 20)
-				android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
-				gd.setColor(0xFF34495E);
-				gd.setCornerRadius(20);
-				d.getWindow().setBackgroundDrawable(gd);
-				
-				// Escurecer fundo da tela (Dim)
-				d.getWindow().setDimAmount(0.7f);
-				
-				// Cores dos Botões (Cor 9E9E9E)
-				d.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(0xFF9E9E9E);
-				d.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(0xFF9E9E9E);
-				
-				// Ajuste da cor do Título (Branco)
-				int titleId = getResources().getIdentifier("alertTitle", "id", "android");
-				if (titleId > 0) {
-					android.widget.TextView tvTitle = (android.widget.TextView) d.findViewById(titleId);
-					if (tvTitle != null) {
-						tvTitle.setTextColor(android.graphics.Color.WHITE);
-					}
-				}
-				
-				// Ajuste da cor da Mensagem (Branco)
-				android.widget.TextView tvMsg = (android.widget.TextView) d.findViewById(android.R.id.message);
-				if (tvMsg != null) {
-					tvMsg.setTextColor(android.graphics.Color.WHITE);
-				}
-				
+			@Override public void onClick(View view) {
+				showSnavDecisionSheet("Limpar dados de navegação",
+					"Você deseja remover os dados de navegação armazenados pelo Snav?",
+					"Limpar", "Cancelar", new Runnable() {
+						@Override public void run() { clearGeckoBrowsingData(); }
+					}, null);
 			}
 		});
 		
@@ -682,17 +642,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void showPendingCrashReport() {
 		final java.io.File marker = new java.io.File(getFilesDir(), PENDING_CRASH_FILE);
 		if (!marker.exists()) return;
-		new AlertDialog.Builder(this)
-			.setTitle("Falha detectada no Snav")
-			.setMessage("O Snav detectou que a execução anterior terminou inesperadamente. Você pode copiar o diagnóstico para ajudar a identificar a causa.")
-			.setPositiveButton("Copiar diagnóstico", new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					if (copyDiagnosticReport()) marker.delete();
-				}
-			})
-			.setNegativeButton("Depois", null)
-			.show();
+		showSnavDecisionSheet("Falha detectada no Snav",
+			"O Snav detectou que a execução anterior terminou inesperadamente. Você pode copiar o diagnóstico para ajudar a identificar a causa.",
+			"Copiar diagnóstico", "Depois", new Runnable() {
+				@Override public void run() { if (copyDiagnosticReport()) marker.delete(); }
+			}, null);
 	}
 
 	private boolean copyDiagnosticReport() {
@@ -1188,27 +1142,26 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					Toast.makeText(MainActivity.this, "Não há domínio para limpar", Toast.LENGTH_SHORT).show();
 					return;
 				}
-				new AlertDialog.Builder(MainActivity.this)
-					.setTitle("Limpar dados do site")
-					.setMessage("Remover cookies, armazenamento e permissões associados a " + host + "? A página atual será encerrada para evitar recriação imediata dos dados.")
-					.setNegativeButton("Cancelar", null)
-					.setPositiveButton("Limpar", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) {
-							geckoEngine.clearSiteData(host).accept(
-								new GeckoResult.Consumer<Void>() {
-									@Override public void accept(Void ignored) {
-										if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados do site removidos", Toast.LENGTH_SHORT).show();
-									}
-								},
-								new GeckoResult.Consumer<Throwable>() {
-									@Override public void accept(Throwable error) {
-										logDiagnostic("Falha ao limpar dados do site: " + error.getClass().getSimpleName());
-										if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Não foi possível limpar os dados do site", Toast.LENGTH_LONG).show();
-									}
+				showSnavDecisionSheet("Limpar dados do site",
+					"Remover cookies, armazenamento e permissões associados a " + host + "? A página atual será encerrada para evitar recriação imediata dos dados.",
+					"Limpar", "Cancelar", new Runnable() {
+						@Override public void run() {
+							if (geckoEngine == null) return;
+						geckoEngine.clearSiteData(host).accept(
+							new GeckoResult.Consumer<Void>() {
+								@Override public void accept(Void ignored) {
+									if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados do site removidos", Toast.LENGTH_SHORT).show();
 								}
-							);
+							},
+							new GeckoResult.Consumer<Throwable>() {
+								@Override public void accept(Throwable error) {
+									logDiagnostic("Falha ao limpar dados do site: " + error.getClass().getSimpleName());
+									if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Não foi possível limpar os dados do site", Toast.LENGTH_LONG).show();
+								}
+							}
+						);
 						}
-					}).show();
+					}, null);
 			}
 		});
 		TextView managePermissions = new TextView(this);
@@ -1371,7 +1324,95 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 	}
 
-					private int dp(float value) {
+					private void showSnavDecisionSheet(String titleText, String messageText,
+		String positiveText, String negativeText, final Runnable positiveAction,
+		final Runnable negativeAction) {
+		final BottomSheetDialog sheet = new BottomSheetDialog(this);
+		LinearLayout content = new LinearLayout(this);
+		content.setOrientation(LinearLayout.VERTICAL);
+		content.setPadding(dp(24), dp(8), dp(24), dp(24));
+
+		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(40)));
+
+		TextView title = new TextView(this);
+		title.setText(titleText);
+		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextSize(20);
+		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
+		titleParams.bottomMargin = dp(12);
+		content.addView(title, titleParams);
+
+		View divider = new View(this);
+		divider.setBackgroundColor(getResources().getColor(R.color.snav_outline));
+		content.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+
+		TextView message = new TextView(this);
+		message.setText(messageText);
+		message.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		message.setTextSize(14);
+		message.setLineSpacing(dp(3), 1f);
+		LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(-1, -2);
+		messageParams.topMargin = dp(16);
+		messageParams.bottomMargin = dp(24);
+		content.addView(message, messageParams);
+
+		LinearLayout actions = new LinearLayout(this);
+		actions.setOrientation(LinearLayout.HORIZONTAL);
+		actions.setGravity(Gravity.CENTER_VERTICAL);
+		MaterialButton negative = new MaterialButton(this);
+		negative.setText(negativeText);
+		negative.setAllCaps(false);
+		negative.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		negative.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
+		negative.setStrokeColor(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_outline)));
+		negative.setStrokeWidth(dp(1));
+		negative.setCornerRadius(dp(20));
+		MaterialButton positive = new MaterialButton(this);
+		positive.setText(positiveText);
+		positive.setAllCaps(false);
+		positive.setTextColor(Color.WHITE);
+		positive.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_accent)));
+		positive.setCornerRadius(dp(20));
+		LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+		actions.addView(negative, buttonParams);
+		LinearLayout.LayoutParams positiveParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+		positiveParams.leftMargin = dp(12);
+		actions.addView(positive, positiveParams);
+		content.addView(actions);
+
+		sheet.setContentView(content);
+		final boolean[] handled = new boolean[] { false };
+		negative.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (handled[0]) return;
+				handled[0] = true;
+				sheet.dismiss();
+				if (negativeAction != null) negativeAction.run();
+			}
+		});
+		positive.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (handled[0]) return;
+				handled[0] = true;
+				sheet.dismiss();
+				if (positiveAction != null) positiveAction.run();
+			}
+		});
+		sheet.setOnCancelListener(new DialogInterface.OnCancelListener() {
+			@Override public void onCancel(DialogInterface dialog) {
+				if (handled[0]) return;
+				handled[0] = true;
+				if (negativeAction != null) negativeAction.run();
+			}
+		});
+		sheet.show();
+		sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+		sheet.getBehavior().setSkipCollapsed(true);
+	}
+
+	private int dp(float value) {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
 	}
 
@@ -1387,13 +1428,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			if (portSeparator > 0) secureBuilder.encodedAuthority(authority.substring(0, portSeparator));
 		}
 		final String secureUrl = secureBuilder.build().toString();
-		new AlertDialog.Builder(this)
-			.setTitle("HTTP bloqueado")
-			.setMessage("O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS?")
-			.setPositiveButton("Tentar HTTPS", new DialogInterface.OnClickListener() {
-				@Override public void onClick(DialogInterface dialog, int which) { loadUrlWithPrivacyHeaders(secureUrl); }
-			})
-			.setNegativeButton("Cancelar", null).show();
+		showSnavDecisionSheet("HTTP bloqueado",
+			"O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS?",
+			"Tentar HTTPS", "Cancelar", new Runnable() {
+				@Override public void run() { loadUrlWithPrivacyHeaders(secureUrl); }
+			}, null);
 	}
 
 
@@ -1459,24 +1498,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				final GeckoResult<Integer> result = new GeckoResult<Integer>();
 				permission.notifyShown();
 				Uri origin = Uri.parse(permission.uri);
-				new AlertDialog.Builder(MainActivity.this)
-					.setTitle("Permitir localização?")
-					.setMessage("O site " + origin.getHost() + " solicita acesso à sua localização. Permita somente se iniciou essa ação.")
-					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) {
-							result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW);
-						}
-					})
-					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) {
-							result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
-						}
-					})
-					.setOnCancelListener(new DialogInterface.OnCancelListener() {
-						@Override public void onCancel(DialogInterface dialog) {
-							result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
-						}
-					}).show();
+				showSnavDecisionSheet("Permitir localização?",
+					"O site " + origin.getHost() + " solicita acesso à sua localização. Permita somente se iniciou essa ação.",
+					"Permitir", "Bloquear", new Runnable() {
+						@Override public void run() { result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW); }
+					}, new Runnable() {
+						@Override public void run() { result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY); }
+					});
 				return result;
 			}
 
@@ -1582,20 +1610,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			return;
 		}
 		String host = Uri.parse(uri).getHost();
-		new AlertDialog.Builder(MainActivity.this)
-			.setTitle("Permissão de mídia")
-			.setMessage(host + " solicita acesso à câmera e/ou ao microfone. Permita somente se iniciou uma chamada ou gravação.")
-			.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
-				@Override public void onClick(DialogInterface dialog, int which) {
-					callback.grant(hasVideo ? video[0] : null, hasAudio ? audio[0] : null);
-				}
-			})
-			.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
-				@Override public void onClick(DialogInterface dialog, int which) { callback.reject(); }
-			})
-			.setOnCancelListener(new DialogInterface.OnCancelListener() {
-				@Override public void onCancel(DialogInterface dialog) { callback.reject(); }
-			}).show();
+		showSnavDecisionSheet("Permissão de mídia",
+			host + " solicita acesso à câmera e/ou ao microfone. Permita somente se iniciou uma chamada ou gravação.",
+			"Permitir", "Bloquear", new Runnable() {
+				@Override public void run() { callback.grant(hasVideo ? video[0] : null, hasAudio ? audio[0] : null); }
+			}, new Runnable() {
+				@Override public void run() { callback.reject(); }
+			});
 	}
 
 	private void openExternalUri(String value) {
@@ -1683,11 +1704,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		String disposition = responseHeader(response, "Content-Disposition");
 		final String name = guessDownloadFileName(response.uri, disposition);
 		response.setReadTimeoutMillis(120000);
-		new AlertDialog.Builder(this)
-			.setTitle("Download")
-			.setMessage("Deseja salvar " + name + " na pasta Downloads?")
-			.setPositiveButton("Baixar", new DialogInterface.OnClickListener() {
-				@Override public void onClick(DialogInterface dialog, int which) {
+		showSnavDecisionSheet("Download",
+			"Deseja salvar " + name + " na pasta Downloads?",
+			"Baixar", "Cancelar", new Runnable() {
+				@Override public void run() {
 					if (Build.VERSION.SDK_INT < 29 && Build.VERSION.SDK_INT >= 23
 						&& checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
 						pendingGeckoDownload = response;
@@ -1697,13 +1717,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						saveGeckoDownload(response, name);
 					}
 				}
-			})
-			.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
-				@Override public void onClick(DialogInterface dialog, int which) { closeResponseBody(response); }
-			})
-			.setOnCancelListener(new DialogInterface.OnCancelListener() {
-				@Override public void onCancel(DialogInterface dialog) { closeResponseBody(response); }
-			}).show();
+			}, new Runnable() {
+				@Override public void run() { closeResponseBody(response); }
+			});
 	}
 
 	private java.io.File createUniqueDownloadFile(java.io.File directory, String requestedName) throws IOException {
