@@ -2540,7 +2540,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		webview.setDownloadListener(new DownloadListener() {
 			@Override
 			public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, long contentLength) {
-				final String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+				Uri downloadUri = Uri.parse(url == null ? "" : url);
+				String downloadScheme = downloadUri.getScheme();
+				if (downloadUri.getHost() == null || downloadUri.getUserInfo() != null
+					|| !("https".equalsIgnoreCase(downloadScheme) || "http".equalsIgnoreCase(downloadScheme))) {
+					Toast.makeText(MainActivity.this, "Endereço de download inválido", Toast.LENGTH_LONG).show();
+					return;
+				}
+				String suggestedName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+				final String fileName = (suggestedName == null ? "download" : suggestedName)
+					.replace('/', '_').replace(':', '_');
 				
 				// Verifica permissão no Sketchware/Android
 				if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28) {
@@ -2555,6 +2564,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				builder.setPositiveButton("Sim", new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
+						if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28
+							&& checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+							!= android.content.pm.PackageManager.PERMISSION_GRANTED) {
+							Toast.makeText(MainActivity.this, "Permissão de armazenamento negada. Download cancelado.", Toast.LENGTH_LONG).show();
+							return;
+						}
 						try {
 							DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
 							request.setTitle(fileName);
@@ -2572,10 +2587,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 							}
 							
 							DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+							if (dm == null) throw new IllegalStateException("Gerenciador de downloads indisponível");
 							dm.enqueue(request);
 							android.widget.Toast.makeText(getApplicationContext(), "Download iniciado...", android.widget.Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
-							android.widget.Toast.makeText(getApplicationContext(), "Erro: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+							logDiagnostic("Falha ao iniciar download: " + e.getClass().getSimpleName());
+							android.widget.Toast.makeText(getApplicationContext(), "Não foi possível iniciar o download", android.widget.Toast.LENGTH_SHORT).show();
 						}
 					}
 				});
