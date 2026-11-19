@@ -68,10 +68,35 @@ Implemented integrations:
 
 ## Validation status
 
-Source changes are committed to `feature/geckoview-engine` and a draft PR
-exists: https://github.com/souhelin/Snav-Browser/pull/6
+The current branch head at the time of validation is
+`cfeee7ef78a48f2cd5e77d63aed3b8f67b720a35` (`feature/geckoview-engine`).
 
-**The first CI run exposed a missing GeckoView artifact version; after pinning the published stable 160 artifact, the next run exposed AAR metadata requirements (AGP 9.1.0+ and API 37). The toolchain has since been upgraded to AGP 9.1.1 / Gradle 9.3.1 / API 37, but this exact revision still needs a fresh CI result. No successful build, R8 release build, emulator test, or physical device test has been verified yet.** The branch contains a GitHub Actions
-debug-build workflow, but the available commit status query returned no
-checks. A green build and device smoke tests are still required before this
-can be considered release-ready or merged.
+GitHub Actions run
+[44564995458](https://github.com/souhelin/Snav-Browser/actions/runs/44564995458)
+completed successfully on 2026-11-19. The job executed the following
+operations successfully:
+
+- `:app:testDebugUnitTest` — Gradle reported `NO-SOURCE`; no unit tests
+  currently exist, so this is not evidence of test coverage.
+- `:app:assembleDebug` — successful.
+- `:app:assembleRelease` — successful with R8 and resource shrinking.
+- `:app:bundleRelease` — successful.
+- APK/AAB artifact upload — successful; three output files were uploaded.
+
+The build log reports deprecated Gradle features that will be incompatible
+with Gradle 10. The exact deprecation sources have not yet been isolated.
+This does not fail the current Gradle 9.3.1 build, but should be resolved
+before upgrading to Gradle 10.
+
+No emulator or physical-device smoke test has been performed. Runtime behavior
+for navigation, prompts, Android permissions, downloads, site-data clearing,
+fullscreen, process crashes, and Activity recreation therefore remains
+unverified. The artifact upload proves packaging completed, not that these
+flows work on a device. Final APK/AAB sizes and runtime memory use should be
+measured on the delivered artifacts and representative devices.
+
+Pull request #6 is closed and was not merged. The GeckoView implementation
+remains on `feature/geckoview-engine`; do not treat the closed PR as a merge
+or as proof of runtime validation. A successful CI build is a necessary
+milestone, but the migration is not release-validated until device smoke
+tests and real test coverage are added.
