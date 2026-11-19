@@ -62,6 +62,7 @@ public final class GeckoEngineController {
                     .javaScriptEnabled(true)
                     .aboutConfigEnabled(false)
                     .remoteDebuggingEnabled(false)
+                    .allowInsecureConnections(GeckoRuntimeSettings.HTTPS_ONLY)
                     .build();
                 runtime = GeckoRuntime.create(context.getApplicationContext(), settings);
             }
