@@ -77,6 +77,7 @@ public final class GeckoEngineController {
         }
 
         session = new GeckoSession();
+        session.setPromptDelegate(null); // Use GeckoView's built-in secure prompt and file-picker UI.
         session.getSettings().setUseTrackingProtection(trackingProtectionEnabled);
         session.getSettings().setAllowJavascript(javaScriptEnabled);
 
