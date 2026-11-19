@@ -1272,18 +1272,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void showInsecureConnectionDialog(final WebView view, final String url) {
 		final Uri parsed = Uri.parse(url);
 		final String host = parsed.getHost() == null ? "este endereço" : parsed.getHost();
+		final String secureUrl = parsed.buildUpon().scheme("https").build().toString();
 		new AlertDialog.Builder(this)
-			.setTitle("Conexão não segura")
-			.setMessage("A conexão com " + host + " usa HTTP e não é criptografada. Seus dados podem ser interceptados. Deseja continuar mesmo assim?")
-			.setPositiveButton("Continuar", new DialogInterface.OnClickListener() {
+			.setTitle("HTTP bloqueado")
+			.setMessage("O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS? Se o site não oferecer HTTPS, a navegação será bloqueada.")
+			.setPositiveButton("Tentar HTTPS", new DialogInterface.OnClickListener() {
 				@Override public void onClick(DialogInterface dialog, int which) {
-					loadUrlWithPrivacyHeaders(view, url);
+					loadUrlWithPrivacyHeaders(view, secureUrl);
 				}
 			})
-			.setNegativeButton("Voltar", null)
-			.setOnCancelListener(new DialogInterface.OnCancelListener() {
-				@Override public void onCancel(DialogInterface dialog) { }
-			}).show();
+			.setNegativeButton("Cancelar", null)
+			.show();
 	}
 
 	private void initializeLogic() {
@@ -2701,8 +2700,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				Uri downloadUri = Uri.parse(url == null ? "" : url);
 				String downloadScheme = downloadUri.getScheme();
 				if (downloadUri.getHost() == null || downloadUri.getUserInfo() != null
-					|| !("https".equalsIgnoreCase(downloadScheme) || "http".equalsIgnoreCase(downloadScheme))) {
-					Toast.makeText(MainActivity.this, "Endereço de download inválido", Toast.LENGTH_LONG).show();
+					|| !"https".equalsIgnoreCase(downloadScheme)) {
+					Toast.makeText(MainActivity.this, "Download bloqueado: somente endereços HTTPS são permitidos.", Toast.LENGTH_LONG).show();
 					return;
 				}
 				String suggestedName = URLUtil.guessFileName(url, contentDisposition, mimetype);
