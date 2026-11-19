@@ -943,13 +943,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 							geckoEngine.clearSiteData(host).accept(
 								new GeckoResult.Consumer<Void>() {
 									@Override public void accept(Void ignored) {
-										Toast.makeText(MainActivity.this, "Dados do site removidos", Toast.LENGTH_SHORT).show();
+										if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados do site removidos", Toast.LENGTH_SHORT).show();
 									}
 								},
 								new GeckoResult.Consumer<Throwable>() {
 									@Override public void accept(Throwable error) {
 										logDiagnostic("Falha ao limpar dados do site: " + error.getClass().getSimpleName());
-										Toast.makeText(MainActivity.this, "Não foi possível limpar os dados do site", Toast.LENGTH_LONG).show();
+										if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Não foi possível limpar os dados do site", Toast.LENGTH_LONG).show();
 									}
 								}
 							);
@@ -1235,7 +1235,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				GeckoSession.PermissionDelegate.MediaSource[] video,
 				GeckoSession.PermissionDelegate.MediaSource[] audio,
 				GeckoSession.PermissionDelegate.MediaCallback callback) {
-				if (!isSecureOrigin(uri) || (video == null && audio == null)) {
+				boolean hasVideo = video != null && video.length > 0;
+				boolean hasAudio = audio != null && audio.length > 0;
+				if (!isSecureOrigin(uri) || (!hasVideo && !hasAudio)) {
 					callback.reject();
 					return;
 				}
@@ -1304,19 +1306,27 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (!isSecureOrigin(first) || !isSecureOrigin(second)) return false;
 		Uri a = Uri.parse(first);
 		Uri b = Uri.parse(second);
-		return a.getHost().equalsIgnoreCase(b.getHost()) && a.getPort() == b.getPort();
+		int firstPort = a.getPort() < 0 ? 443 : a.getPort();
+		int secondPort = b.getPort() < 0 ? 443 : b.getPort();
+		return a.getHost().equalsIgnoreCase(b.getHost()) && firstPort == secondPort;
 	}
 
 	private void showGeckoMediaPermissionPrompt(String uri,
 		GeckoSession.PermissionDelegate.MediaSource[] video,
 		GeckoSession.PermissionDelegate.MediaSource[] audio,
 		final GeckoSession.PermissionDelegate.MediaCallback callback) {
-		if (video != null && Build.VERSION.SDK_INT >= 23
+		boolean hasVideo = video != null && video.length > 0;
+		boolean hasAudio = audio != null && audio.length > 0;
+		if (!hasVideo && !hasAudio) {
+			callback.reject();
+			return;
+		}
+		if (hasVideo && Build.VERSION.SDK_INT >= 23
 			&& checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
 			callback.reject();
 			return;
 		}
-		if (audio != null && Build.VERSION.SDK_INT >= 23
+		if (hasAudio && Build.VERSION.SDK_INT >= 23
 			&& checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
 			callback.reject();
 			return;
@@ -1327,8 +1337,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			.setMessage(host + " solicita acesso à câmera e/ou ao microfone. Permita somente se iniciou uma chamada ou gravação.")
 			.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
 				@Override public void onClick(DialogInterface dialog, int which) {
-					callback.grant(video == null || video.length == 0 ? null : video[0],
-						audio == null || audio.length == 0 ? null : audio[0]);
+					callback.grant(hasVideo ? video[0] : null, hasAudio ? audio[0] : null);
 				}
 			})
 			.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
@@ -1362,13 +1371,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		geckoEngine.clearBrowsingData().accept(
 			new GeckoResult.Consumer<Void>() {
 				@Override public void accept(Void ignored) {
-							Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
+					if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
 				}
 			},
 			new GeckoResult.Consumer<Throwable>() {
 				@Override public void accept(Throwable error) {
 					logDiagnostic("Falha ao limpar dados: " + error.getClass().getSimpleName());
-					Toast.makeText(MainActivity.this, "Não foi possível limpar os dados", Toast.LENGTH_LONG).show();
+					if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Não foi possível limpar os dados", Toast.LENGTH_LONG).show();
 				}
 			});
 	}
@@ -1421,7 +1430,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			Toast.makeText(this, "Download bloqueado: somente HTTPS é permitido.", Toast.LENGTH_LONG).show();
 			return;
 		}
-		String mime = responseHeader(response, "Content-Type");
 		String disposition = responseHeader(response, "Content-Disposition");
 		final String name = guessDownloadFileName(response.uri, disposition);
 		response.setReadTimeoutMillis(120000);
