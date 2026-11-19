@@ -1502,7 +1502,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			com.google.android.material.R.style.Motion_Material3_Spring_Standard_Fast_Spatial);
 		pullRotationSpring = new SpringAnimation(
 			button_load_stop, DynamicAnimation.ROTATION, 0f);
-		pullRotationSpring.setSpring(spatialSpring);
+		// Keep the animation's target position (0 degrees) and copy only the
+		// Material spring parameters. Replacing its SpringForce directly leaves
+		// the resolver's final position unset and can crash SpringAnimation.start().
+		pullRotationSpring.getSpring()
+			.setDampingRatio(spatialSpring.getDampingRatio())
+			.setStiffness(spatialSpring.getStiffness());
 		pullRotationSpring.setStartVelocity(initialVelocity);
 		pullRotationSpring.setMinimumVisibleChange(DynamicAnimation.MIN_VISIBLE_CHANGE_ROTATION_DEGREES);
 		pullRotationSpring.start();
