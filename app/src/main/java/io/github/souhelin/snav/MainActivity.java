@@ -166,7 +166,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_b = findViewById(R.id.linear_b);
 		vazio = findViewById(R.id.vazio);
 		geckoView = findViewById(R.id.geckoView);
-		geckoView.getSettings().setJavaScriptEnabled(true);
+		geckoEngine.setJavaScriptEnabled(true);
 		geckoView.getSettings().setSupportZoom(true);
 		text_barra = findViewById(R.id.text_barra);
 		button_site_info = findViewById(R.id.button_site_info);
@@ -223,10 +223,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					if (pullRotationSpring != null) pullRotationSpring.cancel();
 					button_load_stop.setRotation(0f);
 					if (pageLoading) {
-						geckoView.stopLoading();
+						geckoEngine.stop();
 						finishPageProgress();
-					} else if (geckoView.getUrl() != null && !geckoView.getUrl().equals("about:blank")) {
-						geckoView.reload();
+					} else if ((geckoEngine == null ? null : geckoEngine.getCurrentUri()) != null && !geckoView.getUrl().equals("about:blank")) {
+						geckoEngine.reload();
 					} else {
 						openSearchScreen();
 					}
@@ -320,8 +320,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				Limpar_Dialog.setPositiveButton("SIM", new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface _dialog, int _which) {
-						geckoView.clearCache(true);
-						geckoView.clearHistory();
+						clearGeckoBrowsingData();
 					}
 				});
 				Limpar_Dialog.setNegativeButton("NÃO", null);
@@ -374,7 +373,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			public void onClick(View _view) {
 				String url = geckoView.getUrl();
 				if (url != null) {
-					geckoView.loadUrl("https://translate.google.com/translate?sl=en&tl=pt&hl=pt-BR&u=" + url.replace("https://", "") + "&client=webapp");
+					loadUrlWithPrivacyHeaders("https://translate.google.com/translate?sl=en&tl=pt&hl=pt-BR&u=" + url.replace("https://", "") + "&client=webapp");
 					SketchwareUtil.showMessage(getApplicationContext(), "Traduzindo");
 				} else {
 					SketchwareUtil.showMessage(getApplicationContext(), "Nenhuma URL encontrada para traduzir");
@@ -418,10 +417,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
 					Dados.edit().putString("brilho", "ativado").apply();
-					geckoView.setAlpha((float)(0.5d));
+					geckoView.setAlpha(0.5f);
 				} else {
 					Dados.edit().putString("brilho", "desativado").apply();
-					geckoView.setAlpha((float)(1.0d));
+					geckoView.setAlpha(1f);
 				}
 			}
 		});
@@ -434,7 +433,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					Dados.edit().putString("java", "ativado").apply();
 					geckoView.getSettings().setJavaScriptEnabled(true); 
 				} else {
-					geckoView.getSettings().setJavaScriptEnabled(false); 
+					geckoEngine.setJavaScriptEnabled(false); 
 					Dados.edit().putString("java", "desativado").apply();
 				}
 			}
@@ -472,9 +471,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (destination == null) return false;
 
 		if (destination.regionMatches(true, 0, "http://", 0, 7)) {
-			showInsecureConnectionDialog(geckoView, destination);
+			showInsecureConnectionDialog(destination);
 		} else {
-			loadUrlWithPrivacyHeaders(geckoView, destination);
+			loadUrlWithPrivacyHeaders(destination);
 		}
 		tela1.setVisibility(View.GONE);
 		tela2.setVisibility(View.VISIBLE);
@@ -882,18 +881,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void showSiteInfoBottomSheet() {
-		final String currentUrl = geckoView.getUrl();
+		final String currentUrl = geckoEngine == null ? null : geckoEngine.getCurrentUri();
 		final Uri pageUri = currentUrl == null ? null : Uri.parse(currentUrl);
 		final String scheme = pageUri == null ? null : pageUri.getScheme();
 		final String host = pageUri == null ? null : pageUri.getHost();
-		final String origin;
-		if (scheme != null && host != null) {
-			int port = pageUri.getPort();
-			origin = scheme + "://" + host + (port >= 0 ? ":" + port : "");
-		} else {
-			origin = null;
-		}
-
 		final Dialog sheet = new Dialog(this);
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
@@ -902,7 +893,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		surface.setColor(Color.parseColor("#34495E"));
 		surface.setCornerRadii(new float[] { siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), 0, 0, 0, 0 });
 		content.setBackground(surface);
-
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
 		title.setTextColor(Color.WHITE);
@@ -910,57 +900,54 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		title.setPadding(0, 0, 0, siteInfoDp(18));
 		content.addView(title);
-
 		addSiteInfoRow(content, "ENDEREÇO COMPLETO", currentUrl == null ? "Nenhum endereço aberto" : currentUrl);
-		String connection;
-		if ("https".equalsIgnoreCase(scheme)) {
-			connection = "HTTPS — conexão criptografada";
-		} else if ("http".equalsIgnoreCase(scheme)) {
-			connection = "HTTP — conexão não criptografada";
-		} else {
-			connection = "Não disponível";
-		}
-		addSiteInfoRow(content, "CONEXÃO", connection);
-		addSiteInfoRow(content, "PERMISSÕES DO SITE", "Câmera e microfone dependem também das permissões Android do aplicativo. A localização pode ser limpa para esta origem. O WebView não oferece API pública para revogar câmera/microfone individualmente por domínio; use as configurações Android para revogação global.");
-		addSiteInfoRow(content, "COOKIES E DADOS", "O Snav remove o DOM Storage da origem e tenta expirar cookies visíveis no caminho raiz. O WebView não expõe uma API pública para apagar todos os cookies de uma única origem com garantia de escopo.");
+		addSiteInfoRow(content, "CONEXÃO", "https".equalsIgnoreCase(scheme) ? "HTTPS — conexão criptografada" : "about".equalsIgnoreCase(scheme) ? "Página interna do GeckoView" : "Não disponível");
+		addSiteInfoRow(content, "PROTEÇÃO", "Proteção contra rastreamento integrada ao GeckoView e isolamento dinâmico de cookies de terceiros (dFPI).");
+		addSiteInfoRow(content, "PERMISSÕES", "Câmera, microfone e localização exigem consentimento por origem HTTPS e autorização do Android quando aplicável.");
+		addSiteInfoRow(content, "JAVASCRIPT", javaScriptEnabled ? "Ativado para o navegador" : "Desativado para o navegador");
 
 		TextView clearData = new TextView(this);
-		clearData.setText("Limpar armazenamento local");
+		clearData.setText("Limpar dados deste site");
 		clearData.setTextColor(Color.WHITE);
 		clearData.setTextSize(14);
 		clearData.setGravity(Gravity.CENTER);
 		clearData.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		clearData.setMinHeight(siteInfoDp(48));
 		clearData.setPadding(siteInfoDp(16), siteInfoDp(10), siteInfoDp(16), siteInfoDp(10));
-		GradientDrawable actionBg = new GradientDrawable();
-		actionBg.setColor(Color.parseColor("#E67E22"));
-		actionBg.setCornerRadius(siteInfoDp(24));
 		clearData.setBackgroundResource(R.drawable.snav_accent_ripple);
 		clearData.setClickable(true);
 		clearData.setFocusable(true);
 		content.addView(clearData, new LinearLayout.LayoutParams(-1, -2));
 		clearData.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View view) {
-				if (origin == null) {
-					Toast.makeText(MainActivity.this, "Nenhum domínio disponível", Toast.LENGTH_SHORT).show();
+			@Override public void onClick(View view) {
+				if (host == null || geckoEngine == null) {
+					Toast.makeText(MainActivity.this, "Não há domínio para limpar", Toast.LENGTH_SHORT).show();
 					return;
 				}
 				new AlertDialog.Builder(MainActivity.this)
 					.setTitle("Limpar dados do site")
-					.setMessage("Remover o armazenamento local e tentar apagar os cookies visíveis de " + host + "? Cookies com caminhos ou domínios específicos podem exigir limpeza adicional.")
+					.setMessage("Remover cookies, armazenamento e permissões associados a " + host + "? A página atual será encerrada para evitar recriação imediata dos dados.")
 					.setNegativeButton("Cancelar", null)
 					.setPositiveButton("Limpar", new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							WebStorage.getInstance().deleteOrigin(origin);
-							clearCookiesForOrigin(currentUrl);
-							Toast.makeText(MainActivity.this, "Limpeza solicitada para este domínio", Toast.LENGTH_SHORT).show();
+						@Override public void onClick(DialogInterface dialog, int which) {
+							geckoEngine.clearSiteData(host).accept(
+								new GeckoResult.Consumer<Void>() {
+									@Override public void accept(Void ignored) {
+										Toast.makeText(MainActivity.this, "Dados do site removidos", Toast.LENGTH_SHORT).show();
+										geckoEngine.loadUri("about:blank", false);
+									}
+								},
+								new GeckoResult.Consumer<Throwable>() {
+									@Override public void accept(Throwable error) {
+										logDiagnostic("Falha ao limpar dados do site: " + error.getClass().getSimpleName());
+										Toast.makeText(MainActivity.this, "Não foi possível limpar os dados do site", Toast.LENGTH_LONG).show();
+									}
+								}
+							);
 						}
 					}).show();
 			}
 		});
-
 		TextView managePermissions = new TextView(this);
 		managePermissions.setText("Gerenciar permissões do aplicativo");
 		managePermissions.setTextColor(Color.WHITE);
@@ -971,26 +958,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		managePermissions.setBackgroundResource(R.drawable.snav_accent_ripple);
 		managePermissions.setClickable(true);
 		managePermissions.setFocusable(true);
-		LinearLayout.LayoutParams permissionParams = new LinearLayout.LayoutParams(-1, -2);
-		permissionParams.topMargin = siteInfoDp(8);
-		content.addView(managePermissions, permissionParams);
+		content.addView(managePermissions, new LinearLayout.LayoutParams(-1, -2));
 		managePermissions.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
-				if (origin != null) {
-					GeolocationPermissions.getInstance().clear(origin);
-				}
-				Intent settings = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-					Uri.parse("package:" + getPackageName()));
-				try {
-					startActivity(settings);
-				} catch (ActivityNotFoundException error) {
-					Toast.makeText(MainActivity.this, "Não foi possível abrir as configurações do aplicativo", Toast.LENGTH_SHORT).show();
-				}
+				Intent settings = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+				try { startActivity(settings); }
+				catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Não foi possível abrir as configurações do aplicativo", Toast.LENGTH_SHORT).show(); }
 			}
 		});
-
-		addSiteInfoRow(content, "CONFIGURAÇÕES DO SITE", "JavaScript: " + (geckoView.getSettings().getJavaScriptEnabled() ? "ativado" : "desativado") + ". Esta configuração é global para o navegador, não específica deste domínio.");
-
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
 		scroll.setClipToPadding(false);
@@ -1009,9 +984,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			window.setAttributes(params);
 		}
 		sheet.show();
-		if (sheet.getWindow() != null) {
-			sheet.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
-		}
+		if (sheet.getWindow() != null) sheet.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
 	}
 
 
@@ -1037,12 +1010,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		row.setOrientation(LinearLayout.VERTICAL);
 		row.setPadding(dp(8), dp(8), dp(8), dp(8));
 		MaterialSwitch toggle = new MaterialSwitch(this);
-		toggle.setText("Bloquear rastreadores conhecidos");
+		toggle.setText("Proteção contra rastreamento");
 		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		toggle.setTextSize(14);
 		toggle.setChecked(enabled);
 		TextView summary = new TextView(this);
-		summary.setText("Filtro local e limitado a domínios conhecidos de terceiros; não bloqueia todo rastreamento.");
+		summary.setText("Usa a proteção contra rastreamento integrada ao GeckoView.");
 		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
 		summary.setTextSize(12);
 		summary.setPadding(dp(40), 0, dp(8), 0);
@@ -1051,9 +1024,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
 				Dados.edit().putBoolean("tracker_blocking", checked).apply();
-				com.google.android.material.snackbar.Snackbar.make(linear33,
-					checked ? "Filtro de rastreadores ativado" : "Filtro de rastreadores desativado",
-					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+				if (geckoEngine != null) geckoEngine.setTrackingProtectionEnabled(checked);
+				com.google.android.material.snackbar.Snackbar.make(linear33, checked ? "Proteção contra rastreamento ativada" : "Proteção contra rastreamento desativada", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
 			}
 		});
 		int insertAt = Math.max(0, linear33.getChildCount() - 1);
@@ -1182,7 +1154,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						pullStartY = event.getY();
 						pullStartX = event.getX();
 						pullDistance = 0f;
-						pullTracking = geckoView.getScrollY() <= 0 && !pageLoading;
+						pullTracking = geckoScrollY <= 0 && !pageLoading;
 						pullConsumed = false;
 						if (pullRotationSpring != null) pullRotationSpring.cancel();
 						button_load_stop.setRotation(0f);
@@ -1218,7 +1190,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						pullConsumed = false;
 						if (event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
 						if (rotation > 0f) animatePullRelease(rotationVelocity);
-						if (refresh && geckoView.getUrl() != null) {
+						if (refresh && geckoEngine != null && geckoEngine.getCurrentUri() != null) {
 							geckoView.reload();
 							return true;
 						}
@@ -1272,8 +1244,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
-		if (geckoView.canGoBack()) {
-			geckoView.goBack();
+		if (geckoEngine != null && geckoEngine.canGoBack()) {
+			geckoEngine.goBack();
 		} else {
 			tela1.setVisibility(View.VISIBLE);
 			tela2.setVisibility(View.GONE);
