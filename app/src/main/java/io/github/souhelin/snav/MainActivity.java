@@ -32,7 +32,7 @@ import android.webkit.*;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.*;
-import android.widget.CheckBox;
+import com.google.android.material.materialswitch.MaterialSwitch;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -49,7 +49,7 @@ import java.util.TimerTask;
 import java.util.regex.*;
 import org.json.*;
 
-public class MainActivity extends Activity {
+public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	private Timer _timer = new Timer();
 	
@@ -70,6 +70,7 @@ public class MainActivity extends Activity {
 	private LinearLayout vazio;
 	private WebView webview;
 	private TextView text_barra;
+	private ImageButton button_site_info;
 	private ProgressBar prog;
 	private TextView text1;
 	private TextView text2;
@@ -94,8 +95,8 @@ public class MainActivity extends Activity {
 	private TextView text7;
 	private ImageView imageview58;
 	private TextView text15;
-	private CheckBox checkbox_brilho;
-	private CheckBox checkbox_javascript2;
+	private MaterialSwitch checkbox_brilho;
+	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
 	private TextView b2;
@@ -109,8 +110,11 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle _savedInstanceState) {
 		super.onCreate(_savedInstanceState);
 		setContentView(R.layout.main);
+		startDiagnostics();
 		initialize(_savedInstanceState);
 		initializeLogic();
+		addDiagnosticMenuAction();
+		showPendingCrashReport();
 	}
 	
 	private void initialize(Bundle _savedInstanceState) {
@@ -131,6 +135,7 @@ public class MainActivity extends Activity {
 		webview.getSettings().setJavaScriptEnabled(true);
 		webview.getSettings().setSupportZoom(true);
 		text_barra = findViewById(R.id.text_barra);
+		button_site_info = findViewById(R.id.button_site_info);
 		prog = findViewById(R.id.prog);
 		text1 = findViewById(R.id.text1);
 		text2 = findViewById(R.id.text2);
@@ -166,43 +171,69 @@ public class MainActivity extends Activity {
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				tela1.setVisibility(View.GONE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.GONE);
+				openSearchScreen();
 			}
 		});
+
+		ImageView searchAction = findViewById(R.id.image_search_action);
+		if (searchAction != null) {
+			searchAction.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View view) {
+					submitSearch();
+				}
+			});
+		}
 		
 		linear_b.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				tela1.setVisibility(View.VISIBLE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.GONE);
+				openSearchScreen();
 			}
 		});
 		
 		webview.setWebViewClient(new WebViewClient() {
 			@Override
-			public void onPageStarted(WebView _param1, String _param2, Bitmap _param3) {
-				final String _url = _param2;
-				
-				super.onPageStarted(_param1, _param2, _param3);
+			public void onPageStarted(WebView view, String url, Bitmap favicon) {
+				logDiagnostic("Navegação iniciada: " + safeHostForDiagnostics(url));
+				super.onPageStarted(view, url, favicon);
 			}
-			
+
 			@Override
-			public void onPageFinished(WebView _param1, String _param2) {
-				final String _url = _param2;
-				
-				super.onPageFinished(_param1, _param2);
+			public void onPageFinished(WebView view, String url) {
+				logDiagnostic("Navegação concluída: " + safeHostForDiagnostics(url));
+				super.onPageFinished(view, url);
+			}
+
+			@Override
+			public void onReceivedError(WebView view, int errorCode,
+				String description, String failingUrl) {
+				logDiagnostic("Erro de carregamento WebView: código " + errorCode
+					+ "; host=" + safeHostForDiagnostics(failingUrl));
+				super.onReceivedError(view, errorCode, description, failingUrl);
+			}
+
+			@Override
+			public void onReceivedSslError(WebView view, SslErrorHandler handler,
+				android.net.http.SslError error) {
+				logDiagnostic("Erro de certificado TLS: " + (error == null ? "desconhecido"
+					: error.getPrimaryError()) + "; host="
+					+ safeHostForDiagnostics(error == null ? null : error.getUrl()));
+				handler.cancel();
+			}
+		});
+		
+		button_site_info.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View _view) {
+				showSiteInfoBottomSheet();
 			}
 		});
 		
 		text2.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				tela1.setVisibility(View.VISIBLE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.GONE);
+				openSearchScreen();
 			}
 		});
 		
@@ -391,12 +422,10 @@ public class MainActivity extends Activity {
 			public void onCheckedChanged(CompoundButton _param1, boolean _param2) {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
-					checkbox_brilho.setChecked(true);
-					Dados.edit().putString("brilho", "ativado").commit();
+					Dados.edit().putString("brilho", "ativado").apply();
 					webview.setAlpha((float)(0.5d));
 				} else {
-					checkbox_brilho.setChecked(false);
-					Dados.edit().putString("brilho", "desativado").commit();
+					Dados.edit().putString("brilho", "desativado").apply();
 					webview.setAlpha((float)(1.0d));
 				}
 			}
@@ -407,13 +436,11 @@ public class MainActivity extends Activity {
 			public void onCheckedChanged(CompoundButton _param1, boolean _param2) {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
-					checkbox_javascript2.setChecked(true);
-					Dados.edit().putString("java", "ativado").commit();
+					Dados.edit().putString("java", "ativado").apply();
 					webview.getSettings().setJavaScriptEnabled(true); 
 				} else {
-					checkbox_javascript2.setChecked(false);
 					webview.getSettings().setJavaScriptEnabled(false); 
-					Dados.edit().putString("java", "desativado").commit();
+					Dados.edit().putString("java", "desativado").apply();
 				}
 			}
 		});
@@ -437,6 +464,520 @@ public class MainActivity extends Activity {
 		});
 	}
 	
+
+	private boolean submitSearch() {
+		String input = edittext1 == null || edittext1.getText() == null
+			? "" : edittext1.getText().toString().trim();
+		if (input.isEmpty()) {
+			openSearchScreen();
+			return false;
+		}
+
+		String destination = resolveNavigationInput(input);
+		if (destination == null) return false;
+
+		webview.loadUrl(destination);
+		tela1.setVisibility(View.GONE);
+		tela2.setVisibility(View.VISIBLE);
+		tela3.setVisibility(View.GONE);
+		vazio.setVisibility(View.GONE);
+
+		edittext1.setText("");
+		edittext1.clearFocus();
+		android.view.inputmethod.InputMethodManager keyboard =
+			(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+		if (keyboard != null) {
+			keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
+		}
+		Dados.edit().putString("vazio", "desativado").apply();
+		logDiagnostic("Pesquisa enviada pelo botão ou teclado");
+		return true;
+	}
+
+	private void openSearchScreen() {
+		if (tela1 != null) tela1.setVisibility(View.VISIBLE);
+		if (tela2 != null) tela2.setVisibility(View.GONE);
+		if (tela3 != null) tela3.setVisibility(View.GONE);
+		if (edittext1 == null) return;
+
+		edittext1.setShowSoftInputOnFocus(true);
+		edittext1.requestFocus();
+		getWindow().setSoftInputMode(
+			android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+				| android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+		);
+		edittext1.post(new Runnable() {
+			@Override
+			public void run() {
+				if (isFinishing() || !edittext1.isShown()) return;
+				android.view.inputmethod.InputMethodManager keyboard =
+					(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+				if (keyboard != null) {
+					keyboard.showSoftInput(edittext1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+				}
+			}
+		});
+	}
+
+	private static final String DIAGNOSTIC_FILE = "snav-diagnostic.log";
+	private static final String PREVIOUS_DIAGNOSTIC_FILE = "snav-diagnostic.log.old";
+	private static final String PENDING_CRASH_FILE = "snav-crash-pending";
+	private static final int MAX_DIAGNOSTIC_BYTES = 262144;
+	private static volatile java.io.File diagnosticDirectory;
+	private static boolean diagnosticCrashHandlerInstalled;
+
+	private static final java.util.concurrent.ThreadPoolExecutor DIAGNOSTIC_EXECUTOR =
+		new java.util.concurrent.ThreadPoolExecutor(
+			1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+			new java.util.concurrent.ArrayBlockingQueue<Runnable>(128),
+			new java.util.concurrent.ThreadFactory() {
+				@Override
+				public Thread newThread(Runnable task) {
+					Thread thread = new Thread(task, "Snav-Diagnostics");
+					thread.setDaemon(true);
+					return thread;
+				}
+			},
+			new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy()
+		);
+
+	private String resolveNavigationInput(String input) {
+		String value = input == null ? "" : input.trim();
+		if (value.isEmpty()) return null;
+		if (value.matches("(?i)^https?://.*")) {
+			if (value.matches(".*\\s+.*")) return buildSearchUrl(value);
+			try {
+				Uri parsed = Uri.parse(value);
+				if (parsed.getHost() != null) return value;
+			} catch (Exception ignored) {
+			}
+			return buildSearchUrl(value);
+		}
+
+		if (!value.matches(".*\\s+.*") && isDomainOrIp(value)) {
+			String candidate = "https://" + value;
+			try {
+				if (Uri.parse(candidate).getHost() != null) return candidate;
+			} catch (Exception ignored) {
+			}
+		}
+		return buildSearchUrl(value);
+	}
+
+	private boolean isDomainOrIp(String value) {
+		if (value == null || value.isEmpty()) return false;
+		return value.matches("(?i)^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}(?::\\d{1,5})?(?:[/?#][^\\s]*)?$")
+			|| value.matches("^(?:\\d{1,3}\\.){3}\\d{1,3}(?::\\d{1,5})?(?:[/?#][^\\s]*)?$")
+			|| value.matches("(?i)^localhost(?::\\d{1,5})?(?:/[^\\s]*)?$");
+	}
+
+	private String buildSearchUrl(String query) {
+		try {
+			return "https://www.google.com/search?q="
+				+ java.net.URLEncoder.encode(query, "UTF-8");
+		} catch (Exception error) {
+			logDiagnostic("Falha ao codificar consulta de pesquisa");
+			return null;
+		}
+	}
+
+	private void startDiagnostics() {
+		final java.io.File directory = getFilesDir();
+		diagnosticDirectory = directory;
+		synchronized (MainActivity.class) {
+			if (!diagnosticCrashHandlerInstalled) {
+				final Thread.UncaughtExceptionHandler previous =
+					Thread.getDefaultUncaughtExceptionHandler();
+				try {
+					Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+						@Override
+						public void uncaughtException(Thread thread, Throwable error) {
+							writeDiagnosticSynchronously(directory,
+								"CRASH NÃO TRATADO na thread " + thread.getName(), error);
+							try {
+								java.io.File marker = new java.io.File(directory, PENDING_CRASH_FILE);
+								java.io.FileOutputStream output = new java.io.FileOutputStream(marker, false);
+								output.write(String.valueOf(System.currentTimeMillis()).getBytes("UTF-8"));
+								output.close();
+							} catch (Throwable markerError) {
+								android.util.Log.e("SnavDiagnostic", "Falha ao salvar marcador de crash", markerError);
+							}
+							if (previous != null) {
+								previous.uncaughtException(thread, error);
+							} else {
+								android.os.Process.killProcess(android.os.Process.myPid());
+								System.exit(10);
+							}
+						}
+					});
+					diagnosticCrashHandlerInstalled = true;
+				} catch (Throwable handlerError) {
+					android.util.Log.e("SnavDiagnostic", "Não foi possível instalar o capturador de falhas", handlerError);
+				}
+			}
+		}
+		logDiagnostic("========== INICIALIZAÇÃO DO SNAV ==========");
+		logDiagnostic("Android=" + android.os.Build.VERSION.RELEASE
+			+ " (SDK " + android.os.Build.VERSION.SDK_INT + ")");
+		logDiagnostic("Dispositivo=" + android.os.Build.MANUFACTURER
+			+ " " + android.os.Build.MODEL);
+		logDiagnostic("Processo=" + android.os.Process.myPid());
+	}
+
+	private void logDiagnostic(final String event) {
+		final java.io.File directory = diagnosticDirectory;
+		if (directory == null || event == null) return;
+		try {
+			DIAGNOSTIC_EXECUTOR.execute(new Runnable() {
+				@Override
+				public void run() {
+					writeDiagnosticSynchronously(directory, event, null);
+				}
+			});
+		} catch (RuntimeException ignored) {
+			android.util.Log.w("SnavDiagnostic", "Evento de diagnóstico descartado");
+		}
+	}
+
+	private static synchronized void writeDiagnosticSynchronously(
+		java.io.File directory, String event, Throwable error) {
+		if (directory == null) return;
+		java.io.FileOutputStream output = null;
+		java.io.OutputStreamWriter writer = null;
+		try {
+			if (!directory.exists() && !directory.mkdirs()) return;
+			java.io.File file = new java.io.File(directory, DIAGNOSTIC_FILE);
+			if (file.exists() && file.length() >= MAX_DIAGNOSTIC_BYTES) {
+				java.io.File previous = new java.io.File(directory, PREVIOUS_DIAGNOSTIC_FILE);
+				if (previous.exists()) previous.delete();
+				if (!file.renameTo(previous)) file.delete();
+			}
+			output = new java.io.FileOutputStream(file, true);
+			writer = new java.io.OutputStreamWriter(output, "UTF-8");
+			writer.write(new java.text.SimpleDateFormat(
+				"yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US).format(new java.util.Date()));
+			writer.write(" [");
+			writer.write(Thread.currentThread().getName());
+			writer.write("] ");
+			writer.write(event);
+			writer.write("\n");
+			if (error != null) {
+				java.io.StringWriter trace = new java.io.StringWriter();
+				error.printStackTrace(new java.io.PrintWriter(trace));
+				String stack = trace.toString();
+				if (stack.length() > 32768) stack = stack.substring(0, 32768);
+				writer.write(stack);
+				writer.write("\n");
+			}
+			writer.flush();
+		} catch (Throwable logError) {
+			android.util.Log.e("SnavDiagnostic", "Falha ao gravar diagnóstico", logError);
+		} finally {
+			try {
+				if (writer != null) writer.close();
+				else if (output != null) output.close();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
+	private String safeHostForDiagnostics(String address) {
+		try {
+			String host = address == null ? null : Uri.parse(address).getHost();
+			return host == null ? "(host indisponível)" : host;
+		} catch (Exception ignored) {
+			return "(host inválido)";
+		}
+	}
+
+	private void addDiagnosticMenuAction() {
+		if (linear33 == null) return;
+		TextView action = new TextView(this);
+		action.setText("Copiar diagnóstico");
+		action.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		action.setTextSize(14);
+		action.setGravity(Gravity.CENTER_VERTICAL);
+		int horizontal = (int) (16 * getResources().getDisplayMetrics().density + 0.5f);
+		int vertical = (int) (14 * getResources().getDisplayMetrics().density + 0.5f);
+		action.setPadding(horizontal, vertical, horizontal, vertical);
+		android.util.TypedValue rippleBackground = new android.util.TypedValue();
+		if (getTheme().resolveAttribute(android.R.attr.selectableItemBackground, rippleBackground, true)) {
+			action.setBackgroundResource(rippleBackground.resourceId);
+		}
+		action.setClickable(true);
+		action.setFocusable(true);
+		action.setContentDescription("Copiar relatório de diagnóstico do Snav");
+		action.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				copyDiagnosticReport();
+			}
+		});
+		linear33.addView(action, new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+	}
+
+	private void showPendingCrashReport() {
+		final java.io.File marker = new java.io.File(getFilesDir(), PENDING_CRASH_FILE);
+		if (!marker.exists()) return;
+		new AlertDialog.Builder(this)
+			.setTitle("Falha detectada no Snav")
+			.setMessage("O Snav detectou que a execução anterior terminou inesperadamente. Você pode copiar o diagnóstico para ajudar a identificar a causa.")
+			.setPositiveButton("Copiar diagnóstico", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					if (copyDiagnosticReport()) marker.delete();
+				}
+			})
+			.setNegativeButton("Depois", null)
+			.show();
+	}
+
+	private boolean copyDiagnosticReport() {
+		try {
+			StringBuilder report = new StringBuilder();
+			report.append("SNAV BROWSER - RELATÓRIO DE DIAGNÓSTICO\n");
+			report.append("Android: ").append(android.os.Build.VERSION.RELEASE)
+				.append(" (SDK ").append(android.os.Build.VERSION.SDK_INT).append(")\n");
+			report.append("Dispositivo: ").append(android.os.Build.MANUFACTURER)
+				.append(" ").append(android.os.Build.MODEL).append("\n\n");
+			appendDiagnosticFile(report, new java.io.File(getFilesDir(), PREVIOUS_DIAGNOSTIC_FILE));
+			appendDiagnosticFile(report, new java.io.File(getFilesDir(), DIAGNOSTIC_FILE));
+			ClipboardManager clipboard =
+				(ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+			if (clipboard == null) return false;
+			clipboard.setPrimaryClip(ClipData.newPlainText("Snav diagnóstico", report.toString()));
+			Toast.makeText(this, "Diagnóstico copiado. Revise o conteúdo antes de compartilhar.",
+				Toast.LENGTH_LONG).show();
+			return true;
+		} catch (Exception error) {
+			android.util.Log.e("SnavDiagnostic", "Falha ao copiar diagnóstico", error);
+			Toast.makeText(this, "Não foi possível copiar o diagnóstico.", Toast.LENGTH_LONG).show();
+			return false;
+		}
+	}
+
+	private void appendDiagnosticFile(StringBuilder report, java.io.File file) throws IOException {
+		if (!file.exists()) return;
+		report.append("--- ").append(file.getName()).append(" ---\n");
+		java.io.BufferedReader reader = new java.io.BufferedReader(
+			new java.io.InputStreamReader(new java.io.FileInputStream(file), "UTF-8"));
+		try {
+			String line;
+			int total = 0;
+			while ((line = reader.readLine()) != null && total < MAX_DIAGNOSTIC_BYTES * 2) {
+				report.append(line).append('\n');
+				total += line.length();
+			}
+		} finally {
+			reader.close();
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		logDiagnostic("Ciclo de vida: onResume");
+	}
+
+	@Override
+	protected void onPause() {
+		logDiagnostic("Ciclo de vida: onPause");
+		super.onPause();
+	}
+
+	@Override
+	protected void onDestroy() {
+		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
+		super.onDestroy();
+	}
+
+	private final Handler progressHandler = new Handler(Looper.getMainLooper());
+	private ObjectAnimator progressAnimator;
+	private Runnable showProgressRunnable;
+	private boolean pageLoading = false;
+
+	private void beginPageProgress() {
+		pageLoading = true;
+		if (showProgressRunnable != null) {
+			progressHandler.removeCallbacks(showProgressRunnable);
+		}
+		if (progressAnimator != null) {
+			progressAnimator.cancel();
+		}
+		prog.animate().cancel();
+		prog.setAlpha(1f);
+		prog.setProgress(0);
+		prog.setIndeterminate(true);
+
+		showProgressRunnable = new Runnable() {
+			@Override
+			public void run() {
+				if (pageLoading) {
+					prog.setVisibility(View.VISIBLE);
+				}
+			}
+		};
+		progressHandler.postDelayed(showProgressRunnable, 120);
+	}
+
+	private void finishPageProgress() {
+		if (!pageLoading) {
+			return;
+		}
+		pageLoading = false;
+		if (showProgressRunnable != null) {
+			progressHandler.removeCallbacks(showProgressRunnable);
+		}
+		if (progressAnimator != null) {
+			progressAnimator.cancel();
+		}
+		prog.setIndeterminate(false);
+		prog.setProgress(100);
+
+		if (prog.getVisibility() != View.VISIBLE) {
+			prog.setProgress(0);
+			return;
+		}
+
+		prog.animate()
+			.alpha(0f)
+			.setDuration(160)
+			.withEndAction(new Runnable() {
+				@Override
+				public void run() {
+					prog.setVisibility(View.GONE);
+					prog.setAlpha(1f);
+					prog.setProgress(0);
+				}
+			})
+			.start();
+	}
+
+	private int siteInfoDp(float value) {
+		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+	}
+
+	private void addSiteInfoRow(LinearLayout parent, String title, String value) {
+		TextView heading = new TextView(this);
+		heading.setText(title);
+		heading.setTextColor(Color.parseColor("#DCE1E6"));
+		heading.setTextSize(12);
+		parent.addView(heading);
+
+		TextView detail = new TextView(this);
+		detail.setText(value);
+		detail.setTextColor(Color.WHITE);
+		detail.setTextSize(14);
+		detail.setTextIsSelectable(true);
+		detail.setPadding(0, siteInfoDp(3), 0, siteInfoDp(12));
+		parent.addView(detail);
+	}
+
+	private void showSiteInfoBottomSheet() {
+		final String currentUrl = webview.getUrl();
+		final Uri pageUri = currentUrl == null ? null : Uri.parse(currentUrl);
+		final String scheme = pageUri == null ? null : pageUri.getScheme();
+		final String host = pageUri == null ? null : pageUri.getHost();
+		final String origin;
+		if (scheme != null && host != null) {
+			int port = pageUri.getPort();
+			origin = scheme + "://" + host + (port >= 0 ? ":" + port : "");
+		} else {
+			origin = null;
+		}
+
+		final Dialog sheet = new Dialog(this);
+		LinearLayout content = new LinearLayout(this);
+		content.setOrientation(LinearLayout.VERTICAL);
+		content.setPadding(siteInfoDp(24), siteInfoDp(22), siteInfoDp(24), siteInfoDp(28));
+		GradientDrawable surface = new GradientDrawable();
+		surface.setColor(Color.parseColor("#34495E"));
+		surface.setCornerRadii(new float[] { siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), siteInfoDp(24), 0, 0, 0, 0 });
+		content.setBackground(surface);
+
+		TextView title = new TextView(this);
+		title.setText("Informações do site");
+		title.setTextColor(Color.WHITE);
+		title.setTextSize(20);
+		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		title.setPadding(0, 0, 0, siteInfoDp(18));
+		content.addView(title);
+
+		addSiteInfoRow(content, "ENDEREÇO COMPLETO", currentUrl == null ? "Nenhum endereço aberto" : currentUrl);
+		String connection;
+		if ("https".equalsIgnoreCase(scheme)) {
+			connection = "HTTPS — conexão criptografada";
+		} else if ("http".equalsIgnoreCase(scheme)) {
+			connection = "HTTP — conexão não criptografada";
+		} else {
+			connection = "Não disponível";
+		}
+		addSiteInfoRow(content, "CONEXÃO", connection);
+		addSiteInfoRow(content, "PERMISSÕES DO SITE", "O Snav não concede permissões WebView às páginas. Solicitações de recursos como câmera e microfone permanecem bloqueadas.");
+		addSiteInfoRow(content, "COOKIES E DADOS", "Os cookies são gerenciados pelo WebView. A remoção individual de cookies por domínio ainda não está disponível. O botão abaixo remove o armazenamento web deste domínio.");
+
+		TextView clearData = new TextView(this);
+		clearData.setText("Limpar armazenamento local");
+		clearData.setTextColor(Color.WHITE);
+		clearData.setTextSize(14);
+		clearData.setGravity(Gravity.CENTER);
+		clearData.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		clearData.setMinHeight(siteInfoDp(48));
+		clearData.setPadding(siteInfoDp(16), siteInfoDp(10), siteInfoDp(16), siteInfoDp(10));
+		GradientDrawable actionBg = new GradientDrawable();
+		actionBg.setColor(Color.parseColor("#E67E22"));
+		actionBg.setCornerRadius(siteInfoDp(24));
+		clearData.setBackgroundResource(R.drawable.snav_accent_ripple);
+		clearData.setClickable(true);
+		clearData.setFocusable(true);
+		content.addView(clearData, new LinearLayout.LayoutParams(-1, -2));
+		clearData.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				if (origin == null) {
+					Toast.makeText(MainActivity.this, "Nenhum domínio disponível", Toast.LENGTH_SHORT).show();
+					return;
+				}
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Limpar dados do site")
+					.setMessage("Remover o armazenamento local de " + host + "? Os cookies não serão removidos.")
+					.setNegativeButton("Cancelar", null)
+					.setPositiveButton("Limpar", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							WebStorage.getInstance().deleteOrigin(origin);
+							Toast.makeText(MainActivity.this, "Armazenamento local removido", Toast.LENGTH_SHORT).show();
+						}
+					}).show();
+			}
+		});
+
+		addSiteInfoRow(content, "CONFIGURAÇÕES DO SITE", "JavaScript: " + (webview.getSettings().getJavaScriptEnabled() ? "ativado" : "desativado") + ". Esta configuração é global para o navegador, não específica deste domínio.");
+
+		ScrollView scroll = new ScrollView(this);
+		scroll.setFillViewport(true);
+		scroll.setClipToPadding(false);
+		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+		sheet.setContentView(scroll);
+		sheet.setCancelable(true);
+		Window window = sheet.getWindow();
+		if (window != null) {
+			window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+			window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+			WindowManager.LayoutParams params = window.getAttributes();
+			params.width = WindowManager.LayoutParams.MATCH_PARENT;
+			params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+			params.gravity = Gravity.BOTTOM;
+			params.dimAmount = 0.38f;
+			window.setAttributes(params);
+		}
+		sheet.show();
+		if (sheet.getWindow() != null) {
+			sheet.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+		}
+	}
+
 	private void initializeLogic() {
 		_armazenamento();
 		_open_sans();
@@ -504,16 +1045,8 @@ public class MainActivity extends Activity {
 	
 	
 	public void _interfaces() {
-		// PARA INTERFACE
-		// linear barra pesquisa
-		int[] colorsCRNTL = { Color.parseColor("#34495E"), Color.parseColor("#34495E") };
-		android.graphics.drawable.GradientDrawable CRNTL = new android.graphics.drawable.GradientDrawable(
-		android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, colorsCRNTL
-		);
-		CRNTL.setCornerRadii(new float[]{20, 20, 20, 20, 20, 20, 20, 20});
-		CRNTL.setStroke(0, Color.parseColor("#9E9E9E"));
+		// A barra mantém o RippleDrawable definido no XML.
 		linear_barra_pesquisa.setElevation(0);
-		linear_barra_pesquisa.setBackground(CRNTL);
 		
 		// vscroll1
 		vscroll1.setVerticalScrollBarEnabled(false); vscroll1.setHorizontalScrollBarEnabled(false);
@@ -524,17 +1057,18 @@ public class MainActivity extends Activity {
 	
 	public void _internet() {
 		//internet
-		// Barra de progresso
-		final View prog = findViewById(R.id.prog);
-		prog.setPivotX(0);
-		prog.setScaleX(0f);
+		// Barra de progresso MD3
+		prog.setVisibility(View.GONE);
+		prog.setAlpha(1f);
+		prog.setProgress(0);
+		prog.setIndeterminate(true);
 		
 		// Cookies
 		android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
 		cookieManager.setAcceptCookie(true);
 		
 		if (android.os.Build.VERSION.SDK_INT >= 21) {
-			cookieManager.setAcceptThirdPartyCookies(webview, true);
+			cookieManager.setAcceptThirdPartyCookies(webview, false);
 		}
 		
 		// Layout WebView
@@ -560,10 +1094,14 @@ public class MainActivity extends Activity {
 		s.setSaveFormData(true);
 		
 		s.setSupportMultipleWindows(true);
-		s.setJavaScriptCanOpenWindowsAutomatically(true);
+		s.setJavaScriptCanOpenWindowsAutomatically(false);
 		
-		s.setAllowFileAccess(true);
-		s.setAllowContentAccess(true);
+		s.setAllowFileAccess(false);
+		s.setAllowContentAccess(false);
+		if (android.os.Build.VERSION.SDK_INT >= 16) {
+			s.setAllowFileAccessFromFileURLs(false);
+			s.setAllowUniversalAccessFromFileURLs(false);
+		}
 		
 		try {
 			s.setSafeBrowsingEnabled(true);
@@ -571,7 +1109,7 @@ public class MainActivity extends Activity {
 		
 		if (android.os.Build.VERSION.SDK_INT >= 21) {
 			s.setMixedContentMode(
-			WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+			WebSettings.MIXED_CONTENT_NEVER_ALLOW
 			);
 		}
 		
@@ -590,7 +1128,19 @@ public class MainActivity extends Activity {
 		}
 		
 		// WebViewClient
-		webview.setWebViewClient(new android.webkit.WebViewClient());
+		webview.setWebViewClient(new android.webkit.WebViewClient() {
+			@Override
+			public void onPageStarted(WebView view, String url, Bitmap favicon) {
+				super.onPageStarted(view, url, favicon);
+				beginPageProgress();
+			}
+
+			@Override
+			public void onPageFinished(WebView view, String url) {
+				super.onPageFinished(view, url);
+				finishPageProgress();
+			}
+		});
 		
 		// WebChromeClient
 		webview.setWebChromeClient(new android.webkit.WebChromeClient() {
@@ -606,12 +1156,20 @@ public class MainActivity extends Activity {
 			
 			@Override
 			public void onProgressChanged(WebView v, int p) {
-				prog.setScaleX(p / 100f);
-				
-				if (p == 100) {
-					prog.setVisibility(View.GONE);
-				} else {
-					prog.setVisibility(View.VISIBLE);
+				if (!pageLoading) {
+					beginPageProgress();
+				}
+				if (p > 0) {
+					prog.setIndeterminate(false);
+					if (progressAnimator != null) {
+						progressAnimator.cancel();
+					}
+					progressAnimator = ObjectAnimator.ofInt(prog, "progress", prog.getProgress(), Math.min(100, p));
+					progressAnimator.setDuration(100);
+					progressAnimator.start();
+				}
+				if (p >= 100) {
+					finishPageProgress();
 				}
 			}
 			
@@ -675,87 +1233,21 @@ public class MainActivity extends Activity {
 			}
 		});
 		
-		// ENTER / PESQUISA NO EDITTEXT
-		edittext1.setOnEditorActionListener(
-		new TextView.OnEditorActionListener() {
-			
+		// Pesquisa e navegação pelo teclado.
+		edittext1.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			@Override
-			public boolean onEditorAction(
-			TextView v,
-			int actionId,
-			KeyEvent event
-			) {
-				
-				if (actionId ==
-				android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
-				|| actionId ==
-				android.view.inputmethod.EditorInfo.IME_ACTION_GO
-				|| actionId ==
-				android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-				|| (
-				event != null
-				&& event.getKeyCode() ==
-				KeyEvent.KEYCODE_ENTER
-				&& event.getAction() ==
-				KeyEvent.ACTION_DOWN
-				)
-				) {
-					
-					String input =
-					edittext1.getText().toString().trim();
-					
-					if (input.isEmpty()) {
-						return true;
-					}
-					
-					String url;
-					
-					if (input.matches("^(http|https)://.*")) {
-						
-						url = input;
-						
-					} else {
-						
-						try {
-							
-							url =
-							"https://www.google.com/search?q="
-							+ java.net.URLEncoder.encode(
-							input,
-							"UTF-8"
-							);
-							
-						} catch (Exception e) {
-							
-							url =
-							"https://www.google.com/search?q="
-							+ input;
-						}
-					}
-					
-					webview.loadUrl(url);
-					
-					tela1.setVisibility(View.GONE);
-					tela2.setVisibility(View.VISIBLE);
-					tela3.setVisibility(View.GONE);
-					vazio.setVisibility(View.GONE);
-					
-					edittext1.setText("");
-					
-					Dados.edit()
-					.putString(
-					"vazio",
-					"desativado"
-					)
-					.commit();
-					
-					return true;
-				}
-				
-				return false;
+			public boolean onEditorAction(TextView view, int actionId, KeyEvent event) {
+				boolean enterPressed = event != null
+					&& event.getKeyCode() == KeyEvent.KEYCODE_ENTER
+					&& event.getAction() == KeyEvent.ACTION_DOWN;
+				boolean imeAction = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO
+					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE;
+				if (!imeAction && !enterPressed) return false;
+				submitSearch();
+				return true;
 			}
-		}
-		);
+		});
 		//wallpaper
 		// ============================================================
 		// WALLPAPER DE PAISAGENS - WIKIMEDIA COMMONS
@@ -1812,7 +2304,7 @@ public class MainActivity extends Activity {
 				final String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
 				
 				// Verifica permissão no Sketchware/Android
-				if (android.os.Build.VERSION.SDK_INT >= 23) {
+				if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28) {
 					if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_DENIED) {
 						requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
 					}

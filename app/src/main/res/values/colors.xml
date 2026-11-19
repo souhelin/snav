@@ -1,7 +1,17 @@
 <resources>
-    <color name="colorPrimary">#2C3E50</color>
-    <color name="colorPrimaryDark">#2C3E50</color>
-    <color name="colorAccent">#9E9E9E</color>
-    <color name="colorControlHighlight">#9E9E9E</color>
-    <color name="colorControlNormal">#9E9E9E</color>
+    <color name="colorPrimary">#34495E</color>
+    <color name="colorPrimaryDark">#263746</color>
+    <color name="colorAccent">#E67E22</color>
+    <color name="colorControlHighlight">#33E67E22</color>
+    <color name="colorControlNormal">#757575</color>
+
+    <color name="snav_primary">#34495E</color>
+    <color name="snav_accent">#E67E22</color>
+    <color name="snav_background">#F4F6F8</color>
+    <color name="snav_surface">#FFFFFF</color>
+    <color name="snav_on_surface">#1B1D20</color>
+    <color name="snav_on_surface_variant">#626A73</color>
+    <color name="snav_outline">#DCE1E6</color>
+    <color name="snav_error">#BA1A1A</color>
+    <color name="snav_switch_primary_container">#F8DCC8</color>
 </resources>

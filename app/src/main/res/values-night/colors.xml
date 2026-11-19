@@ -1,0 +1,17 @@
+<resources>
+    <color name="colorPrimary">#D5E3F2</color>
+    <color name="colorPrimaryDark">#17232E</color>
+    <color name="colorAccent">#FFB875</color>
+    <color name="colorControlHighlight">#33FFB875</color>
+    <color name="colorControlNormal">#B8C2CC</color>
+
+    <color name="snav_primary">#D5E3F2</color>
+    <color name="snav_accent">#FFB875</color>
+    <color name="snav_background">#17232E</color>
+    <color name="snav_surface">#202E3A</color>
+    <color name="snav_on_surface">#E8EDF2</color>
+    <color name="snav_on_surface_variant">#B8C2CC</color>
+    <color name="snav_outline">#3A4B59</color>
+    <color name="snav_error">#FFB4AB</color>
+    <color name="snav_switch_primary_container">#653B16</color>
+</resources>
