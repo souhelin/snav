@@ -19,13 +19,14 @@ def launcherSource = file("src/main/assets/ic_launcher_source.png")
 def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons")
 
 android {
-    compileSdk 35
+    namespace "io.github.souhelin.snav"
+    compileSdk 37
+    buildToolsVersion '36.0.0'
 
     useLibrary 'org.apache.http.legacy'
 
     defaultConfig {
         applicationId "io.github.souhelin.snav"
-        namespace "io.github.souhelin.snav"
         minSdkVersion 21
         targetSdkVersion 35
         versionCode 1
