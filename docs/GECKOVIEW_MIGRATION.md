@@ -33,7 +33,7 @@ Implemented integrations:
 - Site-specific and global browsing-data clearing use GeckoView's
   `StorageController`. Sessions are detached and closed before clearing,
   then reopened to avoid immediate data recreation by an open session.
-- Mozilla Maven repository configured at the root build level; Java 17, GeckoView 160.0.20261104181552, compileSdk 37, Build Tools 36.0.0, and minSdk 26 (Android 8.0) are configured in the app module. Native packaging is restricted to ARM64 and ARMv7 phone ABIs; x86/x86_64 emulator targets are intentionally excluded. CI produces both APKs and an AAB for store-side ABI delivery. The project uses AGP 9.1.1 / Gradle 9.3.1 because GeckoView's AndroidX Core 1.19.1 dependency requires AGP 9.1 and API 37. Jetifier is disabled because the app's dependencies are AndroidX-native; Gradle concurrency is capped and the heap is configured for the large GeckoView AAR.
+- Mozilla Maven repository configured at the root build level; Java 17, GeckoView 160.0.20261116130455, compileSdk 37, Build Tools 36.0.0, and minSdk 26 (Android 8.0) are configured in the app module. Native packaging is restricted to ARM64 and ARMv7 phone ABIs; x86/x86_64 emulator targets are intentionally excluded. CI produces both APKs and an AAB for store-side ABI delivery. The project uses AGP 9.1.1 / Gradle 9.3.1 because GeckoView's AndroidX Core 1.19.1 dependency requires AGP 9.1 and API 37. Jetifier is disabled because the app's dependencies are AndroidX-native; Gradle concurrency is capped and the heap is configured for the large GeckoView AAR.
 
 ## Security behavior
 
