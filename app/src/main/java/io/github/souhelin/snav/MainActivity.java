@@ -787,10 +787,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		pendingAndroidPermissions = null;
 		if (downloadExecutor != null) downloadExecutor.shutdown();
 		if (translationThread != null) translationThread.quitSafely();
-		if (geckoEngine != null) {
-			geckoEngine.close();
-			geckoEngine = null;
-		}
+		GeckoEngineController engineToClose = geckoEngine;
+		geckoEngine = null;
+		if (engineToClose != null) engineToClose.close();
 		super.onDestroy();
 	}
 
