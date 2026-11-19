@@ -1475,7 +1475,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						}
 						pullTracking = false;
 						pullConsumed = false;
-						if (rotation > 0f) animatePullRelease(rotation, rotationVelocity);
+						if (event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
+						if (rotation > 0f) animatePullRelease(rotationVelocity);
 						if (refresh && webview.getUrl() != null) {
 							webview.reload();
 							return true;
@@ -1487,7 +1488,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 	}
 
-	private void animatePullRelease(float startRotation, float initialVelocity) {
+	private void animatePullRelease(float initialVelocity) {
 		if (button_load_stop == null) return;
 		if (pullRotationSpring != null) pullRotationSpring.cancel();
 		if (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()) {
