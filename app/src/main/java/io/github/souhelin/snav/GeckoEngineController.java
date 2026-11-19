@@ -8,12 +8,13 @@ import org.mozilla.geckoview.GeckoRuntime;
 import org.mozilla.geckoview.GeckoRuntimeSettings;
 import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.GeckoView;
+import org.mozilla.geckoview.StorageController;
 import org.mozilla.geckoview.WebResponse;
 
-/**
- * Owns the process-wide GeckoRuntime and the GeckoSession attached to Snav's
- * browser surface. UI code must communicate with Gecko through this class.
- */
+import java.util.List;
+import java.util.Map;
+
+/** Owns the process-wide Gecko runtime and the browser's active Gecko session. */
 public final class GeckoEngineController {
     public interface Listener {
         default void onPageStarted(String uri) {}
@@ -22,10 +23,14 @@ public final class GeckoEngineController {
         default void onLocationChanged(String uri) {}
         default void onTitleChanged(String title) {}
         default void onCanGoBackChanged(boolean canGoBack) {}
+        default void onCanGoForwardChanged(boolean canGoForward) {}
         default void onInsecureNavigationBlocked(String uri, String sourceUri) {}
+        default void onExternalNavigationRequested(String uri) {}
         default void onExternalResponse(WebResponse response) {}
         default void onFullScreenChanged(boolean fullScreen) {}
         default void onContentProcessCrashed() {}
+        default void onScrollChanged(int scrollY) {}
+        default void onHistoryVisited(String uri) {}
     }
 
     private static GeckoRuntime runtime;
@@ -35,18 +40,17 @@ public final class GeckoEngineController {
     private Listener listener;
     private boolean closed;
     private boolean canGoBack;
+    private boolean canGoForward;
     private String currentUri;
 
-    public GeckoEngineController(Context context, GeckoView view, Listener listener) {
-        if (context == null) {
-            throw new IllegalArgumentException("Context must not be null");
+    public GeckoEngineController(Context context, GeckoView view, Listener listener,
+                                 boolean javaScriptEnabled, boolean trackingProtectionEnabled) {
+        if (context == null || view == null) {
+            throw new IllegalArgumentException("Context and GeckoView are required");
         }
-        if (view == null) {
-            throw new IllegalArgumentException("GeckoView must not be null");
-        }
-
         this.view = view;
         this.listener = listener;
+
         synchronized (GeckoEngineController.class) {
             if (runtime == null) {
                 ContentBlocking.Settings contentBlocking =
@@ -59,7 +63,7 @@ public final class GeckoEngineController {
 
                 GeckoRuntimeSettings settings = new GeckoRuntimeSettings.Builder()
                     .contentBlocking(contentBlocking)
-                    .javaScriptEnabled(true)
+                    .javaScriptEnabled(javaScriptEnabled)
                     .aboutConfigEnabled(false)
                     .remoteDebuggingEnabled(false)
                     .allowInsecureConnections(GeckoRuntimeSettings.HTTPS_ONLY)
@@ -69,8 +73,9 @@ public final class GeckoEngineController {
         }
 
         session = new GeckoSession();
-        session.getSettings().setUseTrackingProtection(true);
-        session.getSettings().setAllowJavascript(true);
+        session.getSettings().setUseTrackingProtection(trackingProtectionEnabled);
+        session.getSettings().setAllowJavascript(javaScriptEnabled);
+
         session.setContentDelegate(new GeckoSession.ContentDelegate() {
             @Override
             public void onTitleChange(GeckoSession currentSession, String title) {
@@ -82,6 +87,9 @@ public final class GeckoEngineController {
             public void onExternalResponse(GeckoSession currentSession, WebResponse response) {
                 Listener callback = GeckoEngineController.this.listener;
                 if (!closed && callback != null) callback.onExternalResponse(response);
+                else if (response != null && response.body != null) {
+                    try { response.body.close(); } catch (Exception ignored) {}
+                }
             }
 
             @Override
@@ -96,6 +104,7 @@ public final class GeckoEngineController {
                 if (!closed && callback != null) callback.onContentProcessCrashed();
             }
         });
+
         session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
             @Override
             public void onPageStart(GeckoSession currentSession, String uri) {
@@ -116,6 +125,7 @@ public final class GeckoEngineController {
                 if (!closed && callback != null) callback.onProgressChanged(progress);
             }
         });
+
         session.setNavigationDelegate(new GeckoSession.NavigationDelegate() {
             @Override
             public GeckoResult<AllowOrDeny> onLoadRequest(
@@ -123,21 +133,26 @@ public final class GeckoEngineController {
                 GeckoSession.NavigationDelegate.LoadRequest request
             ) {
                 String uri = request == null ? null : request.uri;
-                if (uri != null && uri.regionMatches(true, 0, "http://", 0, 7)) {
-                    Listener callback = GeckoEngineController.this.listener;
-                    if (!closed && callback != null) {
-                        callback.onInsecureNavigationBlocked(uri, request.triggerUri);
-                    }
-                    return GeckoResult.deny();
+                if (uri == null) return GeckoResult.deny();
+                if (uri.regionMatches(true, 0, "https://", 0, 8)
+                    || uri.equals("about:blank")
+                    || uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
+                    return GeckoResult.allow();
                 }
-                return GeckoResult.allow();
+                Listener callback = GeckoEngineController.this.listener;
+                if (uri.regionMatches(true, 0, "http://", 0, 7)) {
+                    if (!closed && callback != null) callback.onInsecureNavigationBlocked(uri, request.triggerUri);
+                } else if (!closed && callback != null) {
+                    callback.onExternalNavigationRequested(uri);
+                }
+                return GeckoResult.deny();
             }
 
             @Override
             public void onLocationChange(
                 GeckoSession currentSession,
                 String uri,
-                java.util.List<GeckoSession.PermissionDelegate.ContentPermission> permissions,
+                List<GeckoSession.PermissionDelegate.ContentPermission> permissions,
                 Boolean hasUserGesture
             ) {
                 currentUri = uri;
@@ -151,44 +166,74 @@ public final class GeckoEngineController {
                 Listener callback = GeckoEngineController.this.listener;
                 if (!closed && callback != null) callback.onCanGoBackChanged(value);
             }
+
+            @Override
+            public void onCanGoForward(GeckoSession currentSession, boolean value) {
+                canGoForward = value;
+                Listener callback = GeckoEngineController.this.listener;
+                if (!closed && callback != null) callback.onCanGoForwardChanged(value);
+            }
         });
 
-        // No web-origin permission is granted implicitly. The Activity must
-        // install an explicit, origin-aware permission flow before enabling it.
-        session.setPermissionDelegate(new GeckoSession.PermissionDelegate() {});
+        session.setScrollDelegate(new GeckoSession.ScrollDelegate() {
+            @Override
+            public void onScrollChanged(GeckoSession currentSession, int scrollX, int scrollY) {
+                Listener callback = GeckoEngineController.this.listener;
+                if (!closed && callback != null) callback.onScrollChanged(scrollY);
+            }
+        });
+
+        session.setHistoryDelegate(new GeckoSession.HistoryDelegate() {
+            @Override
+            public GeckoResult<Boolean> onVisited(
+                GeckoSession currentSession, String url, String lastVisitedURL, int flags
+            ) {
+                Listener callback = GeckoEngineController.this.listener;
+                if (!closed && callback != null) callback.onHistoryVisited(url);
+                return GeckoResult.fromValue(true);
+            }
+        });
+
+        // The Activity installs the origin-aware PermissionDelegate before loading content.
         session.open(runtime);
         view.setSession(session);
     }
 
-    public GeckoSession getSession() {
-        ensureOpen();
-        return session;
+    public static GeckoRuntime getRuntime() {
+        synchronized (GeckoEngineController.class) {
+            if (runtime == null) throw new IllegalStateException("GeckoRuntime has not been initialized");
+            return runtime;
+        }
     }
 
-    public String getCurrentUri() {
-        ensureOpen();
-        return currentUri;
-    }
-
-    public boolean canGoBack() {
-        ensureOpen();
-        return canGoBack;
-    }
+    public GeckoSession getSession() { ensureOpen(); return session; }
+    public String getCurrentUri() { ensureOpen(); return currentUri; }
+    public boolean canGoBack() { ensureOpen(); return canGoBack; }
+    public boolean canGoForward() { ensureOpen(); return canGoForward; }
 
     public void setListener(Listener listener) {
         ensureOpen();
         this.listener = listener;
     }
 
-    public void loadUri(String uri) {
+    public void loadUri(String uri, boolean doNotTrack) {
         ensureOpen();
-        if (uri == null || uri.trim().isEmpty()) {
-            throw new IllegalArgumentException("URI must not be empty");
+        if (uri == null || uri.trim().isEmpty()) throw new IllegalArgumentException("URI must not be empty");
+        if (!uri.regionMatches(true, 0, "https://", 0, 8)
+            && !uri.equals("about:blank")
+            && !uri.regionMatches(true, 0, "about:reader?", 0, 13)) {
+            throw new SecurityException("Only HTTPS and internal reader pages are allowed");
         }
-        if (uri.regionMatches(true, 0, "http://", 0, 7)) {
-            throw new SecurityException("Cleartext HTTP navigation is blocked");
+        if (doNotTrack) {
+            Map<String, String> headers = new java.util.HashMap<>();
+            headers.put("DNT", "1");
+            session.load(new GeckoSession.Loader()
+                .uri(uri)
+                .additionalHeaders(headers)
+                .headerFilter(GeckoSession.HEADER_FILTER_UNRESTRICTED_UNSAFE));
+        } else {
+            session.load(new GeckoSession.Loader().uri(uri));
         }
-        session.loadUri(uri);
     }
 
     public void setJavaScriptEnabled(boolean enabled) {
@@ -196,19 +241,27 @@ public final class GeckoEngineController {
         session.getSettings().setAllowJavascript(enabled);
     }
 
-    public void reload() {
+    public void setTrackingProtectionEnabled(boolean enabled) {
         ensureOpen();
-        session.reload();
+        session.getSettings().setUseTrackingProtection(enabled);
     }
 
-    public void stop() {
+    public void reload() { ensureOpen(); session.reload(); }
+    public void stop() { ensureOpen(); session.stop(); }
+    public void goBack() { ensureOpen(); if (canGoBack) session.goBack(); }
+    public void goForward() { ensureOpen(); if (canGoForward) session.goForward(); }
+    public void setActive(boolean active) { if (!closed) session.setActive(active); }
+
+    public GeckoResult<Void> clearSiteData(String host) {
         ensureOpen();
-        session.stop();
+        if (host == null || host.trim().isEmpty()) throw new IllegalArgumentException("Host is required");
+        return runtime.getStorageController().clearDataFromHost(
+            host, StorageController.ClearFlags.SITE_DATA | StorageController.ClearFlags.SITE_SETTINGS);
     }
 
-    public void goBack() {
+    public GeckoResult<Void> clearBrowsingData() {
         ensureOpen();
-        if (canGoBack) session.goBack();
+        return runtime.getStorageController().clearData(StorageController.ClearFlags.ALL);
     }
 
     public void close() {
@@ -220,8 +273,6 @@ public final class GeckoEngineController {
     }
 
     private void ensureOpen() {
-        if (closed) {
-            throw new IllegalStateException("Gecko engine session is closed");
-        }
+        if (closed) throw new IllegalStateException("Gecko engine session is closed");
     }
 }
