@@ -965,7 +965,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			connection = "Não disponível";
 		}
 		addSiteInfoRow(content, "CONEXÃO", connection);
-		addSiteInfoRow(content, "PERMISSÕES DO SITE", "O Snav não concede permissões WebView às páginas. Solicitações de recursos como câmera e microfone permanecem bloqueadas.");
+		addSiteInfoRow(content, "PERMISSÕES DO SITE", "Câmera, microfone e localização exigem confirmação por solicitação e permissão Android quando aplicável. Notificações e recursos desconhecidos não recebem concessão explícita. Não há painel completo de revogação por origem.");
 		addSiteInfoRow(content, "COOKIES E DADOS", "Os cookies são gerenciados pelo WebView. A remoção individual de cookies por domínio ainda não está disponível. O botão abaixo remove o armazenamento web deste domínio.");
 
 		TextView clearData = new TextView(this);
