@@ -31,7 +31,6 @@ public final class GeckoEngineController {
         default void onFullScreenChanged(boolean fullScreen) {}
         default void onContentProcessCrashed() {}
         default void onScrollChanged(int scrollY) {}
-        default void onHistoryVisited(String uri) {}
     }
 
     private static GeckoRuntime runtime;
@@ -210,17 +209,6 @@ public final class GeckoEngineController {
             public void onScrollChanged(GeckoSession currentSession, int scrollX, int scrollY) {
                 Listener callback = GeckoEngineController.this.listener;
                 if (!closed && callback != null) callback.onScrollChanged(scrollY);
-            }
-        });
-
-        session.setHistoryDelegate(new GeckoSession.HistoryDelegate() {
-            @Override
-            public GeckoResult<Boolean> onVisited(
-                GeckoSession currentSession, String url, String lastVisitedURL, int flags
-            ) {
-                Listener callback = GeckoEngineController.this.listener;
-                if (!closed && callback != null) callback.onHistoryVisited(url);
-                return GeckoResult.fromValue(true);
             }
         });
 
