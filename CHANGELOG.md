@@ -37,6 +37,7 @@ Este arquivo registra mudanças confirmadas no repositório. Itens de privacidad
 ## 2026-11-19 — Proteções de privacidade no WebView
 
 ### Implementado nesta branch
+- Permissão cleartext no manifesto habilitada como requisito técnico para a exceção HTTP; o uso é mediado pelos avisos de navegação e confirmação de download e deve ser auditado em futuras integrações de rede.
 - Bloqueio de cookies de terceiros por padrão, com preferência persistente para o usuário permitir.
 - Diálogo de aviso antes de navegações HTTP; a decisão de continuar vale somente para aquela navegação.
 - Erros de certificado TLS continuam sendo cancelados, inclusive nos modos de leitura.
