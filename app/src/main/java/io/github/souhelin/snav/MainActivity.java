@@ -1251,7 +1251,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private boolean shouldBlockThirdPartyTracker(WebView view, WebResourceRequest request) {
-		if (!Dados.getBoolean("tracker_blocking", true) || view == null || request == null || request.isForMainFrame()) return false;
+		if (view == null || request == null || request.isForMainFrame()) return false;
+		return shouldBlockThirdPartyTracker(request);
+	}
+
+	private boolean shouldBlockThirdPartyTracker(WebResourceRequest request) {
+		if (!Dados.getBoolean("tracker_blocking", true) || request == null) return false;
 		Uri resource = request.getUrl();
 		String referrer = request.getRequestHeaders().get("Referer");
 		if (referrer == null || referrer.trim().isEmpty()) return false;
@@ -1516,6 +1521,23 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
+		// Service Workers não passam pelo WebViewClient em todas as versões.
+		// API 24+ recebe filtro equivalente para recursos com Referer disponível.
+		if (Build.VERSION.SDK_INT >= 24) {
+			android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(
+				new android.webkit.ServiceWorkerClient() {
+					@Override
+					public WebResourceResponse shouldInterceptRequest(WebResourceRequest request) {
+						if (shouldBlockThirdPartyTracker(request)) {
+							return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+								new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+						}
+						return null;
+					}
+				}
+			);
+		}
+
 		// WebChromeClient
 		webview.setWebChromeClient(new android.webkit.WebChromeClient() {
 			
