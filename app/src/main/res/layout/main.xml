@@ -48,8 +48,10 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingStart="18dp"
-                android:paddingEnd="14dp"
-                android:background="@drawable/snav_search_field">
+                android:paddingEnd="8dp"
+                android:background="@drawable/snav_search_ripple"
+                android:clickable="true"
+                android:focusable="true">
 
                 <EditText
                     android:id="@+id/edittext1"
@@ -68,9 +70,14 @@
                     android:selectAllOnFocus="true" />
 
                 <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_search_grey"
+                    android:id="@+id/image_search_action"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="12dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:src="@drawable/ic_snav_search"
                     android:contentDescription="Pesquisar"
                     android:tint="@color/snav_accent" />
             </LinearLayout>
