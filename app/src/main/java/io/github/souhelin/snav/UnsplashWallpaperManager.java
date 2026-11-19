@@ -148,6 +148,10 @@ public final class UnsplashWallpaperManager {
             output.close();
             output = null;
             if (total == 0) return false;
+            BitmapFactory.Options validation = new BitmapFactory.Options();
+            validation.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(temporary.getAbsolutePath(), validation);
+            if (validation.outWidth < 500 || validation.outHeight < 300) return false;
             if (target.exists()) target.delete();
             return temporary.renameTo(target);
         } catch (Exception ignored) {
