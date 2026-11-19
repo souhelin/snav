@@ -1,14 +1,34 @@
 <resources>
-    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+    <style name="AppTheme" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:colorPrimary">@color/colorPrimary</item>
         <item name="android:colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="android:colorAccent">@color/colorAccent</item>
         <item name="android:colorControlHighlight">@color/colorControlHighlight</item>
         <item name="android:colorControlNormal">@color/colorControlNormal</item>
+        <item name="colorPrimary">@color/snav_accent</item>
+        <item name="colorOnPrimary">#402000</item>
+        <item name="colorPrimaryContainer">@color/snav_switch_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/snav_on_surface</item>
+        <item name="colorSurface">@color/snav_surface</item>
+        <item name="colorOnSurface">@color/snav_on_surface</item>
+        <item name="colorSurfaceVariant">@color/snav_outline</item>
+        <item name="colorOnSurfaceVariant">@color/snav_on_surface_variant</item>
+        <item name="colorOutline">@color/snav_on_surface_variant</item>
+        <item name="materialSwitchStyle">@style/SnavMaterialSwitch</item>
         <item name="android:statusBarColor">@color/snav_background</item>
         <item name="android:navigationBarColor">@color/snav_surface</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
     <style name="NoActionBar" parent="@style/AppTheme" />
+    <style name="SnavMaterialSwitch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="materialThemeOverlay">@style/SnavMaterialSwitchThemeOverlay</item>
+    </style>
+    <style name="SnavMaterialSwitchThemeOverlay" parent="">
+        <item name="colorPrimary">@color/snav_accent</item>
+        <item name="colorPrimaryContainer">@color/snav_switch_primary_container</item>
+        <item name="colorOnSurface">@color/snav_on_surface</item>
+        <item name="colorOutline">@color/snav_on_surface_variant</item>
+        <item name="colorSurfaceVariant">@color/snav_outline</item>
+    </style>
 </resources>
