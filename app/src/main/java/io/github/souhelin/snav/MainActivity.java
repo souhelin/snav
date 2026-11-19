@@ -72,6 +72,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private static final String STATE_GECKO_URI = "snav_gecko_current_uri";
 	private GeckoSession.PermissionDelegate.Callback pendingAndroidPermissionCallback;
 	private String pendingAndroidPermissionOrigin;
+	private String[] pendingAndroidPermissions;
 	private GeckoSession.PermissionDelegate.MediaCallback pendingMediaPermissionCallback;
 	private GeckoSession.PermissionDelegate.MediaSource[] pendingVideoSources;
 	private GeckoSession.PermissionDelegate.MediaSource[] pendingAudioSources;
@@ -765,7 +766,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		super.onResume();
 		if (geckoEngine != null) geckoEngine.setActive(true);
 		logDiagnostic("Ciclo de vida: onResume");
-	}
+	
+		clearGrantedPermissionDenials();}
 
 	@Override
 	protected void onPause() {
@@ -991,15 +993,22 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-		boolean permissionsGranted = grantResults != null && grantResults.length > 0;
-		if (grantResults != null) {
-			for (int result : grantResults) permissionsGranted = permissionsGranted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
-		}
 		if (requestCode == 4103) {
+			String[] requested = pendingAndroidPermissions;
 			GeckoSession.PermissionDelegate.Callback callback = pendingAndroidPermissionCallback;
 			String origin = pendingAndroidPermissionOrigin;
 			pendingAndroidPermissionCallback = null;
 			pendingAndroidPermissionOrigin = null;
+			pendingAndroidPermissions = null;
+			boolean permissionsGranted = areAndroidPermissionsGranted(requested);
+			if (!permissionsGranted && Build.VERSION.SDK_INT >= 23 && requested != null) {
+				for (String permission : requested) {
+					if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED
+						&& !shouldShowRequestPermissionRationale(permission)) {
+						Dados.edit().putBoolean(permissionDenialKey(permission), true).apply();
+					}
+				}
+			}
 			boolean sameOrigin = geckoEngine != null && isSameOrigin(origin, geckoEngine.getCurrentUri());
 			if (callback != null) {
 				if (permissionsGranted && sameOrigin) callback.grant(); else callback.reject();
@@ -1020,12 +1029,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 			}
 		} else if (requestCode == 4104) {
+			boolean granted = grantResults != null && grantResults.length > 0
+				&& grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
 			WebResponse response = pendingGeckoDownload;
 			String name = pendingGeckoDownloadName;
 			pendingGeckoDownload = null;
 			pendingGeckoDownloadName = null;
 			if (response != null) {
-				if (permissionsGranted) saveGeckoDownload(response, name);
+				if (granted) saveGeckoDownload(response, name);
 				else {
 					closeResponseBody(response);
 					Toast.makeText(this, "Permissão negada. Download cancelado.", Toast.LENGTH_LONG).show();
@@ -1136,8 +1147,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			public void onAndroidPermissionsRequest(GeckoSession session, String[] permissions,
 				GeckoSession.PermissionDelegate.Callback callback) {
 				String origin = geckoEngine.getCurrentUri();
-				if (!isSecureOrigin(origin) || permissions == null || permissions.length == 0) {
+				if (!isSecureOrigin(origin)) {
 					callback.reject();
+					return;
+				}
+				if (permissions == null || permissions.length == 0) {
+					callback.grant();
 					return;
 				}
 				java.util.ArrayList<String> missing = new java.util.ArrayList<String>();
@@ -1151,6 +1166,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					}
 					if (Build.VERSION.SDK_INT >= 23
 						&& checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+						if (isPermissionPermanentlyDenied(permission)) {
+							callback.reject();
+							return;
+						}
 						missing.add(permission);
 					}
 				}
@@ -1161,7 +1180,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if (pendingAndroidPermissionCallback != null) pendingAndroidPermissionCallback.reject();
 				pendingAndroidPermissionCallback = callback;
 				pendingAndroidPermissionOrigin = origin;
-				requestPermissions(missing.toArray(new String[missing.size()]), 4103);
+				pendingAndroidPermissions = missing.toArray(new String[missing.size()]);
+				requestPermissions(pendingAndroidPermissions, 4103);
 			}
 
 			@Override
@@ -1214,6 +1234,50 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				showGeckoMediaPermissionPrompt(uri, video, audio, callback);
 			}
 		});
+	}
+
+	private String permissionDenialKey(String permission) {
+		return "gecko_permission_permanently_denied_" + permission.replace('.', '_');
+	}
+
+	private boolean isPermissionPermanentlyDenied(String permission) {
+		return Build.VERSION.SDK_INT >= 23
+			&& checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED
+			&& Dados.getBoolean(permissionDenialKey(permission), false);
+	}
+
+	private void clearGrantedPermissionDenials() {
+		if (Build.VERSION.SDK_INT < 23 || Dados == null) return;
+		String[] permissions = new String[] {
+			android.Manifest.permission.CAMERA,
+			android.Manifest.permission.RECORD_AUDIO,
+			android.Manifest.permission.ACCESS_FINE_LOCATION,
+			android.Manifest.permission.ACCESS_COARSE_LOCATION
+		};
+		for (String permission : permissions) {
+			if (checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+				Dados.edit().remove(permissionDenialKey(permission)).apply();
+			}
+		}
+	}
+
+	private boolean areAndroidPermissionsGranted(String[] permissions) {
+		if (Build.VERSION.SDK_INT < 23 || permissions == null || permissions.length == 0) return true;
+		boolean locationRequested = false;
+		for (String permission : permissions) {
+			if (android.Manifest.permission.CAMERA.equals(permission)
+				|| android.Manifest.permission.RECORD_AUDIO.equals(permission)) {
+				if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
+			} else if (android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission)
+				|| android.Manifest.permission.ACCESS_COARSE_LOCATION.equals(permission)) {
+				locationRequested = true;
+			} else {
+				return false;
+			}
+		}
+		return !locationRequested
+			|| checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+			|| checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
 	}
 
 	private boolean isSameOrigin(String first, String second) {
