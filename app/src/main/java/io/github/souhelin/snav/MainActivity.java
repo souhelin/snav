@@ -849,7 +849,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-		content.addView(title);
+		LinearLayout.LayoutParams translationTitleParams = new LinearLayout.LayoutParams(-1, -2);
+		translationTitleParams.bottomMargin = dp(8);
+		content.addView(title, translationTitleParams);
 		TextView subtitle = new TextView(this);
 		subtitle.setText("A tradução é processada pelo mecanismo do GeckoView com modelos de idioma. Os modelos necessários podem ser baixados na primeira utilização.");
 		subtitle.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
@@ -864,7 +866,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		fromInput.setKeyListener(null);
 		fromInput.setThreshold(0);
 		fromLayout.addView(fromInput, new LinearLayout.LayoutParams(-1, -2));
-		content.addView(fromLayout, new LinearLayout.LayoutParams(-1, -2));
+		LinearLayout.LayoutParams fromParams = new LinearLayout.LayoutParams(-1, -2);
+		fromParams.topMargin = dp(4);
+		content.addView(fromLayout, fromParams);
 		final TextInputLayout toLayout = new TextInputLayout(this);
 		toLayout.setHint("Traduzir para");
 		toLayout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
@@ -886,14 +890,25 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
 		MaterialButton restore = new MaterialButton(this);
 		restore.setText("Original");
-		restore.setTextColor(getResources().getColor(R.color.snav_primary));
+		restore.setAllCaps(false);
+		restore.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		restore.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
-		actions.addView(restore);
+		restore.setStrokeColor(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_outline)));
+		restore.setStrokeWidth(dp(1));
+		restore.setCornerRadius(dp(20));
+		LinearLayout.LayoutParams restoreParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+		actions.addView(restore, restoreParams);
 		MaterialButton translate = new MaterialButton(this);
 		translate.setText("Traduzir");
+		translate.setAllCaps(false);
+		translate.setCornerRadius(dp(20));
 		translate.setEnabled(false);
-		actions.addView(translate);
-		content.addView(actions);
+		LinearLayout.LayoutParams translateParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
+		translateParams.leftMargin = dp(12);
+		actions.addView(translate, translateParams);
+		LinearLayout.LayoutParams translationActionsParams = new LinearLayout.LayoutParams(-1, -2);
+		translationActionsParams.topMargin = dp(8);
+		content.addView(actions, translationActionsParams);
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
 		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
@@ -1059,7 +1074,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(description);
 		MaterialButton action = new MaterialButton(this);
 		action.setText(readerMode ? "Voltar à página original" : "Ativar modo de leitura");
-		content.addView(action, new LinearLayout.LayoutParams(-1, -2));
+		action.setAllCaps(false);
+		action.setCornerRadius(dp(20));
+		LinearLayout.LayoutParams readerActionParams = new LinearLayout.LayoutParams(-1, dp(48));
+		readerActionParams.topMargin = dp(8);
+		content.addView(action, readerActionParams);
 		action.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
 				if (geckoEngine == null) return;
@@ -1119,7 +1138,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
-		title.setTextColor(Color.WHITE);
+		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		title.setPadding(0, 0, 0, siteInfoDp(18));
@@ -1141,7 +1160,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		clearData.setBackgroundResource(R.drawable.snav_accent_ripple);
 		clearData.setClickable(true);
 		clearData.setFocusable(true);
-		content.addView(clearData, new LinearLayout.LayoutParams(-1, -2));
+		LinearLayout.LayoutParams clearDataParams = new LinearLayout.LayoutParams(-1, dp(48));
+		clearDataParams.topMargin = siteInfoDp(12);
+		content.addView(clearData, clearDataParams);
 		clearData.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
 				if (host == null || geckoEngine == null) {
@@ -1180,7 +1201,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		managePermissions.setBackgroundResource(R.drawable.snav_accent_ripple);
 		managePermissions.setClickable(true);
 		managePermissions.setFocusable(true);
-		content.addView(managePermissions, new LinearLayout.LayoutParams(-1, -2));
+		LinearLayout.LayoutParams managePermissionsParams = new LinearLayout.LayoutParams(-1, dp(48));
+		managePermissionsParams.topMargin = siteInfoDp(10);
+		content.addView(managePermissions, managePermissionsParams);
 		managePermissions.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
 				Intent settings = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
