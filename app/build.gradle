@@ -16,7 +16,7 @@ def hasReleaseSigning = [
 ].every { value -> value != null && !value.trim().isEmpty() }
 
 def launcherSource = file("src/main/assets/ic_launcher_source.png")
-def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons")
+def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons").get().asFile
 
 android {
     namespace "io.github.souhelin.snav"
@@ -98,7 +98,7 @@ tasks.register("generateLauncherIcons") {
             [name: "xxxhdpi", scale: 4, legacy: 192, adaptive: 432]
         ]
 
-        def resRoot = generatedLauncherRes.get().asFile
+        def resRoot = generatedLauncherRes
         project.delete(resRoot)
 
         densities.each { density ->
