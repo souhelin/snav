@@ -55,6 +55,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	private double toque = 0;
 	private boolean allowInsecureNavigationOnce = false;
+	private PermissionRequest pendingWebPermissionRequest;
+	private String pendingGeolocationOrigin;
+	private GeolocationPermissions.Callback pendingGeolocationCallback;
 	
 	private LinearLayout linear1;
 	private LinearLayout linear_c;
@@ -980,6 +983,72 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 
+
+	private void grantWebPermissionWhenAndroidAllows(PermissionRequest request, String[] resources) {
+		if (request == null || isFinishing()) return;
+		java.util.ArrayList<String> required = new java.util.ArrayList<String>();
+		for (String resource : resources) {
+			if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+				required.add(android.Manifest.permission.CAMERA);
+			} else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
+				required.add(android.Manifest.permission.RECORD_AUDIO);
+			} else {
+				request.deny();
+				return;
+			}
+		}
+		if (Build.VERSION.SDK_INT >= 23) {
+			java.util.ArrayList<String> missing = new java.util.ArrayList<String>();
+			for (String permission : required) {
+				if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) missing.add(permission);
+			}
+			if (!missing.isEmpty()) {
+				pendingWebPermissionRequest = request;
+				requestPermissions(missing.toArray(new String[missing.size()]), 4101);
+				return;
+			}
+		}
+		request.grant(resources);
+	}
+
+	private void grantGeolocationWhenAndroidAllows(String origin, GeolocationPermissions.Callback callback) {
+		if (Build.VERSION.SDK_INT >= 23
+			&& checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED
+			&& checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+			pendingGeolocationOrigin = origin;
+			pendingGeolocationCallback = callback;
+			requestPermissions(new String[] {
+				android.Manifest.permission.ACCESS_FINE_LOCATION,
+				android.Manifest.permission.ACCESS_COARSE_LOCATION
+			}, 4102);
+			return;
+		}
+		callback.invoke(origin, true, false);
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == 4101) {
+			PermissionRequest pending = pendingWebPermissionRequest;
+			pendingWebPermissionRequest = null;
+			if (pending == null) return;
+			boolean granted = grantResults.length > 0;
+			for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
+			if (granted) pending.grant(pending.getResources()); else pending.deny();
+		} else if (requestCode == 4102) {
+			GeolocationPermissions.Callback callback = pendingGeolocationCallback;
+			String origin = pendingGeolocationOrigin;
+			pendingGeolocationCallback = null;
+			pendingGeolocationOrigin = null;
+			if (callback == null) return;
+			boolean granted = Build.VERSION.SDK_INT < 23
+				|| checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+				|| checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+			callback.invoke(origin, granted, false);
+		}
+	}
+
 	private void addThirdPartyCookiePreference(boolean enabled) {
 		if (linear33 == null || android.os.Build.VERSION.SDK_INT < 21
 			|| linear33.findViewWithTag("snav_third_party_cookie_preference") != null) return;
@@ -1260,7 +1329,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					.setMessage(host + " solicita acesso à câmera ou ao microfone. Permita somente se você iniciou essa ação e confia no site.")
 					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
 						@Override public void onClick(DialogInterface dialog, int which) {
-							if (Build.VERSION.SDK_INT >= 21 && !isFinishing()) request.grant(requested);
+							grantWebPermissionWhenAndroidAllows(request, requested);
 						}
 					})
 					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
@@ -1282,7 +1351,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					.setTitle("Permitir localização?")
 					.setMessage("O site " + (parsed.getHost() == null ? "" : parsed.getHost()) + " solicita sua localização. A permissão vale somente para esta solicitação.")
 					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) { callback.invoke(origin, true, false); }
+						@Override public void onClick(DialogInterface dialog, int which) {
+							grantGeolocationWhenAndroidAllows(origin, callback);
+						}
 					})
 					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
 						@Override public void onClick(DialogInterface dialog, int which) { callback.invoke(origin, false, false); }
