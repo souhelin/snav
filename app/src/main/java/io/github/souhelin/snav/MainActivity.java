@@ -165,9 +165,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_tela2_base = findViewById(R.id.linear_tela2_base);
 		linear_b = findViewById(R.id.linear_b);
 		vazio = findViewById(R.id.vazio);
-		geckoView = findViewById(R.id.webview);
-		webview.getSettings().setJavaScriptEnabled(true);
-		webview.getSettings().setSupportZoom(true);
+		geckoView = findViewById(R.id.geckoView);
+		geckoView.getSettings().setJavaScriptEnabled(true);
+		geckoView.getSettings().setSupportZoom(true);
 		text_barra = findViewById(R.id.text_barra);
 		button_site_info = findViewById(R.id.button_site_info);
 		prog = findViewById(R.id.prog);
@@ -223,10 +223,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					if (pullRotationSpring != null) pullRotationSpring.cancel();
 					button_load_stop.setRotation(0f);
 					if (pageLoading) {
-						webview.stopLoading();
+						geckoView.stopLoading();
 						finishPageProgress();
-					} else if (webview.getUrl() != null && !webview.getUrl().equals("about:blank")) {
-						webview.reload();
+					} else if (geckoView.getUrl() != null && !geckoView.getUrl().equals("about:blank")) {
+						geckoView.reload();
 					} else {
 						openSearchScreen();
 					}
@@ -260,7 +260,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
-		webview.setWebViewClient(new WebViewClient() {
+		geckoView.setWebViewClient(new WebViewClient() {
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
 				logDiagnostic("Navegação iniciada: " + safeHostForDiagnostics(url));
@@ -320,8 +320,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				Limpar_Dialog.setPositiveButton("SIM", new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface _dialog, int _which) {
-						webview.clearCache(true);
-						webview.clearHistory();
+						geckoView.clearCache(true);
+						geckoView.clearHistory();
 					}
 				});
 				Limpar_Dialog.setNegativeButton("NÃO", null);
@@ -365,16 +365,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public void onClick(View _view) {
 				SketchwareUtil.showMessage(getApplicationContext(), "Copiado para a área de transferência");
-				((ClipboardManager) getSystemService(getApplicationContext().CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("clipboard", webview.getUrl()));
+				((ClipboardManager) getSystemService(getApplicationContext().CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("clipboard", geckoView.getUrl()));
 			}
 		});
 		
 		linear_tradutor_google.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				String url = webview.getUrl();
+				String url = geckoView.getUrl();
 				if (url != null) {
-					webview.loadUrl("https://translate.google.com/translate?sl=en&tl=pt&hl=pt-BR&u=" + url.replace("https://", "") + "&client=webapp");
+					geckoView.loadUrl("https://translate.google.com/translate?sl=en&tl=pt&hl=pt-BR&u=" + url.replace("https://", "") + "&client=webapp");
 					SketchwareUtil.showMessage(getApplicationContext(), "Traduzindo");
 				} else {
 					SketchwareUtil.showMessage(getApplicationContext(), "Nenhuma URL encontrada para traduzir");
@@ -384,139 +384,22 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 		
 		linear_modo_leitura.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				toque++;
-				if ((toque % 2) == 1) {
-					linear_modo_leitura.setAlpha((float)(0.5d));
-					webview.setWebViewClient(new WebViewClient(){
-			@Override
-			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
-				if (blocked != null) return blocked;
-				if (shouldBlockThirdPartyTracker(view, request)) {
-					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
-						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+			@Override public void onClick(View view) {
+				String current = geckoEngine == null ? null : geckoEngine.getCurrentUri();
+				if (current == null || !current.startsWith("https://")) {
+					Toast.makeText(MainActivity.this, "Abra uma página HTTPS para usar o modo leitura", Toast.LENGTH_SHORT).show();
+					return;
 				}
-				return super.shouldInterceptRequest(view, request);
-			}
-
-						@Override
-						public boolean shouldOverrideUrlLoading(WebView view, String url) {
-							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
-						showInsecureConnectionDialog(view, url);
-						return true;
-					}
-						@Override
-						public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
-							handler.cancel();
-						}
-
-						@Override
-						public void onPageFinished(WebView v, String url){
-							String js =
-							"javascript:(function(){"
-							
-							// container principal
-							+ "var wrap=document.createElement('div');"
-							+ "wrap.style.maxWidth='700px';"
-							+ "wrap.style.margin='20px auto';"
-							+ "wrap.style.padding='20px';"
-							+ "wrap.style.fontFamily='sans-serif';"
-							+ "wrap.style.fontSize='21px';"
-							+ "wrap.style.lineHeight='1.7';"
-							+ "wrap.style.color='#ECF0F1';"
-							+ "wrap.style.background='#2C3E50';"
-							+ "wrap.style.borderRadius='10px';"
-							
-							// elementos permitidos
-							+ "var els=document.querySelectorAll('p,h1,h2,h3,img');"
-							+ "for(var i=0;i<els.length;i++){"
-							+ "   var el=els[i].cloneNode(true);"
-							
-							// imagens
-							+ "   if(el.tagName==='IMG'){"
-							+ "       var w=els[i].naturalWidth || els[i].width;"
-							+ "       var h=els[i].naturalHeight || els[i].height;"
-							
-							// remove imagens pequenas (ícones inúteis)
-							+ "       if(w<=80 || h<=80){ continue; }"
-							
-							// estilizar imagens
-							+ "       el.style.display='block';"
-							+ "       el.style.margin='25px auto';"
-							+ "       el.style.maxWidth='100%';"
-							+ "       el.style.height='auto';"
-							+ "       el.style.borderRadius='10px';"
-							+ "       el.style.boxShadow='0 0 15px rgba(0,0,0,0.4)';"
-							+ "   }"
-							
-							// adiciona ao container
-							+ "   wrap.appendChild(el);"
-							+ "}"
-							
-							// limpar a página
-							+ "document.body.innerHTML='';"
-							+ "document.body.style.background='#2C3E50';"
-							+ "document.body.appendChild(wrap);"
-							
-							+ "})();";
-							
-							if(android.os.Build.VERSION.SDK_INT>=19){
-								v.evaluateJavascript(js, null);
-							} else {
-								v.loadUrl(js);
-							}
-						}
-					});
+				if (!readerMode) {
+					readerOriginalUri = current;
+					readerMode = true;
+					linear_modo_leitura.setAlpha(0.5f);
+					geckoEngine.loadUri("about:reader?url=" + Uri.encode(current), Dados.getBoolean("do_not_track", false));
 				} else {
-					linear_modo_leitura.setAlpha((float)(1.0d));
-					webview.setWebViewClient(new WebViewClient(){
-			@Override
-			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
-				if (blocked != null) return blocked;
-				if (shouldBlockThirdPartyTracker(view, request)) {
-					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
-						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+					readerMode = false;
+					linear_modo_leitura.setAlpha(1f);
+					if (readerOriginalUri != null) geckoEngine.loadUri(readerOriginalUri, Dados.getBoolean("do_not_track", false));
 				}
-				return super.shouldInterceptRequest(view, request);
-			}
-
-						@Override
-						public boolean shouldOverrideUrlLoading(WebView view, String url) {
-							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
-						showInsecureConnectionDialog(view, url);
-						return true;
-					}
-						@Override
-						public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
-							handler.cancel();
-						}
-
-						@Override
-						public void onPageFinished(WebView v, String url){
-							String js =
-							"javascript:(function(){"
-							// resetando estilo do body
-							+ "document.body.style.background='';"
-							+ "document.body.style.color='';"
-							+ "document.body.style.margin='';"
-							+ "document.body.style.maxWidth='';"
-							+ "document.body.style.padding='';"
-							// mostrando de volta elementos que o modo leitura escondeu
-							+ "document.querySelectorAll('header, nav, footer, aside').forEach(e => e.style.display='');"
-							+ "})();";
-							
-							if(android.os.Build.VERSION.SDK_INT >= 19){
-								v.evaluateJavascript(js, null);
-							} else {
-								v.loadUrl(js);
-							}
-						}
-					});
-				}
-				webview.loadUrl(webview.getUrl());
 			}
 		});
 		
@@ -524,7 +407,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public void onClick(View _view) {
 				intent.setAction(Intent.ACTION_VIEW);
-				intent.setData(Uri.parse(webview.getUrl()));
+				intent.setData(Uri.parse(geckoView.getUrl()));
 				startActivity(intent);
 			}
 		});
@@ -535,10 +418,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
 					Dados.edit().putString("brilho", "ativado").apply();
-					webview.setAlpha((float)(0.5d));
+					geckoView.setAlpha((float)(0.5d));
 				} else {
 					Dados.edit().putString("brilho", "desativado").apply();
-					webview.setAlpha((float)(1.0d));
+					geckoView.setAlpha((float)(1.0d));
 				}
 			}
 		});
@@ -549,9 +432,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
 					Dados.edit().putString("java", "ativado").apply();
-					webview.getSettings().setJavaScriptEnabled(true); 
+					geckoView.getSettings().setJavaScriptEnabled(true); 
 				} else {
-					webview.getSettings().setJavaScriptEnabled(false); 
+					geckoView.getSettings().setJavaScriptEnabled(false); 
 					Dados.edit().putString("java", "desativado").apply();
 				}
 			}
@@ -589,9 +472,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (destination == null) return false;
 
 		if (destination.regionMatches(true, 0, "http://", 0, 7)) {
-			showInsecureConnectionDialog(webview, destination);
+			showInsecureConnectionDialog(geckoView, destination);
 		} else {
-			loadUrlWithPrivacyHeaders(webview, destination);
+			loadUrlWithPrivacyHeaders(geckoView, destination);
 		}
 		tela1.setVisibility(View.GONE);
 		tela2.setVisibility(View.VISIBLE);
@@ -999,7 +882,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void showSiteInfoBottomSheet() {
-		final String currentUrl = webview.getUrl();
+		final String currentUrl = geckoView.getUrl();
 		final Uri pageUri = currentUrl == null ? null : Uri.parse(currentUrl);
 		final String scheme = pageUri == null ? null : pageUri.getScheme();
 		final String host = pageUri == null ? null : pageUri.getHost();
@@ -1106,7 +989,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 
-		addSiteInfoRow(content, "CONFIGURAÇÕES DO SITE", "JavaScript: " + (webview.getSettings().getJavaScriptEnabled() ? "ativado" : "desativado") + ". Esta configuração é global para o navegador, não específica deste domínio.");
+		addSiteInfoRow(content, "CONFIGURAÇÕES DO SITE", "JavaScript: " + (geckoView.getSettings().getJavaScriptEnabled() ? "ativado" : "desativado") + ". Esta configuração é global para o navegador, não específica deste domínio.");
 
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
@@ -1220,7 +1103,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
 				Dados.edit().putBoolean("third_party_cookies", checked).apply();
-				CookieManager.getInstance().setAcceptThirdPartyCookies(webview, checked);
+				CookieManager.getInstance().setAcceptThirdPartyCookies(geckoView, checked);
 				com.google.android.material.snackbar.Snackbar.make(linear33,
 					checked ? "Cookies de terceiros permitidos" : "Cookies de terceiros bloqueados",
 					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
@@ -1435,9 +1318,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void setupPullToRefresh() {
-		if (webview == null || button_load_stop == null) return;
-		webview.setOverScrollMode(View.OVER_SCROLL_NEVER);
-		webview.setOnTouchListener(new View.OnTouchListener() {
+		if (geckoView == null || button_load_stop == null) return;
+		geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+		geckoView.setOnTouchListener(new View.OnTouchListener() {
 			@Override
 			public boolean onTouch(View view, android.view.MotionEvent event) {
 				if (event.getActionMasked() != android.view.MotionEvent.ACTION_DOWN
@@ -1450,13 +1333,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						pullStartY = event.getY();
 						pullStartX = event.getX();
 						pullDistance = 0f;
-						pullTracking = webview.getScrollY() <= 0 && !pageLoading;
+						pullTracking = geckoView.getScrollY() <= 0 && !pageLoading;
 						pullConsumed = false;
 						if (pullRotationSpring != null) pullRotationSpring.cancel();
 						button_load_stop.setRotation(0f);
 						return false;
 					case android.view.MotionEvent.ACTION_MOVE:
-						if (!pullTracking || webview.getScrollY() > 0) return false;
+						if (!pullTracking || geckoView.getScrollY() > 0) return false;
 						float horizontalDistance = Math.abs(event.getX() - pullStartX);
 						pullDistance = event.getY() - pullStartY;
 						if (horizontalDistance > pullDistance) {
@@ -1486,8 +1369,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						pullConsumed = false;
 						if (event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
 						if (rotation > 0f) animatePullRelease(rotationVelocity);
-						if (refresh && webview.getUrl() != null) {
-							webview.reload();
+						if (refresh && geckoView.getUrl() != null) {
+							geckoView.reload();
 							return true;
 						}
 						return false;
@@ -1540,8 +1423,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
-		if (webview.canGoBack()) {
-			webview.goBack();
+		if (geckoView.canGoBack()) {
+			geckoView.goBack();
 		} else {
 			tela1.setVisibility(View.VISIBLE);
 			tela2.setVisibility(View.GONE);
@@ -1682,32 +1565,32 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		//brilho da tela
 		if (Dados.getString("brilho", "").equals("ativado")) {
 			checkbox_brilho.setChecked(true);
-			webview.setAlpha((float)(0.5d));
+			geckoView.setAlpha((float)(0.5d));
 		} else {
 			
 		}
 		if (Dados.getString("brilho", "").equals("desativado")) {
 			checkbox_brilho.setChecked(false);
-			webview.setAlpha((float)(1.0d));
+			geckoView.setAlpha((float)(1.0d));
 		} else {
 			
 		}
 		//javascript
 		if (Dados.getString("java", "").equals("ativado")) {
 			checkbox_javascript2.setChecked(true);
-			webview.getSettings().setJavaScriptEnabled(true); 
+			geckoView.getSettings().setJavaScriptEnabled(true); 
 		} else {
 			
 		}
 		if (Dados.getString("java", "").equals("desativado")) {
 			checkbox_javascript2.setChecked(false);
-			webview.getSettings().setJavaScriptEnabled(false); 
+			geckoView.getSettings().setJavaScriptEnabled(false); 
 		} else {
 			
 		}
 		//vazio
 		if (Dados.getString("vazio", "").equals("desativado")) {
-			webview.setWebViewClient(new android.webkit.WebViewClient() {
+			geckoView.setWebViewClient(new android.webkit.WebViewClient() {
 				@Override
 				public void onPageFinished(android.webkit.WebView view, String url) {
 					super.onPageFinished(view, url);
@@ -1733,7 +1616,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	
 	public void _download() {
-		webview.setDownloadListener(new DownloadListener() {
+		geckoView.setDownloadListener(new DownloadListener() {
 			@Override
 			public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, long contentLength) {
 				Uri downloadUri = Uri.parse(url == null ? "" : url);
