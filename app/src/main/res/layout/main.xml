@@ -491,7 +491,6 @@
             android:text=""
             android:drawableTop="@drawable/ms_home"
             android:contentDescription="Início"
-            android:gravity="center"
             android:padding="8dp" />
 
         <TextView
@@ -506,7 +505,6 @@
             android:text=""
             android:drawableTop="@drawable/ms_build"
             android:contentDescription="Ferramentas"
-            android:gravity="center"
             android:padding="8dp" />
     </LinearLayout>
 
