@@ -54,6 +54,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private Timer _timer = new Timer();
 	
 	private double toque = 0;
+	private boolean allowInsecureNavigationOnce = false;
 	
 	private LinearLayout linear1;
 	private LinearLayout linear_c;
@@ -978,6 +979,61 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 	}
 
+
+	private void addThirdPartyCookiePreference(boolean enabled) {
+		if (linear33 == null || android.os.Build.VERSION.SDK_INT < 21
+			|| linear33.findViewWithTag("snav_third_party_cookie_preference") != null) return;
+		LinearLayout row = new LinearLayout(this);
+		row.setTag("snav_third_party_cookie_preference");
+		row.setOrientation(LinearLayout.VERTICAL);
+		row.setPadding(dp(8), dp(8), dp(8), dp(8));
+		MaterialSwitch toggle = new MaterialSwitch(this);
+		toggle.setText("Cookies de terceiros");
+		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextSize(14);
+		toggle.setChecked(enabled);
+		TextView summary = new TextView(this);
+		summary.setText("Bloqueados por padrão; permitir pode aumentar o rastreamento entre sites.");
+		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextSize(12);
+		summary.setPadding(dp(40), 0, dp(8), 0);
+		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
+		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+				Dados.edit().putBoolean("third_party_cookies", checked).apply();
+				CookieManager.getInstance().setAcceptThirdPartyCookies(webview, checked);
+				android.widget.Toast.makeText(MainActivity.this,
+					checked ? "Cookies de terceiros permitidos" : "Cookies de terceiros bloqueados",
+					android.widget.Toast.LENGTH_SHORT).show();
+			}
+		});
+		int insertAt = Math.max(0, linear33.getChildCount() - 1);
+		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+	}
+
+	private int dp(float value) {
+		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+	}
+
+	private void showInsecureConnectionDialog(final WebView view, final String url) {
+		final Uri parsed = Uri.parse(url);
+		final String host = parsed.getHost() == null ? "este endereço" : parsed.getHost();
+		new AlertDialog.Builder(this)
+			.setTitle("Conexão não segura")
+			.setMessage("A conexão com " + host + " usa HTTP e não é criptografada. Seus dados podem ser interceptados. Deseja continuar mesmo assim?")
+			.setPositiveButton("Continuar", new DialogInterface.OnClickListener() {
+				@Override public void onClick(DialogInterface dialog, int which) {
+					allowInsecureNavigationOnce = true;
+					view.loadUrl(url);
+				}
+			})
+			.setNegativeButton("Voltar", null)
+			.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				@Override public void onCancel(DialogInterface dialog) { allowInsecureNavigationOnce = false; }
+			}).show();
+	}
+
 	private void initializeLogic() {
 		_armazenamento();
 		_open_sans();
@@ -1067,10 +1123,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
 		cookieManager.setAcceptCookie(true);
 		
+		final boolean thirdPartyCookiesEnabled = Dados.getBoolean("third_party_cookies", false);
 		if (android.os.Build.VERSION.SDK_INT >= 21) {
-			cookieManager.setAcceptThirdPartyCookies(webview, false);
+			cookieManager.setAcceptThirdPartyCookies(webview, thirdPartyCookiesEnabled);
 		}
-		
+		addThirdPartyCookiePreference(thirdPartyCookiesEnabled);
+
 		// Layout WebView
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 		webview.setVerticalScrollBarEnabled(true);
@@ -1130,6 +1188,38 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		// WebViewClient
 		webview.setWebViewClient(new android.webkit.WebViewClient() {
 			@Override
+			public boolean shouldOverrideUrlLoading(final WebView view, final WebResourceRequest request) {
+				if (android.os.Build.VERSION.SDK_INT >= 21 && request != null && !request.isForMainFrame()) {
+					return false;
+				}
+				String target = request == null ? null : request.getUrl().toString();
+				if (target == null || !target.regionMatches(true, 0, "http://", 0, 7)) return false;
+				if (allowInsecureNavigationOnce) {
+					allowInsecureNavigationOnce = false;
+					return false;
+				}
+				showInsecureConnectionDialog(view, target);
+				return true;
+			}
+
+			@Override
+			public boolean shouldOverrideUrlLoading(WebView view, String url) {
+				if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
+				if (allowInsecureNavigationOnce) {
+					allowInsecureNavigationOnce = false;
+					return false;
+				}
+				showInsecureConnectionDialog(view, url);
+				return true;
+			}
+
+			@Override
+			public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
+				logDiagnostic("Erro TLS cancelado pelo navegador");
+				handler.cancel();
+			}
+
+			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
 				super.onPageStarted(view, url, favicon);
 				beginPageProgress();
@@ -1154,6 +1244,54 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				text_barra.setText(t);
 			}
 			
+			@Override
+			public void onPermissionRequest(final PermissionRequest request) {
+				if (request == null) return;
+				final Uri origin = request.getOrigin();
+				final String[] requested = request.getResources();
+				if (origin == null || !"https".equalsIgnoreCase(origin.getScheme())
+					|| requested == null || requested.length == 0) {
+					request.deny();
+					return;
+				}
+				final String host = origin.getHost() == null ? "site desconhecido" : origin.getHost();
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Permissão do site")
+					.setMessage(host + " solicita acesso à câmera ou ao microfone. Permita somente se você iniciou essa ação e confia no site.")
+					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) {
+							if (Build.VERSION.SDK_INT >= 21 && !isFinishing()) request.grant(requested);
+						}
+					})
+					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) { request.deny(); }
+					})
+					.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override public void onCancel(DialogInterface dialog) { request.deny(); }
+					}).show();
+			}
+
+			@Override
+			public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
+				Uri parsed = Uri.parse(origin == null ? "" : origin);
+				if (!"https".equalsIgnoreCase(parsed.getScheme())) {
+					callback.invoke(origin, false, false);
+					return;
+				}
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Permitir localização?")
+					.setMessage("O site " + (parsed.getHost() == null ? "" : parsed.getHost()) + " solicita sua localização. A permissão vale somente para esta solicitação.")
+					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) { callback.invoke(origin, true, false); }
+					})
+					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) { callback.invoke(origin, false, false); }
+					})
+					.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override public void onCancel(DialogInterface dialog) { callback.invoke(origin, false, false); }
+					}).show();
+			}
+
 			@Override
 			public void onProgressChanged(WebView v, int p) {
 				if (!pageLoading) {
@@ -2324,9 +2462,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 							request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
 							
 							// Adiciona UserAgent e Cookies para evitar erros de 403 Forbidden
-							String cookie = android.webkit.CookieManager.getInstance().getCookie(url);
-							request.addRequestHeader("Cookie", cookie);
-							request.addRequestHeader("User-Agent", userAgent);
+								String cookie = android.webkit.CookieManager.getInstance().getCookie(url);
+							if (cookie != null && !cookie.trim().isEmpty()) {
+								request.addRequestHeader("Cookie", cookie);
+							}
+							if (userAgent != null && !userAgent.trim().isEmpty()) {
+								request.addRequestHeader("User-Agent", userAgent);
+							}
 							
 							DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
 							dm.enqueue(request);
