@@ -488,10 +488,12 @@
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
-            android:text="Início"
-            android:textColor="@color/snav_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:text=""
+            android:drawableTop="@drawable/ms_home"
+            android:drawableTint="@color/snav_primary"
+            android:contentDescription="Início"
+            android:gravity="center"
+            android:padding="8dp" />
 
         <TextView
             android:id="@+id/b2"
@@ -502,9 +504,12 @@
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"
-            android:text="Ferramentas"
-            android:textColor="@color/snav_on_surface_variant"
-            android:textSize="14sp" />
+            android:text=""
+            android:drawableTop="@drawable/ms_build"
+            android:drawableTint="@color/snav_on_surface_variant"
+            android:contentDescription="Ferramentas"
+            android:gravity="center"
+            android:padding="8dp" />
     </LinearLayout>
 
     <LinearLayout
