@@ -165,9 +165,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_tela2_base = findViewById(R.id.linear_tela2_base);
 		linear_b = findViewById(R.id.linear_b);
 		vazio = findViewById(R.id.vazio);
-		geckoView = findViewById(R.id.geckoView);
-		geckoEngine.setJavaScriptEnabled(true);
-		geckoView.getSettings().setSupportZoom(true);
+		geckoView = findViewById(R.id.geckoview);
 		text_barra = findViewById(R.id.text_barra);
 		button_site_info = findViewById(R.id.button_site_info);
 		prog = findViewById(R.id.prog);
@@ -225,7 +223,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					if (pageLoading) {
 						geckoEngine.stop();
 						finishPageProgress();
-					} else if ((geckoEngine == null ? null : geckoEngine.getCurrentUri()) != null && !geckoView.getUrl().equals("about:blank")) {
+					} else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
 						geckoEngine.reload();
 					} else {
 						openSearchScreen();
@@ -260,36 +258,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
-		geckoView.setWebViewClient(new WebViewClient() {
-			@Override
-			public void onPageStarted(WebView view, String url, Bitmap favicon) {
-				logDiagnostic("Navegação iniciada: " + safeHostForDiagnostics(url));
-				super.onPageStarted(view, url, favicon);
-			}
 
-			@Override
-			public void onPageFinished(WebView view, String url) {
-				logDiagnostic("Navegação concluída: " + safeHostForDiagnostics(url));
-				super.onPageFinished(view, url);
-			}
-
-			@Override
-			public void onReceivedError(WebView view, int errorCode,
-				String description, String failingUrl) {
-				logDiagnostic("Erro de carregamento WebView: código " + errorCode
-					+ "; host=" + safeHostForDiagnostics(failingUrl));
-				super.onReceivedError(view, errorCode, description, failingUrl);
-			}
-
-			@Override
-			public void onReceivedSslError(WebView view, SslErrorHandler handler,
-				android.net.http.SslError error) {
-				logDiagnostic("Erro de certificado TLS: " + (error == null ? "desconhecido"
-					: error.getPrimaryError()) + "; host="
-					+ safeHostForDiagnostics(error == null ? null : error.getUrl()));
-				handler.cancel();
-			}
-		});
 		
 		button_site_info.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -364,7 +333,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public void onClick(View _view) {
 				SketchwareUtil.showMessage(getApplicationContext(), "Copiado para a área de transferência");
-				((ClipboardManager) getSystemService(getApplicationContext().CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("clipboard", geckoView.getUrl()));
+				((ClipboardManager) getSystemService(getApplicationContext().CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("clipboard", (geckoEngine == null ? null : geckoEngine.getCurrentUri())));
 			}
 		});
 		
@@ -431,7 +400,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				final boolean _isChecked = _param2;
 				if (_isChecked) {
 					Dados.edit().putString("java", "ativado").apply();
-					geckoView.getSettings().setJavaScriptEnabled(true); 
+					geckoEngine.setJavaScriptEnabled(true); 
 				} else {
 					geckoEngine.setJavaScriptEnabled(false); 
 					Dados.edit().putString("java", "desativado").apply();
