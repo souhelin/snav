@@ -246,6 +246,7 @@ public final class GeckoEngineController {
         session.getSettings().setUseTrackingProtection(enabled);
     }
 
+    public GeckoResult<Boolean> processBackPressed() { ensureOpen(); return session.processBackPressed(); }
     public void reload() { ensureOpen(); session.reload(); }
     public void stop() { ensureOpen(); session.stop(); }
     public void goBack() { ensureOpen(); if (canGoBack) session.goBack(); }
