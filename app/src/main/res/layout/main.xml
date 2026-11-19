@@ -130,7 +130,7 @@
                         android:padding="8dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ms_tune"
-                        android:tint="#757575" />
+                        android:tint="@color/snav_on_surface_variant" />
 
                     <TextView
                         android:id="@+id/text_barra"
@@ -490,7 +490,6 @@
             android:focusable="true"
             android:text=""
             android:drawableTop="@drawable/ms_home"
-            android:drawableTint="@color/snav_primary"
             android:contentDescription="Início"
             android:gravity="center"
             android:padding="8dp" />
@@ -506,7 +505,6 @@
             android:focusable="true"
             android:text=""
             android:drawableTop="@drawable/ms_build"
-            android:drawableTint="@color/snav_on_surface_variant"
             android:contentDescription="Ferramentas"
             android:gravity="center"
             android:padding="8dp" />
