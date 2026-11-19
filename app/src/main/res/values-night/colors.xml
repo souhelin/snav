@@ -13,4 +13,5 @@
     <color name="snav_on_surface_variant">#B8C2CC</color>
     <color name="snav_outline">#3A4B59</color>
     <color name="snav_error">#FFB4AB</color>
+    <color name="snav_switch_primary_container">#653B16</color>
 </resources>
