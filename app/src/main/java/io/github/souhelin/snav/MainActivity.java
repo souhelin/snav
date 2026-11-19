@@ -971,8 +971,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			connection = "Não disponível";
 		}
 		addSiteInfoRow(content, "CONEXÃO", connection);
-		addSiteInfoRow(content, "PERMISSÕES DO SITE", "Câmera, microfone e localização exigem confirmação por solicitação e permissão Android quando aplicável. Notificações e recursos desconhecidos não recebem concessão explícita. Não há painel completo de revogação por origem.");
-		addSiteInfoRow(content, "COOKIES E DADOS", "Os cookies são gerenciados pelo WebView. A remoção individual de cookies por domínio ainda não está disponível. O botão abaixo remove o armazenamento web deste domínio.");
+		addSiteInfoRow(content, "PERMISSÕES DO SITE", "Câmera e microfone dependem também das permissões Android do aplicativo. A localização pode ser limpa para esta origem. O WebView não oferece API pública para revogar câmera/microfone individualmente por domínio; use as configurações Android para revogação global.");
+		addSiteInfoRow(content, "COOKIES E DADOS", "O Snav remove o DOM Storage da origem e tenta expirar cookies visíveis no caminho raiz. O WebView não expõe uma API pública para apagar todos os cookies de uma única origem com garantia de escopo.");
 
 		TextView clearData = new TextView(this);
 		clearData.setText("Limpar armazenamento local");
@@ -1008,6 +1008,34 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 							Toast.makeText(MainActivity.this, "Limpeza solicitada para este domínio", Toast.LENGTH_SHORT).show();
 						}
 					}).show();
+			}
+		});
+
+		TextView managePermissions = new TextView(this);
+		managePermissions.setText("Gerenciar permissões do aplicativo");
+		managePermissions.setTextColor(Color.WHITE);
+		managePermissions.setTextSize(14);
+		managePermissions.setGravity(Gravity.CENTER);
+		managePermissions.setMinHeight(siteInfoDp(48));
+		managePermissions.setPadding(siteInfoDp(16), siteInfoDp(10), siteInfoDp(16), siteInfoDp(10));
+		managePermissions.setBackgroundResource(R.drawable.snav_accent_ripple);
+		managePermissions.setClickable(true);
+		managePermissions.setFocusable(true);
+		LinearLayout.LayoutParams permissionParams = new LinearLayout.LayoutParams(-1, -2);
+		permissionParams.topMargin = siteInfoDp(8);
+		content.addView(managePermissions, permissionParams);
+		managePermissions.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (origin != null) {
+					GeolocationPermissions.getInstance().clear(origin);
+				}
+				Intent settings = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+					Uri.parse("package:" + getPackageName()));
+				try {
+					startActivity(settings);
+				} catch (ActivityNotFoundException error) {
+					Toast.makeText(MainActivity.this, "Não foi possível abrir as configurações do aplicativo", Toast.LENGTH_SHORT).show();
+				}
 			}
 		});
 
