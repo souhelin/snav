@@ -7,6 +7,7 @@ on:
       - main
       - feature/md3-full-ui-redesign
       - feature/unsplash-wallpaper-pull-refresh
+      - feature/geckoview-engine
 
 permissions:
   contents: read
@@ -29,7 +30,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.13'
+          gradle-version: '9.3.1'
 
       - name: Validate release signing secrets and decode keystore
         env:
