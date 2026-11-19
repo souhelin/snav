@@ -22,6 +22,10 @@ Snav é um navegador Android construído para navegação simples, interface min
 - Indicador linear de carregamento.
 - Preferências para JavaScript e escurecimento de páginas.
 - Limpeza de cache e histórico.
+- Cookies first-party permitidos e cookies de terceiros bloqueados por padrão, com controle persistente.
+- Aviso antes de navegar para endereços HTTP.
+- Solicitações de câmera, microfone e localização mediadas por confirmação no site e permissões Android em tempo de execução.
+- Downloads com confirmação explícita antes de iniciar.
 - Diagnósticos locais limitados e tratamento de falhas.
 - R8/ProGuard e redução de recursos em release.
 - Workflow de release com validação e verificação de assinatura.
