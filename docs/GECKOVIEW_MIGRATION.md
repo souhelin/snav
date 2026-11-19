@@ -29,7 +29,7 @@ Implemented integrations:
   into Android's Downloads collection (MediaStore on Android 10+, public
   Downloads on older Android versions), with HTTPS validation and explicit
   user confirmation.
-- Visit URLs are recorded in bounded SharedPreferences history storage.
+- Navigation history and back/forward state are managed by GeckoSession and included in its saved session state; no unused duplicate URL log is maintained.
 - Site-specific and global browsing-data clearing use GeckoView's
   `StorageController`. Sessions are detached and closed before clearing,
   then reopened to avoid immediate data recreation by an open session.
@@ -56,8 +56,7 @@ Implemented integrations:
 ## Known limitations requiring validation
 
 - The app remains a single-session browser; this migration does not add tabs.
-- The current history store records visits, but this branch does not add a
-  new history-management screen.
+- The existing Snav UI has no dedicated history-management screen; this migration keeps GeckoSession back/forward history without inventing a second history UI.
 - Session state is not persisted across process death. A process restart
   starts a new browser session.
 - GeckoView's built-in prompt UI is used for JavaScript dialogs and file
