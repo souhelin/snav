@@ -75,7 +75,10 @@ public final class GeckoEngineController {
             return;
         }
         closed = true;
-        session.close();
+        GeckoSession detached = view.releaseSession();
+        if (detached != null && detached.isOpen()) {
+            detached.close();
+        }
     }
 
     private void ensureOpen() {
