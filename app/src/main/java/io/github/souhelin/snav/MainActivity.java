@@ -1598,307 +1598,74 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	
 	public void _internet() {
-		//internet
-		// Barra de progresso MD3
-		prog.setVisibility(View.GONE);
-		prog.setAlpha(1f);
-		prog.setProgress(0);
-		prog.setIndeterminate(true);
-		
-		// Cookies
-		android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
-		cookieManager.setAcceptCookie(true);
-		
-		final boolean thirdPartyCookiesEnabled = Dados.getBoolean("third_party_cookies", false);
-		if (android.os.Build.VERSION.SDK_INT >= 21) {
-			cookieManager.setAcceptThirdPartyCookies(webview, thirdPartyCookiesEnabled);
-		}
-		addThirdPartyCookiePreference(thirdPartyCookiesEnabled);
-		addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
-		addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
-
-		// Layout WebView
-		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-		webview.setVerticalScrollBarEnabled(true);
-		webview.setHorizontalScrollBarEnabled(false);
-		webview.setLayoutParams(new LinearLayout.LayoutParams(
-		ViewGroup.LayoutParams.MATCH_PARENT,
-		ViewGroup.LayoutParams.MATCH_PARENT
-		));
-		
-		// Settings
-		WebSettings s = webview.getSettings();
-		
-		// Agente de usuário
-		s.setUserAgentString(
-		"Mozilla/5.0 (Linux; Android 16; SM-A065M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-		);
-		
-		s.setJavaScriptEnabled(true);
-		s.setDomStorageEnabled(true);
-		s.setCacheMode(WebSettings.LOAD_DEFAULT);
-		s.setSaveFormData(true);
-		
-		s.setSupportMultipleWindows(true);
-		s.setJavaScriptCanOpenWindowsAutomatically(false);
-		
-		s.setAllowFileAccess(false);
-		s.setAllowContentAccess(false);
-		if (android.os.Build.VERSION.SDK_INT >= 16) {
-			s.setAllowFileAccessFromFileURLs(false);
-			s.setAllowUniversalAccessFromFileURLs(false);
-		}
-		
-		try {
-			s.setSafeBrowsingEnabled(true);
-		} catch (Exception e) {}
-		
-		if (android.os.Build.VERSION.SDK_INT >= 21) {
-			s.setMixedContentMode(
-			WebSettings.MIXED_CONTENT_NEVER_ALLOW
-			);
-		}
-		
-		s.setLoadsImagesAutomatically(true);
-		s.setBlockNetworkImage(false);
-		s.setBlockNetworkLoads(false);
-		s.setMediaPlaybackRequiresUserGesture(false);
-		
-		s.setUseWideViewPort(true);
-		s.setLoadWithOverviewMode(true);
-		
-		if (android.os.Build.VERSION.SDK_INT >= 23) {
-			try {
-				s.setOffscreenPreRaster(true);
-			} catch (Exception e) {}
-		}
-		
-		// WebViewClient
-		webview.setWebViewClient(new android.webkit.WebViewClient() {			@Override
-			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
-				if (blocked != null) return blocked;
-				if (shouldBlockThirdPartyTracker(view, request)) {
-					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
-						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
-				}
-				return super.shouldInterceptRequest(view, request);
-			}
-
-
-			@Override
-			public boolean shouldOverrideUrlLoading(final WebView view, final WebResourceRequest request) {
-				if (android.os.Build.VERSION.SDK_INT >= 21 && request != null && !request.isForMainFrame()) {
-					return false;
-				}
-				String target = request == null ? null : request.getUrl().toString();
-				if (target == null || !target.regionMatches(true, 0, "http://", 0, 7)) return false;
-				showInsecureConnectionDialog(view, target);
-				return true;
-			}
-
-			@Override
-			public boolean shouldOverrideUrlLoading(WebView view, String url) {
-				if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
-				showInsecureConnectionDialog(view, url);
-				return true;
-			}
-
-			@Override
-			public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
-				logDiagnostic("Erro TLS cancelado pelo navegador");
-				handler.cancel();
-			}
-
-			@Override
-			public void onPageStarted(WebView view, String url, Bitmap favicon) {
-				super.onPageStarted(view, url, favicon);
-				beginPageProgress();
-			}
-
-			@Override
-			public void onPageFinished(WebView view, String url) {
-				super.onPageFinished(view, url);
-				finishPageProgress();
-			}
-		});
-		
-		// Service Workers não passam pelo WebViewClient em todas as versões.
-		// API 24+ recebe filtro equivalente para recursos com Referer disponível.
-		if (Build.VERSION.SDK_INT >= 24) {
-			android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(
-				new android.webkit.ServiceWorkerClient() {
-					@Override
-					public WebResourceResponse shouldInterceptRequest(WebResourceRequest request) {
-						if (shouldBlockThirdPartyTracker(request)) {
-							return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
-								new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
-						}
-						return null;
-					}
-				}
-			);
-		}
-
-		// WebChromeClient
-		webview.setWebChromeClient(new android.webkit.WebChromeClient() {
-			
-			private View customView;
-			private CustomViewCallback customViewCallback;
-			private FrameLayout fullscreenContainer;
-			
-			@Override
-			public void onReceivedTitle(WebView v, String t) {
-				text_barra.setText(t);
-			}
-			
-			@Override
-			public void onPermissionRequest(final PermissionRequest request) {
-				if (request == null) return;
-				final Uri origin = request.getOrigin();
-				final String[] requested = request.getResources();
-				if (origin == null || !"https".equalsIgnoreCase(origin.getScheme())
-					|| requested == null || requested.length == 0) {
-					request.deny();
-					return;
-				}
-				final String host = origin.getHost() == null ? "site desconhecido" : origin.getHost();
-				new AlertDialog.Builder(MainActivity.this)
-					.setTitle("Permissão do site")
-					.setMessage(host + " solicita acesso à câmera ou ao microfone. Permita somente se você iniciou essa ação e confia no site.")
-					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) {
-							grantWebPermissionWhenAndroidAllows(request, requested);
-						}
-					})
-					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) { request.deny(); }
-					})
-					.setOnCancelListener(new DialogInterface.OnCancelListener() {
-						@Override public void onCancel(DialogInterface dialog) { request.deny(); }
-					}).show();
-			}
-
-			@Override
-			public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
-				Uri parsed = Uri.parse(origin == null ? "" : origin);
-				if (!"https".equalsIgnoreCase(parsed.getScheme())) {
-					callback.invoke(origin, false, false);
-					return;
-				}
-				new AlertDialog.Builder(MainActivity.this)
-					.setTitle("Permitir localização?")
-					.setMessage("O site " + (parsed.getHost() == null ? "" : parsed.getHost()) + " solicita sua localização. A permissão vale somente para esta solicitação.")
-					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) {
-							grantGeolocationWhenAndroidAllows(origin, callback);
-						}
-					})
-					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) { callback.invoke(origin, false, false); }
-					})
-					.setOnCancelListener(new DialogInterface.OnCancelListener() {
-						@Override public void onCancel(DialogInterface dialog) { callback.invoke(origin, false, false); }
-					}).show();
-			}
-
-			@Override
-			public void onProgressChanged(WebView v, int p) {
-				if (!pageLoading) {
-					beginPageProgress();
-				}
-				if (p > 0) {
-					prog.setIndeterminate(false);
-					if (progressAnimator != null) {
-						progressAnimator.cancel();
-					}
-					progressAnimator = ObjectAnimator.ofInt(prog, "progress", prog.getProgress(), Math.min(100, p));
-					progressAnimator.setDuration(100);
-					progressAnimator.start();
-				}
-				if (p >= 100) {
-					finishPageProgress();
-				}
-			}
-			
-			@Override
-			public void onShowCustomView(View v, CustomViewCallback cb) {
-				
-				if (customView != null) {
-					cb.onCustomViewHidden();
-					return;
-				}
-				
-				customView = v;
-				customViewCallback = cb;
-				
-				FrameLayout decor =
-				(FrameLayout) getWindow().getDecorView();
-				
-				fullscreenContainer =
-				new FrameLayout(MainActivity.this);
-				
-				fullscreenContainer.setBackgroundColor(Color.BLACK);
-				
-				fullscreenContainer.addView(
-				v,
-				new FrameLayout.LayoutParams(-1, -1)
-				);
-				
-				decor.addView(fullscreenContainer);
-				
-				// Fullscreen real
-				decor.setSystemUiVisibility(
-				View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-				| View.SYSTEM_UI_FLAG_FULLSCREEN
-				| View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-				| View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-				| View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-				);
-			}
-			
-			@Override
-			public void onHideCustomView() {
-				
-				FrameLayout decor =
-				(FrameLayout) getWindow().getDecorView();
-				
-				if (fullscreenContainer != null) {
-					decor.removeView(fullscreenContainer);
-				}
-				
-				fullscreenContainer = null;
-				customView = null;
-				
-				// Volta UI normal
-				decor.setSystemUiVisibility(
-				View.SYSTEM_UI_FLAG_VISIBLE
-				);
-				
-				if (customViewCallback != null) {
-					customViewCallback.onCustomViewHidden();
-				}
-			}
-		});
-		
-		// Pesquisa e navegação pelo teclado.
-		edittext1.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-			@Override
-			public boolean onEditorAction(TextView view, int actionId, KeyEvent event) {
-				boolean enterPressed = event != null
-					&& event.getKeyCode() == KeyEvent.KEYCODE_ENTER
-					&& event.getAction() == KeyEvent.ACTION_DOWN;
-				boolean imeAction = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
-					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO
-					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE;
-				if (!imeAction && !enterPressed) return false;
-				submitSearch();
-				return true;
-			}
-		});
-		setupUnsplashWallpaper();
-		setupPullToRefresh();
-	}
+        prog.setVisibility(View.GONE);
+        prog.setAlpha(1f);
+        prog.setProgress(0);
+        prog.setIndeterminate(true);
+        addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
+        addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
+        javaScriptEnabled = !"desativado".equals(Dados.getString("java", "ativado"));
+        geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        geckoEngine = new GeckoEngineController(this, geckoView,
+            new GeckoEngineController.Listener() {
+                @Override public void onPageStarted(String uri) {
+                    logDiagnostic("Navegação Gecko iniciada: " + safeHostForDiagnostics(uri));
+                    beginPageProgress();
+                    vazio.setVisibility(View.GONE);
+                    setLoadStopIcon(true);
+                }
+                @Override public void onPageStopped(boolean success) {
+                    finishPageProgress();
+                    setLoadStopIcon(false);
+                    String uri = geckoEngine.getCurrentUri();
+                    vazio.setVisibility(uri == null || uri.isEmpty() || "about:blank".equals(uri) ? View.VISIBLE : View.GONE);
+                    if (!success) logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
+                }
+                @Override public void onProgressChanged(int value) {
+                    if (!pageLoading) beginPageProgress();
+                    if (value > 0) {
+                        prog.setIndeterminate(false);
+                        if (progressAnimator != null) progressAnimator.cancel();
+                        progressAnimator = ObjectAnimator.ofInt(prog, "progress", prog.getProgress(), Math.min(100, value));
+                        progressAnimator.setDuration(100);
+                        progressAnimator.start();
+                    }
+                }
+                @Override public void onLocationChanged(String uri) {
+                    Uri parsed = Uri.parse(uri);
+                    text_barra.setText(parsed.getHost() == null ? uri : parsed.getHost());
+                }
+                @Override public void onTitleChanged(String title) {
+                    if (title != null && !title.trim().isEmpty()) text_barra.setText(title);
+                }
+                @Override public void onInsecureNavigationBlocked(String uri, String source) {
+                    showInsecureConnectionDialog(uri);
+                }
+                @Override public void onExternalNavigationRequested(String uri) {
+                    openExternalUri(uri);
+                }
+                @Override public void onExternalResponse(WebResponse response) {
+                    handleGeckoDownload(response);
+                }
+                @Override public void onFullScreenChanged(boolean fullScreen) {
+                    getWindow().getDecorView().setSystemUiVisibility(fullScreen
+                        ? View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        : View.SYSTEM_UI_FLAG_VISIBLE);
+                }
+                @Override public void onContentProcessCrashed() {
+                    logDiagnostic("Processo de conteúdo Gecko encerrou inesperadamente");
+                    finishPageProgress();
+                    setLoadStopIcon(false);
+                    Toast.makeText(MainActivity.this, "A página encontrou um problema. Tente recarregar.", Toast.LENGTH_LONG).show();
+                }
+                @Override public void onScrollChanged(int scrollY) { geckoScrollY = Math.max(0, scrollY); }
+                @Override public void onHistoryVisited(String uri) { saveHistoryVisit(uri); }
+            },
+            javaScriptEnabled,
+            Dados.getBoolean("tracker_blocking", true));
+        installGeckoPermissionDelegate();
+        setupPullToRefresh();
+    }
 	
 	
 	public void _armazenamento() {
