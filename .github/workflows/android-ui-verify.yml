@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/md3-full-ui-redesign
+      - feature/privacy-protection-and-policies
   workflow_dispatch:
 
 permissions:
