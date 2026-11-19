@@ -52,11 +52,15 @@ jobs:
       - name: Assemble release APK with R8
         run: gradle --no-daemon :app:assembleRelease
 
-      - name: Upload APK artifacts
+      - name: Assemble release Android App Bundle
+        run: gradle --no-daemon :app:bundleRelease
+
+      - name: Upload APK and AAB artifacts
         uses: actions/upload-artifact@v4
         with:
           name: snav-geckoview-apks
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
