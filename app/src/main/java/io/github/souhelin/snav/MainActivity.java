@@ -171,11 +171,19 @@ public class MainActivity extends Activity {
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				tela1.setVisibility(View.GONE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.GONE);
+				focusSearchField();
 			}
 		});
+
+		ImageView searchAction = findViewById(R.id.image_search_action);
+		if (searchAction != null) {
+			searchAction.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View view) {
+					focusSearchField();
+				}
+			});
+		}
 		
 		linear_b.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -464,6 +472,21 @@ public class MainActivity extends Activity {
 		});
 	}
 	
+
+	private void focusSearchField() {
+		if (edittext1 == null) return;
+		edittext1.requestFocus();
+		edittext1.post(new Runnable() {
+			@Override
+			public void run() {
+				android.view.inputmethod.InputMethodManager keyboard =
+					(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+				if (keyboard != null) {
+					keyboard.showSoftInput(edittext1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+				}
+			}
+		});
+	}
 
 	private static final String DIAGNOSTIC_FILE = "snav-diagnostic.log";
 	private static final String PREVIOUS_DIAGNOSTIC_FILE = "snav-diagnostic.log.old";
