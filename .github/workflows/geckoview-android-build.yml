@@ -34,7 +34,9 @@ jobs:
           log-accepted-android-sdk-licenses: false
 
       - name: Install Android API 37
-        run: sdkmanager --channel=3 --install "platforms;android-37" "build-tools;36.0.0"
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
+          android sdk install --canary platforms/android-37 build-tools/36.0.0
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
