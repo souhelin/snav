@@ -77,7 +77,7 @@
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:clickable="true"
                     android:focusable="true"
-                    android:src="@drawable/ic_snav_search"
+                    android:src="@drawable/ms_search"
                     android:contentDescription="Pesquisar"
                     android:tint="@color/snav_accent" />
             </LinearLayout>
@@ -129,7 +129,7 @@
                         android:contentDescription="Informações do site"
                         android:padding="8dp"
                         android:scaleType="fitCenter"
-                        android:src="@drawable/ic_site_info_round"
+                        android:src="@drawable/ms_tune"
                         android:tint="#757575" />
 
                     <TextView
@@ -185,6 +185,9 @@
 
                     <TextView
                         android:id="@+id/text2"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
@@ -279,14 +282,16 @@
                                     android:layout_marginEnd="8dp"
                                     android:gravity="center"
                                     android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_surface"
+                                    android:background="@drawable/snav_tool_ripple"
                                     android:clickable="true"
                                     android:focusable="true">
                                     <ImageView
                                         android:id="@+id/imageview57"
                                         android:layout_width="28dp"
                                         android:layout_height="28dp"
-                                        android:src="@drawable/ic_content_copy_grey"
+                                        android:src="@drawable/ms_content_copy"
+                                        android:tint="@color/snav_on_surface_variant"
+                                        android:contentDescription="Copiar link"
                                         android:scaleType="fitCenter" />
                                     <TextView
                                         android:id="@+id/text14"
@@ -305,14 +310,16 @@
                                     android:layout_marginEnd="8dp"
                                     android:gravity="center"
                                     android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_surface"
+                                    android:background="@drawable/snav_tool_ripple"
                                     android:clickable="true"
                                     android:focusable="true">
                                     <ImageView
                                         android:id="@+id/imageview63"
                                         android:layout_width="28dp"
                                         android:layout_height="28dp"
-                                        android:src="@drawable/ic_translate_grey"
+                                        android:src="@drawable/ms_translate"
+                                        android:tint="@color/snav_on_surface_variant"
+                                        android:contentDescription="Traduzir página"
                                         android:scaleType="fitCenter" />
                                     <TextView
                                         android:id="@+id/text19"
@@ -331,14 +338,16 @@
                                     android:layout_marginEnd="8dp"
                                     android:gravity="center"
                                     android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_surface"
+                                    android:background="@drawable/snav_tool_ripple"
                                     android:clickable="true"
                                     android:focusable="true">
                                     <ImageView
                                         android:id="@+id/imageview92"
                                         android:layout_width="28dp"
                                         android:layout_height="28dp"
-                                        android:src="@drawable/icon_text_snippet_round"
+                                        android:src="@drawable/ms_text_snippet"
+                                        android:tint="@color/snav_on_surface_variant"
+                                        android:contentDescription="Modo de leitura"
                                         android:scaleType="fitCenter" />
                                     <TextView
                                         android:id="@+id/text7"
@@ -356,14 +365,16 @@
                                     android:layout_height="92dp"
                                     android:gravity="center"
                                     android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_surface"
+                                    android:background="@drawable/snav_tool_ripple"
                                     android:clickable="true"
                                     android:focusable="true">
                                     <ImageView
                                         android:id="@+id/imageview58"
                                         android:layout_width="28dp"
                                         android:layout_height="28dp"
-                                        android:src="@drawable/ic_open_in_browser_grey"
+                                        android:src="@drawable/ms_open_in_browser"
+                                        android:tint="@color/snav_on_surface_variant"
+                                        android:contentDescription="Abrir em outro navegador"
                                         android:scaleType="fitCenter" />
                                     <TextView
                                         android:id="@+id/text15"
@@ -434,6 +445,7 @@
 
                     <LinearLayout
                         android:id="@+id/linear_limpar_dados2"
+                        android:background="?android:attr/selectableItemBackground"
                         android:layout_width="match_parent"
                         android:layout_height="52dp"
                         android:gravity="center_vertical"
@@ -467,6 +479,7 @@
 
         <TextView
             android:id="@+id/b1"
+            android:background="?android:attr/selectableItemBackground"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -480,6 +493,7 @@
 
         <TextView
             android:id="@+id/b2"
+            android:background="?android:attr/selectableItemBackground"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
