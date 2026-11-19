@@ -58,6 +58,8 @@ public final class GeckoEngineController {
                 ContentBlocking.Settings contentBlocking =
                     new ContentBlocking.Settings.Builder()
                         .cookieBehavior(ContentBlocking.CookieBehavior.ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS)
+                        .antiTracking(ContentBlocking.AntiTracking.DEFAULT)
+                        .safeBrowsing(ContentBlocking.SafeBrowsing.DEFAULT)
                         .cookiePurging(true)
                         .queryParameterStrippingEnabled(true)
                         .queryParameterStrippingPrivateBrowsingEnabled(true)
