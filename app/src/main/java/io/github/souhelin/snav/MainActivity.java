@@ -880,9 +880,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(dp(24), dp(8), dp(24), dp(28));
-		content.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+
 		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(32)));
+		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 		TextView title = new TextView(this);
 		title.setText("Traduzir página");
 		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
@@ -1000,6 +1000,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				translate.setEnabled(false);
 				translationHandler.post(new Runnable() {
 					@Override public void run() {
+						if (isFinishing() || isDestroyed() || geckoEngine == null) return;
 						geckoEngine.getSession().getSessionTranslation().translate(from, to,
 							new TranslationsController.SessionTranslation.TranslationOptions.Builder().downloadModel(true).build()
 						).accept(
@@ -1034,6 +1035,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if (geckoEngine == null) return;
 				translationHandler.post(new Runnable() {
 					@Override public void run() {
+						if (isFinishing() || isDestroyed() || geckoEngine == null) return;
 						geckoEngine.getSession().getSessionTranslation().restoreOriginalPage().accept(
 							new GeckoResult.Consumer<Void>() {
 								@Override public void accept(Void ignored) {
@@ -1066,9 +1068,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(dp(24), dp(8), dp(24), dp(28));
-		content.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+
 		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(32)));
+		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 		TextView title = new TextView(this);
 		title.setText("Modo de leitura");
 		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
@@ -1138,7 +1140,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(siteInfoDp(24), siteInfoDp(22), siteInfoDp(24), siteInfoDp(28));
-		content.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
 		title.setTextColor(Color.WHITE);
@@ -2091,6 +2093,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     }
                 }
                 @Override public void onLocationChanged(String uri) {
+                    readerMode = uri != null && uri.regionMatches(true, 0, "about:reader?", 0, 13);
+                    if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(readerMode ? 0.65f : 1f);
+                    if (!readerMode && readerOriginalUri != null && uri != null && uri.equals(readerOriginalUri)) readerOriginalUri = null;
                     if (uri == null) {
                         text_barra.setText("Snav Browser");
                         return;
