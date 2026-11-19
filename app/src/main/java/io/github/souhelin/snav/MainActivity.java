@@ -328,7 +328,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
 				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
-				return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
+				if (blocked != null) return blocked;
+				if (shouldBlockThirdPartyTracker(view, request)) {
+					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+				}
+				return super.shouldInterceptRequest(view, request);
 			}
 
 						@Override
@@ -405,7 +410,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
 				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
-				return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
+				if (blocked != null) return blocked;
+				if (shouldBlockThirdPartyTracker(view, request)) {
+					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+				}
+				return super.shouldInterceptRequest(view, request);
 			}
 
 						@Override
@@ -516,7 +526,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (destination.regionMatches(true, 0, "http://", 0, 7)) {
 			showInsecureConnectionDialog(webview, destination);
 		} else {
-			webview.loadUrl(destination);
+			loadUrlWithPrivacyHeaders(webview, destination);
 		}
 		tela1.setVisibility(View.GONE);
 		tela2.setVisibility(View.VISIBLE);
@@ -982,13 +992,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 				new AlertDialog.Builder(MainActivity.this)
 					.setTitle("Limpar dados do site")
-					.setMessage("Remover o armazenamento local de " + host + "? Os cookies não serão removidos.")
+					.setMessage("Remover o armazenamento local e tentar apagar os cookies visíveis de " + host + "? Cookies com caminhos ou domínios específicos podem exigir limpeza adicional.")
 					.setNegativeButton("Cancelar", null)
 					.setPositiveButton("Limpar", new DialogInterface.OnClickListener() {
 						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							WebStorage.getInstance().deleteOrigin(origin);
-							Toast.makeText(MainActivity.this, "Armazenamento local removido", Toast.LENGTH_SHORT).show();
+							clearCookiesForOrigin(currentUrl);
+							Toast.makeText(MainActivity.this, "Limpeza solicitada para este domínio", Toast.LENGTH_SHORT).show();
 						}
 					}).show();
 			}
@@ -1118,6 +1129,120 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
 	}
 
+	private void addTrackerBlockingPreference(boolean enabled) {
+		if (linear33 == null || linear33.findViewWithTag("snav_tracker_preference") != null) return;
+		LinearLayout row = new LinearLayout(this);
+		row.setTag("snav_tracker_preference");
+		row.setOrientation(LinearLayout.VERTICAL);
+		row.setPadding(dp(8), dp(8), dp(8), dp(8));
+		MaterialSwitch toggle = new MaterialSwitch(this);
+		toggle.setText("Bloquear rastreadores conhecidos");
+		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextSize(14);
+		toggle.setChecked(enabled);
+		TextView summary = new TextView(this);
+		summary.setText("Filtro local e limitado a domínios conhecidos de terceiros; não bloqueia todo rastreamento.");
+		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextSize(12);
+		summary.setPadding(dp(40), 0, dp(8), 0);
+		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
+		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+				Dados.edit().putBoolean("tracker_blocking", checked).apply();
+				com.google.android.material.snackbar.Snackbar.make(linear33,
+					checked ? "Filtro de rastreadores ativado" : "Filtro de rastreadores desativado",
+					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+			}
+		});
+		int insertAt = Math.max(0, linear33.getChildCount() - 1);
+		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+	}
+
+	private void addDoNotTrackPreference(boolean enabled) {
+		if (linear33 == null || linear33.findViewWithTag("snav_dnt_preference") != null) return;
+		LinearLayout row = new LinearLayout(this);
+		row.setTag("snav_dnt_preference");
+		row.setOrientation(LinearLayout.VERTICAL);
+		row.setPadding(dp(8), dp(8), dp(8), dp(8));
+		MaterialSwitch toggle = new MaterialSwitch(this);
+		toggle.setText("Do Not Track");
+		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextSize(14);
+		toggle.setChecked(enabled);
+		TextView summary = new TextView(this);
+		summary.setText("Envia DNT: 1 nas navegações iniciadas pelo Snav; sites não são obrigados a respeitar.");
+		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextSize(12);
+		summary.setPadding(dp(40), 0, dp(8), 0);
+		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
+		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+				Dados.edit().putBoolean("do_not_track", checked).apply();
+				com.google.android.material.snackbar.Snackbar.make(linear33,
+					checked ? "Do Not Track ativado" : "Do Not Track desativado",
+					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+			}
+		});
+		int insertAt = Math.max(0, linear33.getChildCount() - 1);
+		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+	}
+
+	private void loadUrlWithPrivacyHeaders(WebView view, String url) {
+		if (view == null || url == null) return;
+		if (Dados.getBoolean("do_not_track", false)) {
+			java.util.HashMap<String, String> headers = new java.util.HashMap<String, String>();
+			headers.put("DNT", "1");
+			view.loadUrl(url, headers);
+		} else {
+			view.loadUrl(url);
+		}
+	}
+
+	private void clearCookiesForOrigin(String url) {
+		if (url == null) return;
+		CookieManager manager = CookieManager.getInstance();
+		String cookies = manager.getCookie(url);
+		if (cookies == null || cookies.trim().isEmpty()) return;
+		String[] pairs = cookies.split(";");
+		for (String pair : pairs) {
+			int separator = pair.indexOf('=');
+			if (separator <= 0) continue;
+			String name = pair.substring(0, separator).trim();
+			if (!name.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) continue;
+			manager.setCookie(url, name + "=; Path=/; Max-Age=0; SameSite=Lax");
+		}
+		if (Build.VERSION.SDK_INT >= 21) manager.flush();
+	}
+
+	private boolean shouldBlockThirdPartyTracker(WebView view, WebResourceRequest request) {
+		if (!Dados.getBoolean("tracker_blocking", true) || view == null || request == null) return false;
+		Uri resource = request.getUrl();
+		Uri page = Uri.parse(view.getUrl() == null ? "" : view.getUrl());
+		String resourceHost = resource == null ? null : resource.getHost();
+		String pageHost = page.getHost();
+		if (resourceHost == null || pageHost == null || resourceHost.equalsIgnoreCase(pageHost)) return false;
+		if (isSameSiteHost(resourceHost, pageHost)) return false;
+		String[] trackerDomains = new String[] {
+			"doubleclick.net", "googlesyndication.com", "google-analytics.com",
+			"googletagmanager.com", "adservice.google.com", "connect.facebook.net",
+			"facebook.net", "hotjar.com", "scorecardresearch.com", "clarity.ms",
+			"quantserve.com", "taboola.com", "outbrain.com"
+		};
+		for (String domain : trackerDomains) {
+			if (resourceHost.equalsIgnoreCase(domain)
+				|| resourceHost.toLowerCase(java.util.Locale.US).endsWith("." + domain)) return true;
+		}
+		return false;
+	}
+
+	private boolean isSameSiteHost(String first, String second) {
+		String a = first.toLowerCase(java.util.Locale.US);
+		String b = second.toLowerCase(java.util.Locale.US);
+		return a.endsWith("." + b) || b.endsWith("." + a);
+	}
+
 	private int dp(float value) {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
 	}
@@ -1150,7 +1275,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			.setMessage("A conexão com " + host + " usa HTTP e não é criptografada. Seus dados podem ser interceptados. Deseja continuar mesmo assim?")
 			.setPositiveButton("Continuar", new DialogInterface.OnClickListener() {
 				@Override public void onClick(DialogInterface dialog, int which) {
-					view.loadUrl(url);
+					loadUrlWithPrivacyHeaders(view, url);
 				}
 			})
 			.setNegativeButton("Voltar", null)
@@ -1253,6 +1378,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			cookieManager.setAcceptThirdPartyCookies(webview, thirdPartyCookiesEnabled);
 		}
 		addThirdPartyCookiePreference(thirdPartyCookiesEnabled);
+		addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
+		addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
 
 		// Layout WebView
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
@@ -1314,7 +1441,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		webview.setWebViewClient(new android.webkit.WebViewClient() {			@Override
 			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
 				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
-				return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
+				if (blocked != null) return blocked;
+				if (shouldBlockThirdPartyTracker(view, request)) {
+					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+				}
+				return super.shouldInterceptRequest(view, request);
 			}
 
 
