@@ -945,6 +945,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		final ArrayList<TranslationsController.Language> sourceLanguages = new ArrayList<>();
 		final ArrayList<TranslationsController.Language> targetLanguages = new ArrayList<>();
+		final ArrayList<String> sourceNames = new ArrayList<>();
+		final ArrayList<String> targetNames = new ArrayList<>();
 		ensureTranslationThread();
 		translationHandler.post(new Runnable() {
 			@Override public void run() {
@@ -965,10 +967,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 									targetLanguages.addAll(support.toLanguages);
 									Collections.sort(sourceLanguages);
 									Collections.sort(targetLanguages);
-									ArrayList<String> sourceNames = new ArrayList<>();
-									ArrayList<String> targetNames = new ArrayList<>();
-									for (TranslationsController.Language language : sourceLanguages) sourceNames.add(language.localizedDisplayName);
-									for (TranslationsController.Language language : targetLanguages) targetNames.add(language.localizedDisplayName);
+									sourceNames.clear();
+									targetNames.clear();
+									for (TranslationsController.Language language : sourceLanguages) sourceNames.add(language.localizedDisplayName == null ? language.code : language.localizedDisplayName);
+									for (TranslationsController.Language language : targetLanguages) targetNames.add(language.localizedDisplayName == null ? language.code : language.localizedDisplayName);
 									ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(MainActivity.this, com.google.android.material.R.layout.support_simple_spinner_dropdown_item, sourceNames);
 									fromInput.setAdapter(sourceAdapter);
 									ArrayAdapter<String> targetAdapter = new ArrayAdapter<>(MainActivity.this, com.google.android.material.R.layout.support_simple_spinner_dropdown_item, targetNames);
@@ -976,7 +978,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 									fromInput.setText(sourceNames.get(findLanguageIndex(sourceLanguages, detectedPageLanguage)), false);
 									toInput.setText(targetNames.get(findLanguageIndex(targetLanguages, "pt")), false);
 									status.setText(detectedPageLanguage == null
-										? "Selecione o idioma de origem. A detecção automática será usada quando disponível."
+										? "Selecione o idioma de origem."
 										: "Idioma detectado: " + detectedPageLanguage);
 									translate.setEnabled(true);
 								}
