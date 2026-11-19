@@ -1135,7 +1135,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (parsed.getHost() == null || parsed.getUserInfo() != null) return;
 		final String host = parsed.getHost();
 		Uri.Builder secureBuilder = parsed.buildUpon().scheme("https");
-		if (parsed.getPort() == 80) secureBuilder.port(-1);
+		if (parsed.getUserInfo() != null || parsed.getHost() == null) return;
+		if (parsed.getPort() == 80) {
+			String authority = parsed.getEncodedAuthority();
+			int portSeparator = authority == null ? -1 : authority.lastIndexOf(':');
+			if (portSeparator > 0) secureBuilder.encodedAuthority(authority.substring(0, portSeparator));
+		}
 		final String secureUrl = secureBuilder.build().toString();
 		new AlertDialog.Builder(this)
 			.setTitle("HTTP bloqueado")
