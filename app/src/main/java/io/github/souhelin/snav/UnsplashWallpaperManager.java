@@ -59,14 +59,16 @@ public final class UnsplashWallpaperManager {
             public void run() {
                 if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) return;
                 List<File> cached = listCachedFiles();
+                boolean delivered = false;
                 if (!cached.isEmpty()) {
                     File selected = cached.get(random.nextInt(cached.size()));
                     Bitmap bitmap = decodeWallpaper(selected);
-                    if (bitmap != null) notifyReady(callbackReference, bitmap);
+                    if (bitmap != null) {
+                        notifyReady(callbackReference, bitmap);
+                        delivered = true;
+                    }
                 }
                 if (!hasInternet()) return;
-
-                boolean delivered = false;
                 for (int i = 0; i < MAX_IMAGES; i++) {
                     File target = new File(cacheDirectory, "wallpaper_" + i + ".img");
                     if (target.isFile() && target.length() > 0) continue;
