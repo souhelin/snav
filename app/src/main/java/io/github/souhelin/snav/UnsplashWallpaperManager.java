@@ -71,7 +71,8 @@ public final class UnsplashWallpaperManager {
                 if (!hasInternet()) return;
                 for (int i = 0; i < MAX_IMAGES; i++) {
                     File target = new File(cacheDirectory, "wallpaper_" + i + ".img");
-                    if (target.isFile() && target.length() > 0) continue;
+                    if (target.isFile() && target.length() > 0 && isValidImage(target)) continue;
+                    if (target.exists()) target.delete();
                     if (!downloadPhoto(PHOTO_IDS[i], target)) continue;
                     if (!delivered) {
                         Bitmap bitmap = decodeWallpaper(target);
@@ -95,6 +96,13 @@ public final class UnsplashWallpaperManager {
         return files;
     }
 
+    private boolean isValidImage(File file) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getAbsolutePath(), bounds);
+        return bounds.outWidth >= 500 && bounds.outHeight >= 300;
+    }
+
     private boolean hasInternet() {
         try {
             ConnectivityManager manager = (ConnectivityManager)
@@ -113,7 +121,7 @@ public final class UnsplashWallpaperManager {
         File temporary = new File(target.getParentFile(), target.getName() + ".part");
         try {
             String address = "https://images.unsplash.com/" + photoId
-                + "?auto=format&fit=crop&w=1440&h=900&q=72";
+                + "?fit=crop&w=1440&h=900&q=72&fm=jpg";
             URL url = new URL(address);
             if (!"https".equalsIgnoreCase(url.getProtocol())
                 || !"images.unsplash.com".equalsIgnoreCase(url.getHost())) return false;
@@ -124,7 +132,7 @@ public final class UnsplashWallpaperManager {
             connection.setInstanceFollowRedirects(false);
             connection.setRequestMethod("GET");
             connection.setRequestProperty("User-Agent", "Snav-Browser/1.0");
-            connection.setRequestProperty("Accept", "image/avif,image/webp,image/jpeg");
+            connection.setRequestProperty("Accept", "image/jpeg");
             int status = connection.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) return false;
             String contentType = connection.getContentType();
