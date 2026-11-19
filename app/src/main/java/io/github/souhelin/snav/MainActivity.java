@@ -110,8 +110,11 @@ public class MainActivity extends Activity {
 	protected void onCreate(Bundle _savedInstanceState) {
 		super.onCreate(_savedInstanceState);
 		setContentView(R.layout.main);
+		startDiagnostics();
 		initialize(_savedInstanceState);
 		initializeLogic();
+		addDiagnosticMenuAction();
+		showPendingCrashReport();
 	}
 	
 	private void initialize(Bundle _savedInstanceState) {
@@ -185,17 +188,47 @@ public class MainActivity extends Activity {
 		
 		webview.setWebViewClient(new WebViewClient() {
 			@Override
-			public void onPageStarted(WebView _param1, String _param2, Bitmap _param3) {
-				final String _url = _param2;
-				
-				super.onPageStarted(_param1, _param2, _param3);
+			public void onPageStarted(WebView view, String url, Bitmap favicon) {
+				logDiagnostic("Navegação iniciada: " + safeHostForDiagnostics(url));
+				super.onPageStarted(view, url, favicon);
 			}
-			
+
 			@Override
-			public void onPageFinished(WebView _param1, String _param2) {
-				final String _url = _param2;
-				
-				super.onPageFinished(_param1, _param2);
+			public void onPageFinished(WebView view, String url) {
+				logDiagnostic("Navegação concluída: " + safeHostForDiagnostics(url));
+				super.onPageFinished(view, url);
+			}
+
+			@Override
+			public void onReceivedError(WebView view, WebResourceRequest request,
+				WebResourceError error) {
+				if (android.os.Build.VERSION.SDK_INT >= 23 && request != null && request.isForMainFrame()) {
+					String host = safeHostForDiagnostics(request.getUrl().toString());
+					int code = android.os.Build.VERSION.SDK_INT >= 23 ? error.getErrorCode() : 0;
+					logDiagnostic("Erro de carregamento da página principal: código " + code
+						+ "; host=" + host);
+				}
+				super.onReceivedError(view, request, error);
+			}
+
+			@Override
+			public void onReceivedHttpError(WebView view, WebResourceRequest request,
+				WebResourceResponse response) {
+				if (android.os.Build.VERSION.SDK_INT >= 23 && request != null && request.isForMainFrame()
+					&& response != null) {
+					logDiagnostic("Resposta HTTP de erro: código " + response.getStatusCode()
+						+ "; host=" + safeHostForDiagnostics(request.getUrl().toString()));
+				}
+				super.onReceivedHttpError(view, request, response);
+			}
+
+			@Override
+			public void onReceivedSslError(WebView view, SslErrorHandler handler,
+				android.net.http.SslError error) {
+				logDiagnostic("Erro de certificado TLS: " + (error == null ? "desconhecido"
+					: error.getPrimaryError()) + "; host="
+					+ safeHostForDiagnostics(error == null ? null : error.getUrl()));
+				handler.cancel();
 			}
 		});
 		
@@ -446,6 +479,275 @@ public class MainActivity extends Activity {
 		});
 	}
 	
+
+	private static final String DIAGNOSTIC_FILE = "snav-diagnostic.log";
+	private static final String PREVIOUS_DIAGNOSTIC_FILE = "snav-diagnostic.log.old";
+	private static final String PENDING_CRASH_FILE = "snav-crash-pending";
+	private static final int MAX_DIAGNOSTIC_BYTES = 262144;
+	private static volatile java.io.File diagnosticDirectory;
+	private static boolean diagnosticCrashHandlerInstalled;
+
+	private static final java.util.concurrent.ThreadPoolExecutor DIAGNOSTIC_EXECUTOR =
+		new java.util.concurrent.ThreadPoolExecutor(
+			1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+			new java.util.concurrent.ArrayBlockingQueue<Runnable>(128),
+			new java.util.concurrent.ThreadFactory() {
+				@Override
+				public Thread newThread(Runnable task) {
+					Thread thread = new Thread(task, "Snav-Diagnostics");
+					thread.setDaemon(true);
+					return thread;
+				}
+			},
+			new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy()
+		);
+
+	private String resolveNavigationInput(String input) {
+		String value = input == null ? "" : input.trim();
+		if (value.isEmpty()) return null;
+		if (value.matches("(?i)^https?://.*")) {
+			if (value.matches(".*\\s+.*")) return buildSearchUrl(value);
+			try {
+				Uri parsed = Uri.parse(value);
+				if (parsed.getHost() != null) return value;
+			} catch (Exception ignored) {
+			}
+			return buildSearchUrl(value);
+		}
+
+		if (!value.matches(".*\\s+.*") && isDomainOrIp(value)) {
+			String candidate = "https://" + value;
+			try {
+				if (Uri.parse(candidate).getHost() != null) return candidate;
+			} catch (Exception ignored) {
+			}
+		}
+		return buildSearchUrl(value);
+	}
+
+	private boolean isDomainOrIp(String value) {
+		if (value == null || value.isEmpty()) return false;
+		return value.matches("(?i)^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,}(?::\\d{1,5})?(?:[/?#][^\\s]*)?$")
+			|| value.matches("^(?:\\d{1,3}\\.){3}\\d{1,3}(?::\\d{1,5})?(?:[/?#][^\\s]*)?$")
+			|| value.matches("(?i)^localhost(?::\\d{1,5})?(?:/[^\\s]*)?$");
+	}
+
+	private String buildSearchUrl(String query) {
+		try {
+			return "https://www.google.com/search?q="
+				+ java.net.URLEncoder.encode(query, "UTF-8");
+		} catch (Exception error) {
+			logDiagnostic("Falha ao codificar consulta de pesquisa");
+			return null;
+		}
+	}
+
+	private void startDiagnostics() {
+		final java.io.File directory = getFilesDir();
+		diagnosticDirectory = directory;
+		synchronized (MainActivity.class) {
+			if (!diagnosticCrashHandlerInstalled) {
+				final Thread.UncaughtExceptionHandler previous =
+					Thread.getDefaultUncaughtExceptionHandler();
+				try {
+					Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+						@Override
+						public void uncaughtException(Thread thread, Throwable error) {
+							writeDiagnosticSynchronously(directory,
+								"CRASH NÃO TRATADO na thread " + thread.getName(), error);
+							try {
+								java.io.File marker = new java.io.File(directory, PENDING_CRASH_FILE);
+								java.io.FileOutputStream output = new java.io.FileOutputStream(marker, false);
+								output.write(String.valueOf(System.currentTimeMillis()).getBytes("UTF-8"));
+								output.close();
+							} catch (Throwable markerError) {
+								android.util.Log.e("SnavDiagnostic", "Falha ao salvar marcador de crash", markerError);
+							}
+							if (previous != null) {
+								previous.uncaughtException(thread, error);
+							} else {
+								android.os.Process.killProcess(android.os.Process.myPid());
+								System.exit(10);
+							}
+						}
+					});
+					diagnosticCrashHandlerInstalled = true;
+				} catch (Throwable handlerError) {
+					android.util.Log.e("SnavDiagnostic", "Não foi possível instalar o capturador de falhas", handlerError);
+				}
+			}
+		}
+		logDiagnostic("========== INICIALIZAÇÃO DO SNAV ==========");
+		logDiagnostic("Android=" + android.os.Build.VERSION.RELEASE
+			+ " (SDK " + android.os.Build.VERSION.SDK_INT + ")");
+		logDiagnostic("Dispositivo=" + android.os.Build.MANUFACTURER
+			+ " " + android.os.Build.MODEL);
+		logDiagnostic("Processo=" + android.os.Process.myPid());
+	}
+
+	private void logDiagnostic(final String event) {
+		final java.io.File directory = diagnosticDirectory;
+		if (directory == null || event == null) return;
+		try {
+			DIAGNOSTIC_EXECUTOR.execute(new Runnable() {
+				@Override
+				public void run() {
+					writeDiagnosticSynchronously(directory, event, null);
+				}
+			});
+		} catch (RuntimeException ignored) {
+			android.util.Log.w("SnavDiagnostic", "Evento de diagnóstico descartado");
+		}
+	}
+
+	private static synchronized void writeDiagnosticSynchronously(
+		java.io.File directory, String event, Throwable error) {
+		if (directory == null) return;
+		java.io.FileOutputStream output = null;
+		java.io.OutputStreamWriter writer = null;
+		try {
+			if (!directory.exists() && !directory.mkdirs()) return;
+			java.io.File file = new java.io.File(directory, DIAGNOSTIC_FILE);
+			if (file.exists() && file.length() >= MAX_DIAGNOSTIC_BYTES) {
+				java.io.File previous = new java.io.File(directory, PREVIOUS_DIAGNOSTIC_FILE);
+				if (previous.exists()) previous.delete();
+				if (!file.renameTo(previous)) file.delete();
+			}
+			output = new java.io.FileOutputStream(file, true);
+			writer = new java.io.OutputStreamWriter(output, "UTF-8");
+			writer.write(new java.text.SimpleDateFormat(
+				"yyyy-MM-dd HH:mm:ss.SSS", java.util.Locale.US).format(new java.util.Date()));
+			writer.write(" [");
+			writer.write(Thread.currentThread().getName());
+			writer.write("] ");
+			writer.write(event);
+			writer.write("\n");
+			if (error != null) {
+				java.io.StringWriter trace = new java.io.StringWriter();
+				error.printStackTrace(new java.io.PrintWriter(trace));
+				String stack = trace.toString();
+				if (stack.length() > 32768) stack = stack.substring(0, 32768);
+				writer.write(stack);
+				writer.write("\n");
+			}
+			writer.flush();
+		} catch (Throwable logError) {
+			android.util.Log.e("SnavDiagnostic", "Falha ao gravar diagnóstico", logError);
+		} finally {
+			try {
+				if (writer != null) writer.close();
+				else if (output != null) output.close();
+			} catch (Exception ignored) {
+			}
+		}
+	}
+
+	private String safeHostForDiagnostics(String address) {
+		try {
+			String host = address == null ? null : Uri.parse(address).getHost();
+			return host == null ? "(host indisponível)" : host;
+		} catch (Exception ignored) {
+			return "(host inválido)";
+		}
+	}
+
+	private void addDiagnosticMenuAction() {
+		if (linear33 == null) return;
+		TextView action = new TextView(this);
+		action.setText("Copiar diagnóstico");
+		action.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		action.setTextSize(14);
+		action.setGravity(Gravity.CENTER_VERTICAL);
+		int horizontal = (int) (16 * getResources().getDisplayMetrics().density + 0.5f);
+		int vertical = (int) (14 * getResources().getDisplayMetrics().density + 0.5f);
+		action.setPadding(horizontal, vertical, horizontal, vertical);
+		action.setBackgroundResource(android.R.drawable.list_selector_background);
+		action.setContentDescription("Copiar relatório de diagnóstico do Snav");
+		action.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View view) {
+				copyDiagnosticReport();
+			}
+		});
+		linear33.addView(action, new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+	}
+
+	private void showPendingCrashReport() {
+		final java.io.File marker = new java.io.File(getFilesDir(), PENDING_CRASH_FILE);
+		if (!marker.exists()) return;
+		new AlertDialog.Builder(this)
+			.setTitle("Falha detectada no Snav")
+			.setMessage("O Snav detectou que a execução anterior terminou inesperadamente. Você pode copiar o diagnóstico para ajudar a identificar a causa.")
+			.setPositiveButton("Copiar diagnóstico", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					if (copyDiagnosticReport()) marker.delete();
+				}
+			})
+			.setNegativeButton("Depois", null)
+			.show();
+	}
+
+	private boolean copyDiagnosticReport() {
+		try {
+			StringBuilder report = new StringBuilder();
+			report.append("SNAV BROWSER - RELATÓRIO DE DIAGNÓSTICO\n");
+			report.append("Android: ").append(android.os.Build.VERSION.RELEASE)
+				.append(" (SDK ").append(android.os.Build.VERSION.SDK_INT).append(")\n");
+			report.append("Dispositivo: ").append(android.os.Build.MANUFACTURER)
+				.append(" ").append(android.os.Build.MODEL).append("\n\n");
+			appendDiagnosticFile(report, new java.io.File(getFilesDir(), PREVIOUS_DIAGNOSTIC_FILE));
+			appendDiagnosticFile(report, new java.io.File(getFilesDir(), DIAGNOSTIC_FILE));
+			ClipboardManager clipboard =
+				(ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+			if (clipboard == null) return false;
+			clipboard.setPrimaryClip(ClipData.newPlainText("Snav diagnóstico", report.toString()));
+			Toast.makeText(this, "Diagnóstico copiado. Revise o conteúdo antes de compartilhar.",
+				Toast.LENGTH_LONG).show();
+			return true;
+		} catch (Exception error) {
+			android.util.Log.e("SnavDiagnostic", "Falha ao copiar diagnóstico", error);
+			Toast.makeText(this, "Não foi possível copiar o diagnóstico.", Toast.LENGTH_LONG).show();
+			return false;
+		}
+	}
+
+	private void appendDiagnosticFile(StringBuilder report, java.io.File file) throws IOException {
+		if (!file.exists()) return;
+		report.append("--- ").append(file.getName()).append(" ---\n");
+		java.io.BufferedReader reader = new java.io.BufferedReader(
+			new java.io.InputStreamReader(new java.io.FileInputStream(file), "UTF-8"));
+		try {
+			String line;
+			int total = 0;
+			while ((line = reader.readLine()) != null && total < MAX_DIAGNOSTIC_BYTES * 2) {
+				report.append(line).append('\n');
+				total += line.length();
+			}
+		} finally {
+			reader.close();
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		logDiagnostic("Ciclo de vida: onResume");
+	}
+
+	@Override
+	protected void onPause() {
+		logDiagnostic("Ciclo de vida: onPause");
+		super.onPause();
+	}
+
+	@Override
+	protected void onDestroy() {
+		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
+		super.onDestroy();
+	}
+
 	private final Handler progressHandler = new Handler(Looper.getMainLooper());
 	private ObjectAnimator progressAnimator;
 	private Runnable showProgressRunnable;
@@ -895,87 +1197,43 @@ public class MainActivity extends Activity {
 			}
 		});
 		
-		// ENTER / PESQUISA NO EDITTEXT
-		edittext1.setOnEditorActionListener(
-		new TextView.OnEditorActionListener() {
-			
+		// Pesquisa e navegação pelo teclado.
+		edittext1.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			@Override
-			public boolean onEditorAction(
-			TextView v,
-			int actionId,
-			KeyEvent event
-			) {
-				
-				if (actionId ==
-				android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
-				|| actionId ==
-				android.view.inputmethod.EditorInfo.IME_ACTION_GO
-				|| actionId ==
-				android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-				|| (
-				event != null
-				&& event.getKeyCode() ==
-				KeyEvent.KEYCODE_ENTER
-				&& event.getAction() ==
-				KeyEvent.ACTION_DOWN
-				)
-				) {
-					
-					String input =
-					edittext1.getText().toString().trim();
-					
-					if (input.isEmpty()) {
-						return true;
-					}
-					
-					String url;
-					
-					if (input.matches("^(http|https)://.*")) {
-						
-						url = input;
-						
-					} else {
-						
-						try {
-							
-							url =
-							"https://www.google.com/search?q="
-							+ java.net.URLEncoder.encode(
-							input,
-							"UTF-8"
-							);
-							
-						} catch (Exception e) {
-							
-							url =
-							"https://www.google.com/search?q="
-							+ input;
-						}
-					}
-					
-					webview.loadUrl(url);
-					
-					tela1.setVisibility(View.GONE);
-					tela2.setVisibility(View.VISIBLE);
-					tela3.setVisibility(View.GONE);
-					vazio.setVisibility(View.GONE);
-					
-					edittext1.setText("");
-					
-					Dados.edit()
-					.putString(
-					"vazio",
-					"desativado"
-					)
-					.commit();
-					
-					return true;
+			public boolean onEditorAction(TextView view, int actionId, KeyEvent event) {
+				boolean enterPressed = event != null
+					&& event.getKeyCode() == KeyEvent.KEYCODE_ENTER
+					&& event.getAction() == KeyEvent.ACTION_DOWN;
+				boolean imeAction = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO
+					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE;
+				if (!imeAction && !enterPressed) return false;
+
+				String input = edittext1.getText() == null
+					? "" : edittext1.getText().toString().trim();
+				if (input.isEmpty()) return true;
+
+				String destination = resolveNavigationInput(input);
+				if (destination == null) return true;
+
+				webview.loadUrl(destination);
+				tela1.setVisibility(View.GONE);
+				tela2.setVisibility(View.VISIBLE);
+				tela3.setVisibility(View.GONE);
+				vazio.setVisibility(View.GONE);
+
+				edittext1.setText("");
+				edittext1.clearFocus();
+				android.view.inputmethod.InputMethodManager keyboard =
+					(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+				if (keyboard != null) {
+					keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
 				}
-				
-				return false;
+				Dados.edit().putString("vazio", "desativado").apply();
+				logDiagnostic("Pesquisa enviada pelo campo de endereço");
+				return true;
 			}
-		}
-		);
+		});
 		//wallpaper
 		// ============================================================
 		// WALLPAPER DE PAISAGENS - WIKIMEDIA COMMONS
