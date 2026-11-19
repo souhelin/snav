@@ -34,6 +34,23 @@ Este arquivo registra mudanças confirmadas no repositório. Itens de privacidad
 - APK debug pode ser publicado como artefato do workflow de verificação de UI.
 - Diretório beta removido.
 
+## 2026-11-19 — Proteções de privacidade no WebView
+
+### Implementado nesta branch
+- Bloqueio de cookies de terceiros por padrão, com preferência persistente para o usuário permitir.
+- Diálogo de aviso antes de navegações HTTP; a decisão de continuar vale somente para aquela navegação.
+- Erros de certificado TLS continuam sendo cancelados, inclusive nos modos de leitura.
+- Solicitações de câmera e microfone exigem origem HTTPS, confirmação do usuário e concessão das permissões Android correspondentes.
+- Solicitações de localização exigem origem HTTPS, confirmação e permissão Android em tempo de execução, sem persistir a autorização do site.
+- Downloads validam esquema HTTP(S), host e credenciais embutidas; a confirmação vem antes do download e o fluxo legado aguarda a permissão de armazenamento.
+- Cabeçalhos Cookie e User-Agent só são anexados ao download quando possuem valor.
+
+### Ainda não implementado
+- Bloqueio de rastreadores por listas de filtros.
+- Do Not Track.
+- Limpeza completa de dados por site e controle de armazenamento por origem.
+- Preferências e exceções persistentes por origem para notificações e outras permissões.
+
 ## 2026-11-19 — Política de privacidade (especificação)
 
 ### Documentado
