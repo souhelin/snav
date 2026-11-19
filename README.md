@@ -25,8 +25,10 @@ Snav é um navegador Android construído para navegação simples, interface min
 - Cookies first-party permitidos e cookies de terceiros bloqueados por padrão, com controle persistente.
 - Filtro local, limitado e desativável para domínios conhecidos de rastreadores de terceiros.
 - Preferência Do Not Track opcional para navegações iniciadas pelo Snav.
-- Aviso antes de navegar para endereços HTTP.
+- Política HTTPS-only: HTTP oferece somente tentativa de upgrade para HTTPS; tráfego cleartext e downloads HTTP são bloqueados.
 - Limpeza por origem de DOM storage e tentativa limitada de expiração de cookies visíveis.
+- Filtro local também aplicado a requisições de Service Worker suportadas no Android API 24+.
+- Atalho às configurações Android para revogação global de permissões; localização WebView pode ser limpa por origem.
 - Solicitações de câmera, microfone e localização mediadas por confirmação no site e permissões Android em tempo de execução.
 - Downloads com confirmação explícita antes de iniciar.
 - Diagnósticos locais limitados e tratamento de falhas.
@@ -37,7 +39,7 @@ Consulte [CHANGELOG.md](CHANGELOG.md) para o histórico detalhado.
 
 ## Segurança e privacidade
 
-O manifesto desabilita backup Android e permite HTTP no nível da plataforma para suportar a escolha explícita do usuário após o aviso do Snav. Essa permissão é global e aumenta a superfície de risco. Navegações HTTP e downloads passam por confirmação; erros de certificado SSL são cancelados. O filtro de rastreadores usa uma lista local pequena e não bloqueia todo rastreamento. DNT só é enviado nas navegações iniciadas pelo Snav que usam o helper de cabeçalhos. A limpeza por site é limitada e não garante remoção de todos os cookies, caches ou armazenamentos internos. Novos clientes de rede não devem fazer chamadas HTTP em segundo plano.
+O manifesto desabilita backup Android e permite HTTP no nível da plataforma para suportar a escolha explícita do usuário após o aviso do Snav. Cleartext global está desativado: navegações HTTP oferecem somente upgrade para HTTPS e downloads HTTP são bloqueados. Erros de certificado SSL são cancelados. O filtro de rastreadores usa uma lista local pequena e não bloqueia todo rastreamento. DNT só é enviado nas navegações iniciadas pelo Snav que usam o helper de cabeçalhos. A limpeza por site é limitada e não garante remoção de todos os cookies, caches ou armazenamentos internos. Novos clientes de rede não devem fazer chamadas HTTP em segundo plano.
 
 A política e o plano de evolução estão em [docs/PRIVACY_SECURITY_POLICY.md](docs/PRIVACY_SECURITY_POLICY.md). A documentação distingue recursos existentes de itens planejados para evitar alegações incorretas.
 
