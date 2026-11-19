@@ -57,10 +57,6 @@ public final class GeckoEngineController {
         }
         this.view = view;
         this.listener = listener;
-        mainHandler = new Handler(Looper.getMainLooper());
-        storageThread = new HandlerThread("SnavGeckoStorage");
-        storageThread.start();
-        storageHandler = new Handler(storageThread.getLooper());
 
         synchronized (GeckoEngineController.class) {
             if (runtime == null) {
@@ -225,6 +221,10 @@ public final class GeckoEngineController {
         // The Activity installs the origin-aware PermissionDelegate before loading content.
         session.open(runtime);
         view.setSession(session);
+        mainHandler = new Handler(Looper.getMainLooper());
+        storageThread = new HandlerThread("SnavGeckoStorage");
+        storageThread.start();
+        storageHandler = new Handler(storageThread.getLooper());
     }
 
     public static GeckoRuntime getRuntime() {
