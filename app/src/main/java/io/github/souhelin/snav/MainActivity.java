@@ -225,6 +225,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 			}
 		});
+		// setChecked() runs before the listener is registered, so explicitly
+		// apply the persisted/default enabled state on the first Activity render.
+		if (checkbox_wallpaper.isChecked()) setupUnsplashWallpaper();
 		if (button_load_stop != null) {
 			button_load_stop.setOnClickListener(new View.OnClickListener() {
 				@Override
