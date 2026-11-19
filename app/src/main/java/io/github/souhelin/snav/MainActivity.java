@@ -68,6 +68,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private boolean readerMode;
 	private String readerOriginalUri;
 	private GeckoSession.PermissionDelegate.Callback pendingAndroidPermissionCallback;
+	private String pendingAndroidPermissionOrigin;
+	private GeckoSession.PermissionDelegate.MediaCallback pendingMediaPermissionCallback;
+	private GeckoSession.PermissionDelegate.MediaSource[] pendingVideoSources;
+	private GeckoSession.PermissionDelegate.MediaSource[] pendingAudioSources;
+	private String pendingMediaPermissionOrigin;
 	private WebResponse pendingGeckoDownload;
 	private String pendingGeckoDownloadName;
 	private final java.util.concurrent.ExecutorService downloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -268,12 +273,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
-		linear_JavaScript.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				
-			}
-		});
+
 		
 		linear_limpar_dados2.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -970,15 +970,31 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 		boolean permissionsGranted = grantResults != null && grantResults.length > 0;
 		if (grantResults != null) {
-			for (int result : grantResults) {
-				permissionsGranted = permissionsGranted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
-			}
+			for (int result : grantResults) permissionsGranted = permissionsGranted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
 		}
 		if (requestCode == 4103) {
 			GeckoSession.PermissionDelegate.Callback callback = pendingAndroidPermissionCallback;
+			String origin = pendingAndroidPermissionOrigin;
 			pendingAndroidPermissionCallback = null;
+			pendingAndroidPermissionOrigin = null;
+			boolean sameOrigin = geckoEngine != null && isSameOrigin(origin, geckoEngine.getCurrentUri());
 			if (callback != null) {
-				if (permissionsGranted) callback.grant(); else callback.reject();
+				if (permissionsGranted && sameOrigin) callback.grant(); else callback.reject();
+			}
+			GeckoSession.PermissionDelegate.MediaCallback media = pendingMediaPermissionCallback;
+			if (media != null) {
+				String mediaOrigin = pendingMediaPermissionOrigin;
+				GeckoSession.PermissionDelegate.MediaSource[] video = pendingVideoSources;
+				GeckoSession.PermissionDelegate.MediaSource[] audio = pendingAudioSources;
+				pendingMediaPermissionCallback = null;
+				pendingMediaPermissionOrigin = null;
+				pendingVideoSources = null;
+				pendingAudioSources = null;
+				if (permissionsGranted && geckoEngine != null && isSameOrigin(mediaOrigin, geckoEngine.getCurrentUri())) {
+					showGeckoMediaPermissionPrompt(mediaOrigin, video, audio, media);
+				} else {
+					media.reject();
+				}
 			}
 		} else if (requestCode == 4104) {
 			WebResponse response = pendingGeckoDownload;
@@ -1094,7 +1110,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public void onAndroidPermissionsRequest(GeckoSession session, String[] permissions,
 				GeckoSession.PermissionDelegate.Callback callback) {
-				if (!isSecureOrigin(geckoEngine.getCurrentUri()) || permissions == null || permissions.length == 0) {
+				String origin = geckoEngine.getCurrentUri();
+				if (!isSecureOrigin(origin) || permissions == null || permissions.length == 0) {
 					callback.reject();
 					return;
 				}
@@ -1118,6 +1135,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 				if (pendingAndroidPermissionCallback != null) pendingAndroidPermissionCallback.reject();
 				pendingAndroidPermissionCallback = callback;
+				pendingAndroidPermissionOrigin = origin;
 				requestPermissions(missing.toArray(new String[missing.size()]), 4103);
 			}
 
@@ -1154,41 +1172,62 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 			@Override
 			public void onMediaPermissionRequest(GeckoSession session, String uri,
-				final GeckoSession.PermissionDelegate.MediaSource[] video,
-				final GeckoSession.PermissionDelegate.MediaSource[] audio,
-				final GeckoSession.PermissionDelegate.MediaCallback callback) {
+				GeckoSession.PermissionDelegate.MediaSource[] video,
+				GeckoSession.PermissionDelegate.MediaSource[] audio,
+				GeckoSession.PermissionDelegate.MediaCallback callback) {
 				if (!isSecureOrigin(uri) || (video == null && audio == null)) {
 					callback.reject();
 					return;
 				}
-				if (video != null && Build.VERSION.SDK_INT >= 23
-					&& checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-					callback.reject();
+				if (pendingAndroidPermissionCallback != null) {
+					pendingMediaPermissionCallback = callback;
+					pendingVideoSources = video;
+					pendingAudioSources = audio;
+					pendingMediaPermissionOrigin = uri;
 					return;
 				}
-				if (audio != null && Build.VERSION.SDK_INT >= 23
-					&& checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-					callback.reject();
-					return;
-				}
-				String host = Uri.parse(uri).getHost();
-				new AlertDialog.Builder(MainActivity.this)
-					.setTitle("Permissão de mídia")
-					.setMessage(host + " solicita acesso à câmera e/ou ao microfone. Permita somente se iniciou uma chamada ou gravação.")
-					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) {
-							callback.grant(video == null || video.length == 0 ? null : video[0],
-								audio == null || audio.length == 0 ? null : audio[0]);
-						}
-					})
-					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
-						@Override public void onClick(DialogInterface dialog, int which) { callback.reject(); }
-					})
-					.setOnCancelListener(new DialogInterface.OnCancelListener() {
-						@Override public void onCancel(DialogInterface dialog) { callback.reject(); }
-					}).show();
+				showGeckoMediaPermissionPrompt(uri, video, audio, callback);
 			}
 		});
+	}
+
+	private boolean isSameOrigin(String first, String second) {
+		if (!isSecureOrigin(first) || !isSecureOrigin(second)) return false;
+		Uri a = Uri.parse(first);
+		Uri b = Uri.parse(second);
+		return a.getHost().equalsIgnoreCase(b.getHost()) && a.getPort() == b.getPort();
+	}
+
+	private void showGeckoMediaPermissionPrompt(String uri,
+		GeckoSession.PermissionDelegate.MediaSource[] video,
+		GeckoSession.PermissionDelegate.MediaSource[] audio,
+		final GeckoSession.PermissionDelegate.MediaCallback callback) {
+		if (video != null && Build.VERSION.SDK_INT >= 23
+			&& checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+			callback.reject();
+			return;
+		}
+		if (audio != null && Build.VERSION.SDK_INT >= 23
+			&& checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+			callback.reject();
+			return;
+		}
+		String host = Uri.parse(uri).getHost();
+		new AlertDialog.Builder(MainActivity.this)
+			.setTitle("Permissão de mídia")
+			.setMessage(host + " solicita acesso à câmera e/ou ao microfone. Permita somente se iniciou uma chamada ou gravação.")
+			.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+				@Override public void onClick(DialogInterface dialog, int which) {
+					callback.grant(video == null || video.length == 0 ? null : video[0],
+						audio == null || audio.length == 0 ? null : audio[0]);
+				}
+			})
+			.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+				@Override public void onClick(DialogInterface dialog, int which) { callback.reject(); }
+			})
+			.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				@Override public void onCancel(DialogInterface dialog) { callback.reject(); }
+			}).show();
 	}
 
 	private void openExternalUri(String value) {
