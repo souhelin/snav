@@ -5,8 +5,9 @@
 - Switch persistente para ativar ou desativar o wallpaper na tela de ferramentas.
 - Cache local persistente limitado a oito imagens, baixadas em segundo plano por HTTPS e reutilizadas sem conexão.
 - Enquadramento central proporcional com recorte para preencher a tela, sem deformar as imagens.
-- Controle único de carregar/interromper ao lado das informações do site na barra de endereço.
-- Gesto Pull to Refresh no topo da página, com rotação amortecida tipo mola e sem dependência adicional.
+- Controle único de carregar/interromper alinhado à direita da barra de endereço, sem animação própria ao alternar entre atualizar e interromper.
+- Gesto Pull to Refresh no topo da página, com rotação vinculada ao gesto e retorno por SpringAnimation usando o token Material `motionSpringFastSpatial`, incluindo velocidade inicial do arrasto.
+- Dependência AndroidX Dynamic Animation declarada explicitamente para usar a API de mola recomendada pelo Material Components para Views.
 
 ### Corrigido
 - Contraste do texto digitado no campo de pesquisa no tema claro.
