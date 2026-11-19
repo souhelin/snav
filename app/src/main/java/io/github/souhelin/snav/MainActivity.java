@@ -28,7 +28,6 @@ import android.view.*;
 import android.view.View;
 import android.view.View.*;
 import android.view.animation.*;
-import android.webkit.URLUtil;
 import android.provider.MediaStore;
 import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.geckoview.GeckoSession;
@@ -1296,6 +1295,27 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 	}
 
+	private String guessDownloadFileName(String uri, String contentDisposition) {
+		String name = null;
+		if (contentDisposition != null) {
+			java.util.regex.Matcher encoded = java.util.regex.Pattern.compile("(?i)filename\\*\\s*=\\s*UTF-8''([^;]+)").matcher(contentDisposition);
+			if (encoded.find()) {
+				try { name = java.net.URLDecoder.decode(encoded.group(1).trim(), "UTF-8"); }
+				catch (Exception ignored) {}
+			}
+			if (name == null) {
+				java.util.regex.Matcher plain = java.util.regex.Pattern.compile("(?i)filename\\s*=\\s*\"?([^;\"]+)\"?").matcher(contentDisposition);
+				if (plain.find()) name = plain.group(1).trim();
+			}
+		}
+		if (name == null || name.trim().isEmpty()) {
+			String segment = Uri.parse(uri).getLastPathSegment();
+			name = segment == null || segment.trim().isEmpty() ? "download" : segment;
+		}
+		name = name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").trim();
+		return name.isEmpty() ? "download" : name;
+	}
+
 	private void handleGeckoDownload(final WebResponse response) {
 		if (response == null || response.body == null || !response.isSecure
 			|| response.statusCode < 200 || response.statusCode >= 300) {
@@ -1311,8 +1331,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		String mime = responseHeader(response, "Content-Type");
 		String disposition = responseHeader(response, "Content-Disposition");
-		final String name = URLUtil.guessFileName(response.uri, disposition, mime)
-			.replace('/', '_').replace('\\', '_').replace(':', '_');
+		final String name = guessDownloadFileName(response.uri, disposition);
 		response.setReadTimeoutMillis(120000);
 		new AlertDialog.Builder(this)
 			.setTitle("Download")
@@ -1543,29 +1562,41 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
+		if (geckoEngine == null) {
+			handleBackNavigationFallback();
+			return;
+		}
+		geckoEngine.processBackPressed().accept(
+			new GeckoResult.Consumer<Boolean>() {
+				@Override public void accept(Boolean handled) {
+					if (!Boolean.TRUE.equals(handled)) handleBackNavigationFallback();
+				}
+			},
+			new GeckoResult.Consumer<Throwable>() {
+				@Override public void accept(Throwable error) { handleBackNavigationFallback(); }
+			});
+	}
+
+	private void handleBackNavigationFallback() {
 		if (geckoEngine != null && geckoEngine.canGoBack()) {
 			geckoEngine.goBack();
+			return;
+		}
+		tela1.setVisibility(View.VISIBLE);
+		tela2.setVisibility(View.GONE);
+		tela3.setVisibility(View.GONE);
+		toque++;
+		if (toque == 1) {
+			time = new TimerTask() {
+				@Override public void run() {
+					runOnUiThread(new Runnable() {
+						@Override public void run() { toque = 0; }
+					});
+				}
+			};
+			_timer.schedule(time, 2000);
 		} else {
-			tela1.setVisibility(View.VISIBLE);
-			tela2.setVisibility(View.GONE);
-			tela3.setVisibility(View.GONE);
-			toque++;
-			if (toque == 1) {
-				time = new TimerTask() {
-					@Override
-					public void run() {
-						runOnUiThread(new Runnable() {
-							@Override
-							public void run() {
-								toque = 0;
-							}
-						});
-					}
-				};
-				_timer.schedule(time, (int)(2000));
-			} else {
-				finish();
-			}
+			finish();
 		}
 	}
 	public void _gone() {
