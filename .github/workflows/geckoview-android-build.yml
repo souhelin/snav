@@ -26,13 +26,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
       - name: Install Android API 37
-        run: |
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          SDKMANAGER="$SDK_ROOT/cmdline-tools/16.0/bin/sdkmanager"
-          echo "$SDK_ROOT/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
-          yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" --install "platforms;android-37" "build-tools;36.0.0"
+        run: sdkmanager --install "platforms;android-37" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
