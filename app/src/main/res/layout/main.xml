@@ -40,14 +40,6 @@
                 android:letterSpacing="-0.03"
                 android:fontFamily="sans" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Uma navegação simples e rápida"
-                android:textColor="#ECF0F1"
-                android:textSize="14sp" />
-
             <LinearLayout
                 android:id="@+id/linear_barra_pesquisa"
                 android:layout_width="match_parent"
@@ -258,8 +250,8 @@
                             android:scrollbars="none"
                             android:clipToPadding="false"
                             android:clipChildren="false"
-                            android:paddingStart="2dp"
-                            android:paddingEnd="2dp">
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp">
 
                             <LinearLayout
                                 android:id="@+id/linear25"
@@ -268,14 +260,14 @@
                                 android:orientation="horizontal"
                                 android:clipChildren="false"
                                 android:clipToPadding="false"
-                                android:paddingStart="2dp"
-                                android:paddingEnd="2dp"
+                                android:paddingStart="0dp"
+                                android:paddingEnd="0dp"
                                 android:paddingTop="2dp"
                                 android:paddingBottom="18dp">
 
                                 <LinearLayout
                                     android:id="@+id/linear_copiar_URL"
-                                    android:layout_width="82dp"
+                                    android:layout_width="72dp"
                                     android:layout_height="92dp"
                                     android:layout_marginEnd="8dp"
                                     android:gravity="center"
@@ -301,7 +293,7 @@
 
                                 <LinearLayout
                                     android:id="@+id/linear_tradutor_google"
-                                    android:layout_width="82dp"
+                                    android:layout_width="72dp"
                                     android:layout_height="92dp"
                                     android:layout_marginEnd="8dp"
                                     android:gravity="center"
@@ -327,7 +319,7 @@
 
                                 <LinearLayout
                                     android:id="@+id/linear_modo_leitura"
-                                    android:layout_width="82dp"
+                                    android:layout_width="72dp"
                                     android:layout_height="92dp"
                                     android:layout_marginEnd="8dp"
                                     android:gravity="center"
@@ -353,7 +345,7 @@
 
                                 <LinearLayout
                                     android:id="@+id/linear_abrir_no_navegador"
-                                    android:layout_width="82dp"
+                                    android:layout_width="72dp"
                                     android:layout_height="92dp"
                                     android:gravity="center"
                                     android:orientation="vertical"
