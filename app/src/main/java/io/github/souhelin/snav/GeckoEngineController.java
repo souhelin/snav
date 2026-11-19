@@ -255,13 +255,40 @@ public final class GeckoEngineController {
     public GeckoResult<Void> clearSiteData(String host) {
         ensureOpen();
         if (host == null || host.trim().isEmpty()) throw new IllegalArgumentException("Host is required");
-        return runtime.getStorageController().clearDataFromHost(
-            host, StorageController.ClearFlags.SITE_DATA | StorageController.ClearFlags.SITE_SETTINGS);
+        return clearAndReattach(runtime.getStorageController().clearDataFromHost(
+            host, StorageController.ClearFlags.SITE_DATA | StorageController.ClearFlags.SITE_SETTINGS));
     }
 
     public GeckoResult<Void> clearBrowsingData() {
         ensureOpen();
-        return runtime.getStorageController().clearData(StorageController.ClearFlags.ALL);
+        session.purgeHistory();
+        return clearAndReattach(runtime.getStorageController().clearData(StorageController.ClearFlags.ALL));
+    }
+
+    private GeckoResult<Void> clearAndReattach(GeckoResult<Void> clearing) {
+        view.releaseSession();
+        if (session.isOpen()) session.close();
+        final GeckoResult<Void> result = new GeckoResult<>();
+        clearing.accept(
+            new GeckoResult.Consumer<Void>() {
+                @Override public void accept(Void ignored) {
+                    session.open(runtime);
+                    view.setSession(session);
+                    session.loadUri("about:blank");
+                    currentUri = "about:blank";
+                    canGoBack = false;
+                    canGoForward = false;
+                    result.complete(null);
+                }
+            },
+            new GeckoResult.Consumer<Throwable>() {
+                @Override public void accept(Throwable error) {
+                    session.open(runtime);
+                    view.setSession(session);
+                    result.completeExceptionally(error);
+                }
+            });
+        return result;
     }
 
     public void close() {
