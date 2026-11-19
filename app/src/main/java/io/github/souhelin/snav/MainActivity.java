@@ -1223,7 +1223,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private boolean shouldBlockThirdPartyTracker(WebView view, WebResourceRequest request) {
-		if (!Dados.getBoolean("tracker_blocking", true) || view == null || request == null) return false;
+		if (!Dados.getBoolean("tracker_blocking", true) || view == null || request == null || request.isForMainFrame()) return false;
 		Uri resource = request.getUrl();
 		String referrer = request.getRequestHeaders().get("Referer");
 		if (referrer == null || referrer.trim().isEmpty()) return false;
