@@ -1169,6 +1169,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					Toast.makeText(MainActivity.this, "Não há domínio para limpar", Toast.LENGTH_SHORT).show();
 					return;
 				}
+				sheet.dismiss();
 				showSnavDecisionSheet("Limpar dados do site",
 					"Remover cookies, armazenamento e permissões associados a " + host + "? A página atual será encerrada para evitar recriação imediata dos dados.",
 					"Limpar", "Cancelar", new Runnable() {
@@ -1206,6 +1207,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(managePermissions, managePermissionsParams);
 		managePermissions.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
+				sheet.dismiss();
 				Intent settings = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
 				try { startActivity(settings); }
 				catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Não foi possível abrir as configurações do aplicativo", Toast.LENGTH_SHORT).show(); }
