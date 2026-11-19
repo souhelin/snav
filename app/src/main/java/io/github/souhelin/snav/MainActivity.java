@@ -1270,6 +1270,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		geckoEngine.clearBrowsingData().accept(
 			new GeckoResult.Consumer<Void>() {
 				@Override public void accept(Void ignored) {
+					Dados.edit().remove("gecko_history_v1").apply();
 					Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
 				}
 			},
@@ -1331,6 +1332,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		String mime = responseHeader(response, "Content-Type");
 		String disposition = responseHeader(response, "Content-Disposition");
+		String disposition = responseHeader(response, "Content-Disposition");
 		final String name = guessDownloadFileName(response.uri, disposition);
 		response.setReadTimeoutMillis(120000);
 		new AlertDialog.Builder(this)
@@ -1356,6 +1358,23 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}).show();
 	}
 
+	private java.io.File createUniqueDownloadFile(java.io.File directory, String requestedName) throws IOException {
+		java.io.File candidate = new java.io.File(directory, requestedName);
+		if (!candidate.exists()) return candidate;
+		String base = requestedName;
+		String extension = "";
+		int dot = requestedName.lastIndexOf('.');
+		if (dot > 0) {
+			base = requestedName.substring(0, dot);
+			extension = requestedName.substring(dot);
+		}
+		for (int index = 1; index < 10000; index++) {
+			candidate = new java.io.File(directory, base + " (" + index + ")" + extension);
+			if (!candidate.exists()) return candidate;
+		}
+		throw new IOException("Não foi possível gerar um nome exclusivo para o download");
+	}
+
 	private void saveGeckoDownload(final WebResponse response, final String fileName) {
 		downloadExecutor.execute(new Runnable() {
 			@Override public void run() {
@@ -1376,7 +1395,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					} else {
 						java.io.File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 						if (!directory.exists() && !directory.mkdirs()) throw new IOException("Não foi possível criar a pasta Downloads");
-						legacyFile = new java.io.File(directory, fileName);
+						legacyFile = createUniqueDownloadFile(directory, fileName);
 						output = new java.io.FileOutputStream(legacyFile);
 					}
 					if (output == null) throw new IOException("Destino de download indisponível");
