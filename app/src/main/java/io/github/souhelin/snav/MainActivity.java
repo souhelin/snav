@@ -1809,7 +1809,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     Toast.makeText(MainActivity.this, "A página encontrou um problema. Tente recarregar.", Toast.LENGTH_LONG).show();
                 }
                 @Override public void onScrollChanged(int scrollY) { geckoScrollY = Math.max(0, scrollY); }
-                @Override public void onHistoryVisited(String uri) { saveHistoryVisit(uri); }
             },
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
