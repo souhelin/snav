@@ -935,7 +935,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 								new GeckoResult.Consumer<Void>() {
 									@Override public void accept(Void ignored) {
 										Toast.makeText(MainActivity.this, "Dados do site removidos", Toast.LENGTH_SHORT).show();
-										geckoEngine.loadUri("about:blank", false);
 									}
 								},
 								new GeckoResult.Consumer<Throwable>() {
