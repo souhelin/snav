@@ -669,7 +669,12 @@ public class MainActivity extends Activity {
 		int horizontal = (int) (16 * getResources().getDisplayMetrics().density + 0.5f);
 		int vertical = (int) (14 * getResources().getDisplayMetrics().density + 0.5f);
 		action.setPadding(horizontal, vertical, horizontal, vertical);
-		action.setBackgroundResource(android.R.drawable.list_selector_background);
+		android.util.TypedValue rippleBackground = new android.util.TypedValue();
+		if (getTheme().resolveAttribute(android.R.attr.selectableItemBackground, rippleBackground, true)) {
+			action.setBackgroundResource(rippleBackground.resourceId);
+		}
+		action.setClickable(true);
+		action.setFocusable(true);
 		action.setContentDescription("Copiar relatório de diagnóstico do Snav");
 		action.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -892,7 +897,7 @@ public class MainActivity extends Activity {
 		GradientDrawable actionBg = new GradientDrawable();
 		actionBg.setColor(Color.parseColor("#E67E22"));
 		actionBg.setCornerRadius(siteInfoDp(24));
-		clearData.setBackground(actionBg);
+		clearData.setBackgroundResource(R.drawable.snav_accent_ripple);
 		clearData.setClickable(true);
 		clearData.setFocusable(true);
 		content.addView(clearData, new LinearLayout.LayoutParams(-1, -2));
@@ -1009,16 +1014,8 @@ public class MainActivity extends Activity {
 	
 	
 	public void _interfaces() {
-		// PARA INTERFACE
-		// linear barra pesquisa
-		int[] colorsCRNTL = { Color.parseColor("#34495E"), Color.parseColor("#34495E") };
-		android.graphics.drawable.GradientDrawable CRNTL = new android.graphics.drawable.GradientDrawable(
-		android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, colorsCRNTL
-		);
-		CRNTL.setCornerRadii(new float[]{20, 20, 20, 20, 20, 20, 20, 20});
-		CRNTL.setStroke(0, Color.parseColor("#9E9E9E"));
+		// A barra mantém o RippleDrawable definido no XML.
 		linear_barra_pesquisa.setElevation(0);
-		linear_barra_pesquisa.setBackground(CRNTL);
 		
 		// vscroll1
 		vscroll1.setVerticalScrollBarEnabled(false); vscroll1.setHorizontalScrollBarEnabled(false);
