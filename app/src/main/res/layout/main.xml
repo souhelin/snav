@@ -406,11 +406,12 @@
                         android:gravity="center_vertical"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp">
-                        <CheckBox
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/checkbox_brilho"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:buttonTint="@color/snav_accent"
+                            style="@style/SnavMaterialSwitch"
+                            android:minHeight="48dp"
                             android:gravity="center_vertical"
                             android:text="Escurecer páginas"
                             android:textColor="@color/snav_on_surface"
@@ -424,11 +425,12 @@
                         android:gravity="center_vertical"
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp">
-                        <CheckBox
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/checkbox_javascript2"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:buttonTint="@color/snav_accent"
+                            style="@style/SnavMaterialSwitch"
+                            android:minHeight="48dp"
                             android:checked="true"
                             android:gravity="center_vertical"
                             android:text="JavaScript"
