@@ -180,7 +180,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			searchAction.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View view) {
-					openSearchScreen();
+					submitSearch();
 				}
 			});
 		}
@@ -464,6 +464,35 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 	}
 	
+
+	private boolean submitSearch() {
+		String input = edittext1 == null || edittext1.getText() == null
+			? "" : edittext1.getText().toString().trim();
+		if (input.isEmpty()) {
+			openSearchScreen();
+			return false;
+		}
+
+		String destination = resolveNavigationInput(input);
+		if (destination == null) return false;
+
+		webview.loadUrl(destination);
+		tela1.setVisibility(View.GONE);
+		tela2.setVisibility(View.VISIBLE);
+		tela3.setVisibility(View.GONE);
+		vazio.setVisibility(View.GONE);
+
+		edittext1.setText("");
+		edittext1.clearFocus();
+		android.view.inputmethod.InputMethodManager keyboard =
+			(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+		if (keyboard != null) {
+			keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
+		}
+		Dados.edit().putString("vazio", "desativado").apply();
+		logDiagnostic("Pesquisa enviada pelo botão ou teclado");
+		return true;
+	}
 
 	private void openSearchScreen() {
 		if (tela1 != null) tela1.setVisibility(View.VISIBLE);
@@ -1215,29 +1244,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO
 					|| actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE;
 				if (!imeAction && !enterPressed) return false;
-
-				String input = edittext1.getText() == null
-					? "" : edittext1.getText().toString().trim();
-				if (input.isEmpty()) return true;
-
-				String destination = resolveNavigationInput(input);
-				if (destination == null) return true;
-
-				webview.loadUrl(destination);
-				tela1.setVisibility(View.GONE);
-				tela2.setVisibility(View.VISIBLE);
-				tela3.setVisibility(View.GONE);
-				vazio.setVisibility(View.GONE);
-
-				edittext1.setText("");
-				edittext1.clearFocus();
-				android.view.inputmethod.InputMethodManager keyboard =
-					(android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-				if (keyboard != null) {
-					keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
-				}
-				Dados.edit().putString("vazio", "desativado").apply();
-				logDiagnostic("Pesquisa enviada pelo campo de endereço");
+				submitSearch();
 				return true;
 			}
 		});
