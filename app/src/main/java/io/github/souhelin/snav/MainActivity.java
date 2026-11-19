@@ -105,6 +105,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private ImageView imageview58;
 	private TextView text15;
 	private MaterialSwitch checkbox_brilho;
+	private MaterialSwitch checkbox_wallpaper;
+	private ImageButton button_load_stop;
+	private UnsplashWallpaperManager wallpaperManager;
+	private float pullStartY;
+	private float pullDistance;
+	private boolean pullTracking;
+	private boolean pullConsumed;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
@@ -170,11 +177,43 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		imageview58 = findViewById(R.id.imageview58);
 		text15 = findViewById(R.id.text15);
 		checkbox_brilho = findViewById(R.id.checkbox_brilho);
+		checkbox_wallpaper = findViewById(R.id.checkbox_wallpaper);
+		button_load_stop = findViewById(R.id.button_load_stop);
 		checkbox_javascript2 = findViewById(R.id.checkbox_javascript2);
 		text5 = findViewById(R.id.text5);
 		b1 = findViewById(R.id.b1);
 		b2 = findViewById(R.id.b2);
 		Dados = getSharedPreferences("Dados", Activity.MODE_PRIVATE);
+
+		checkbox_wallpaper.setChecked(Dados.getBoolean("wallpaper_enabled", true));
+		checkbox_wallpaper.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override
+			public void onCheckedChanged(CompoundButton button, boolean enabled) {
+				Dados.edit().putBoolean("wallpaper_enabled", enabled).apply();
+				if (enabled) {
+					setupUnsplashWallpaper();
+				} else {
+					tela1.setBackgroundColor(getResources().getColor(R.color.snav_background));
+					text_icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
+				}
+			}
+		});
+		if (button_load_stop != null) {
+			button_load_stop.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View view) {
+					if (pageLoading) {
+						webview.stopLoading();
+						finishPageProgress();
+					} else if (webview.getUrl() != null && !webview.getUrl().equals("about:blank")) {
+						webview.reload();
+					} else {
+						openSearchScreen();
+					}
+				}
+			});
+		}
+
 		Limpar_Dialog = new AlertDialog.Builder(this);
 		
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
@@ -856,6 +895,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	private void beginPageProgress() {
 		pageLoading = true;
+		setLoadStopIcon(true);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
 		}
@@ -883,6 +923,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			return;
 		}
 		pageLoading = false;
+		setLoadStopIcon(false);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
 		}
@@ -1318,6 +1359,111 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			.show();
 	}
 
+
+	private void setupUnsplashWallpaper() {
+		if (checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) return;
+		if (wallpaperManager == null) wallpaperManager = new UnsplashWallpaperManager(this);
+		wallpaperManager.load(true, new UnsplashWallpaperManager.Callback() {
+			@Override
+			public void onWallpaperReady(Bitmap bitmap) {
+				if (isFinishing() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) {
+					if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+					return;
+				}
+				tela1.setBackground(new UnsplashWallpaperDrawable(bitmap));
+				text_icon.setTextColor(Color.WHITE);
+			}
+		});
+	}
+
+	private static final class UnsplashWallpaperDrawable extends android.graphics.drawable.Drawable {
+		private final Bitmap bitmap;
+		private final Paint imagePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
+		private final Paint shadePaint = new Paint();
+		UnsplashWallpaperDrawable(Bitmap image) {
+			bitmap = image;
+			shadePaint.setColor(0x66000000);
+		}
+		@Override public void draw(Canvas canvas) {
+			if (bitmap == null || bitmap.isRecycled()) return;
+			android.graphics.Rect bounds = getBounds();
+			float scale = Math.max((float) bounds.width() / bitmap.getWidth(),
+				(float) bounds.height() / bitmap.getHeight());
+			float width = bitmap.getWidth() * scale;
+			float height = bitmap.getHeight() * scale;
+			float left = bounds.left + (bounds.width() - width) / 2f;
+			float top = bounds.top + (bounds.height() - height) / 2f;
+			canvas.drawBitmap(bitmap, null, new android.graphics.RectF(left, top, left + width, top + height), imagePaint);
+			canvas.drawRect(bounds, shadePaint);
+		}
+		@Override public void setAlpha(int alpha) { shadePaint.setAlpha(alpha); invalidateSelf(); }
+		@Override public void setColorFilter(android.graphics.ColorFilter filter) { imagePaint.setColorFilter(filter); invalidateSelf(); }
+		@Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
+	}
+
+	private void setupPullToRefresh() {
+		if (webview == null || button_load_stop == null) return;
+		webview.setOnTouchListener(new View.OnTouchListener() {
+			@Override
+			public boolean onTouch(View view, android.view.MotionEvent event) {
+				switch (event.getActionMasked()) {
+					case android.view.MotionEvent.ACTION_DOWN:
+						pullStartY = event.getY();
+						pullDistance = 0f;
+						pullTracking = webview.getScrollY() <= 0;
+						pullConsumed = false;
+						return false;
+					case android.view.MotionEvent.ACTION_MOVE:
+						if (!pullTracking || webview.getScrollY() > 0) return false;
+						pullDistance = event.getY() - pullStartY;
+						if (pullDistance <= 0f) return false;
+						button_load_stop.setRotation(Math.min(180f, pullDistance * 0.8f));
+						if (pullDistance > getDip(12)) pullConsumed = true;
+						return pullConsumed;
+					case android.view.MotionEvent.ACTION_UP:
+					case android.view.MotionEvent.ACTION_CANCEL:
+						boolean refresh = event.getActionMasked() == android.view.MotionEvent.ACTION_UP
+							&& pullTracking && pullConsumed && pullDistance >= getDip(72);
+						float rotation = button_load_stop.getRotation();
+						pullTracking = false;
+						pullConsumed = false;
+						animatePullRelease(rotation);
+						if (refresh && webview.getUrl() != null) {
+							webview.reload();
+							return true;
+						}
+						return false;
+				}
+				return false;
+			}
+		});
+	}
+
+	private void animatePullRelease(float startRotation) {
+		if (button_load_stop == null) return;
+		ValueAnimator spring = ValueAnimator.ofFloat(0f, 1f);
+		spring.setDuration(420);
+		spring.setInterpolator(new TimeInterpolator() {
+			@Override public float getInterpolation(float input) {
+				return (float) (1.0d - Math.exp(-7.0d * input) * Math.cos(10.5d * input));
+			}
+		});
+		spring.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+			@Override public void onAnimationUpdate(ValueAnimator animation) {
+				float progress = (Float) animation.getAnimatedValue();
+				button_load_stop.setRotation(startRotation * (1f - progress));
+			}
+		});
+		spring.start();
+	}
+
+	private void setLoadStopIcon(boolean loading) {
+		if (button_load_stop == null) return;
+		button_load_stop.setImageResource(loading ? R.drawable.ms_stop : R.drawable.ms_refresh);
+		button_load_stop.setContentDescription(loading ? "Interromper carregamento" : "Atualizar página");
+		if (!loading) button_load_stop.setRotation(0f);
+	}
+
 	private void initializeLogic() {
 		_armazenamento();
 		_open_sans();
@@ -1694,997 +1840,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				return true;
 			}
 		});
-		//wallpaper
-		// ============================================================
-		// WALLPAPER DE PAISAGENS - WIKIMEDIA COMMONS
-		// Sketchware Pro 7.0.0
-		// Java 7
-		//
-		// LinearLayout: tela1
-		//
-		// - Paisagens horizontais
-		// - Montanhas, florestas, praias, lagos, natureza, pôr do sol
-		// - Wallpaper fica atrás dos componentes
-		// - Cache local
-		// - Atualização automática
-		// - Economia de dados móveis
-		// - Escurecimento do wallpaper
-		// - Sem biblioteca externa
-		// ============================================================
-		
-		final android.view.ViewGroup wallpaperLayout = tela1;
-		
-		final java.io.File wallpaperFile =
-		new java.io.File(
-		getCacheDir(),
-		"wikimedia_landscape.jpg"
-		);
-		
-		final java.io.File wallpaperTimeFile =
-		new java.io.File(
-		getCacheDir(),
-		"wikimedia_landscape_time.txt"
-		);
-		
-		
-		// ============================================================
-		// CONFIGURAÇÕES
-		// ============================================================
-		
-		// Wi-Fi: atualiza a cada 6 horas
-		final long WIFI_CACHE_TIME =
-		6L * 60L * 60L * 1000L;
-		
-		// Dados móveis: atualiza a cada 24 horas
-		final long MOBILE_CACHE_TIME =
-		24L * 60L * 60L * 1000L;
-		
-		
-		// Escurecimento do wallpaper
-		//
-		// 0   = sem escurecimento
-		// 60  = leve
-		// 90  = recomendado
-		// 120 = escuro
-		// 160 = muito escuro
-		
-		final int DARK_ALPHA = 90;
-		
-		
-		// ============================================================
-		// DRAWABLE DO WALLPAPER
-		// ============================================================
-		
-		class LandscapeDrawable
-		extends android.graphics.drawable.Drawable {
-			
-			private android.graphics.Bitmap bitmap;
-			
-			private android.graphics.Paint bitmapPaint;
-			
-			private android.graphics.Paint darkPaint;
-			
-			
-			public LandscapeDrawable(
-			android.graphics.Bitmap b) {
-				
-				bitmap = b;
-				
-				
-				bitmapPaint =
-				new android.graphics.Paint(
-				android.graphics.Paint.ANTI_ALIAS_FLAG
-				|
-				android.graphics.Paint.FILTER_BITMAP_FLAG
-				);
-				
-				
-				darkPaint =
-				new android.graphics.Paint(
-				android.graphics.Paint.ANTI_ALIAS_FLAG
-				);
-				
-				
-				darkPaint.setColor(
-				android.graphics.Color.argb(
-				DARK_ALPHA,
-				0,
-				0,
-				0
-				)
-				);
-			}
-			
-			
-			@Override
-			public void draw(
-			android.graphics.Canvas canvas) {
-				
-				if (bitmap == null) {
-					return;
-				}
-				
-				
-				int width =
-				getBounds().width();
-				
-				int height =
-				getBounds().height();
-				
-				
-				if (width <= 0 || height <= 0) {
-					return;
-				}
-				
-				
-				float bitmapWidth =
-				bitmap.getWidth();
-				
-				float bitmapHeight =
-				bitmap.getHeight();
-				
-				
-				// ========================================================
-				// CENTER CROP
-				// ========================================================
-				
-				float scale =
-				Math.max(
-				width / bitmapWidth,
-				height / bitmapHeight
-				);
-				
-				
-				float newWidth =
-				bitmapWidth * scale;
-				
-				
-				float newHeight =
-				bitmapHeight * scale;
-				
-				
-				float left =
-				(width - newWidth) / 2f;
-				
-				
-				float top =
-				(height - newHeight) / 2f;
-				
-				
-				android.graphics.RectF destination =
-				new android.graphics.RectF(
-				left,
-				top,
-				left + newWidth,
-				top + newHeight
-				);
-				
-				
-				// Desenha a paisagem
-				canvas.drawBitmap(
-				bitmap,
-				null,
-				destination,
-				bitmapPaint
-				);
-				
-				
-				// ========================================================
-				// CAMADA ESCURA
-				// ========================================================
-				
-				canvas.drawRect(
-				0,
-				0,
-				width,
-				height,
-				darkPaint
-				);
-			}
-			
-			
-			@Override
-			public void setAlpha(
-			int alpha) {
-				
-				bitmapPaint.setAlpha(alpha);
-			}
-			
-			
-			@Override
-			public void setColorFilter(
-			android.graphics.ColorFilter colorFilter) {
-				
-				bitmapPaint.setColorFilter(
-				colorFilter
-				);
-			}
-			
-			
-			@Override
-			public int getOpacity() {
-				
-				return android.graphics.PixelFormat.OPAQUE;
-			}
-		}
-		
-		
-		// ============================================================
-		// BITMAP ATUAL
-		// ============================================================
-		
-		final android.graphics.Bitmap[] currentBitmap =
-		new android.graphics.Bitmap[1];
-		
-		
-		// ============================================================
-		// ATUALIZA O BACKGROUND QUANDO A TELA FOR MEDIDA
-		// ============================================================
-		
-		final android.view.ViewTreeObserver.OnGlobalLayoutListener
-		landscapeLayoutListener =
-		new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-			
-			@Override
-			public void onGlobalLayout() {
-				
-				if (currentBitmap[0] == null) {
-					return;
-				}
-				
-				
-				LandscapeDrawable drawable =
-				new LandscapeDrawable(
-				currentBitmap[0]
-				);
-				
-				
-				wallpaperLayout.setBackgroundDrawable(
-				drawable
-				);
-			}
-		};
-		
-		
-		wallpaperLayout
-		.getViewTreeObserver()
-		.addOnGlobalLayoutListener(
-		landscapeLayoutListener
-		);
-		
-		
-		// ============================================================
-		// CARREGA A PAISAGEM DO CACHE
-		// ============================================================
-		
-		if (wallpaperFile.exists()
-		&& wallpaperFile.length() > 0) {
-			
-			android.graphics.Bitmap cachedBitmap =
-			android.graphics.BitmapFactory.decodeFile(
-			wallpaperFile.getAbsolutePath()
-			);
-			
-			
-			if (cachedBitmap != null) {
-				
-				currentBitmap[0] =
-				cachedBitmap;
-				
-				
-				LandscapeDrawable drawable =
-				new LandscapeDrawable(
-				cachedBitmap
-				);
-				
-				
-				wallpaperLayout.setBackgroundDrawable(
-				drawable
-				);
-			}
-		}
-		
-		
-		// ============================================================
-		// VERIFICA CONEXÃO
-		// ============================================================
-		
-		boolean internetAvailable = false;
-		
-		boolean mobileNetwork = false;
-		
-		
-		try {
-			
-			android.net.ConnectivityManager
-			connectivityManager =
-			(android.net.ConnectivityManager)
-			getSystemService(
-			android.content.Context.CONNECTIVITY_SERVICE
-			);
-			
-			
-			android.net.NetworkInfo networkInfo =
-			connectivityManager.getActiveNetworkInfo();
-			
-			
-			if (networkInfo != null
-			&& networkInfo.isConnected()) {
-				
-				internetAvailable = true;
-				
-				
-				if (android.os.Build.VERSION.SDK_INT >= 16) {
-					
-					mobileNetwork =
-					connectivityManager
-					.isActiveNetworkMetered();
-				}
-			}
-			
-		} catch (Exception e) {
-			
-			internetAvailable = false;
-		}
-		
-		
-		// ============================================================
-		// LÊ HORÁRIO DO CACHE
-		// ============================================================
-		
-		long savedTime = 0;
-		
-		
-		try {
-			
-			if (wallpaperTimeFile.exists()) {
-				
-				java.io.BufferedReader reader =
-				new java.io.BufferedReader(
-				new java.io.FileReader(
-				wallpaperTimeFile
-				)
-				);
-				
-				
-				String time =
-				reader.readLine();
-				
-				
-				reader.close();
-				
-				
-				if (time != null
-				&& time.trim().length() > 0) {
-					
-					savedTime =
-					Long.parseLong(
-					time.trim()
-					);
-				}
-			}
-			
-		} catch (Exception e) {
-			
-			savedTime = 0;
-		}
-		
-		
-		// ============================================================
-		// IDADE DO CACHE
-		// ============================================================
-		
-		long cacheAge =
-		System.currentTimeMillis()
-		- savedTime;
-		
-		
-		// ============================================================
-		// TEMPO MÁXIMO DO CACHE
-		// ============================================================
-		
-		long maxCacheTime;
-		
-		
-		if (mobileNetwork) {
-			
-			maxCacheTime =
-			MOBILE_CACHE_TIME;
-			
-		} else {
-			
-			maxCacheTime =
-			WIFI_CACHE_TIME;
-		}
-		
-		
-		// ============================================================
-		// VERIFICA SE PRECISA DE UMA NOVA PAISAGEM
-		// ============================================================
-		
-		boolean needNewWallpaper =
-		!wallpaperFile.exists()
-		|| wallpaperFile.length() == 0
-		|| savedTime == 0
-		|| cacheAge >= maxCacheTime;
-		
-		
-		// ============================================================
-		// BUSCA NOVA PAISAGEM
-		// ============================================================
-		
-		if (internetAvailable
-		&& needNewWallpaper) {
-			
-			final boolean useMobileNetwork =
-			mobileNetwork;
-			
-			
-			new android.os.AsyncTask<
-			Void,
-			Void,
-			android.graphics.Bitmap>() {
-				
-				
-				@Override
-				protected android.graphics.Bitmap
-				doInBackground(Void... params) {
-					
-					java.net.HttpURLConnection
-					apiConnection = null;
-					
-					
-					java.net.HttpURLConnection
-					imageConnection = null;
-					
-					
-					java.io.InputStream
-					apiInput = null;
-					
-					
-					java.io.InputStream
-					imageInput = null;
-					
-					
-					java.io.FileOutputStream
-					fileOutput = null;
-					
-					
-					try {
-						
-						// ====================================================
-						// TAMANHO DA IMAGEM
-						// ====================================================
-						
-						int thumbnailWidth;
-						
-						
-						if (useMobileNetwork) {
-							
-							// Dados móveis
-							thumbnailWidth = 540;
-							
-						} else {
-							
-							// Wi-Fi
-							thumbnailWidth = 1080;
-						}
-						
-						
-						// ====================================================
-						// TERMOS DE PESQUISA
-						//
-						// São escolhidos aleatoriamente para variar
-						// as paisagens.
-						// ====================================================
-						
-						String[] searches = {
-							
-							"landscape",
-							"nature landscape",
-							"mountain landscape",
-							"forest landscape",
-							"lake landscape",
-							"beach landscape",
-							"sunset landscape",
-							"river landscape",
-							"waterfall landscape",
-							"countryside landscape"
-							
-						};
-						
-						
-						java.util.Random random =
-						new java.util.Random();
-						
-						
-						String search =
-						searches[
-						random.nextInt(
-						searches.length
-						)
-						];
-						
-						
-						// ====================================================
-						// API WIKIMEDIA COMMONS
-						// ====================================================
-						
-						String apiUrl =
-						"https://commons.wikimedia.org/w/api.php"
-						+ "?action=query"
-						+ "&format=json"
-						+ "&generator=search"
-						+ "&gsrsearch="
-						+ java.net.URLEncoder.encode(
-						search,
-						"UTF-8"
-						)
-						+ "&gsrnamespace=6"
-						+ "&gsrlimit=20"
-						+ "&prop=imageinfo"
-						+ "&iiprop=url|dimensions"
-						+ "&iiurlwidth="
-						+ thumbnailWidth;
-						
-						
-						java.net.URL apiURL =
-						new java.net.URL(
-						apiUrl
-						);
-						
-						
-						apiConnection =
-						(java.net.HttpURLConnection)
-						apiURL.openConnection();
-						
-						
-						apiConnection.setRequestMethod(
-						"GET"
-						);
-						
-						
-						apiConnection.setConnectTimeout(
-						10000
-						);
-						
-						
-						apiConnection.setReadTimeout(
-						15000
-						);
-						
-						
-						apiConnection.setRequestProperty(
-						"User-Agent",
-						"SketchwarePro-Landscape/1.0"
-						);
-						
-						
-						apiConnection.setRequestProperty(
-						"Api-User-Agent",
-						"SketchwarePro-Landscape/1.0"
-						);
-						
-						
-						apiInput =
-						apiConnection.getInputStream();
-						
-						
-						java.io.ByteArrayOutputStream
-						apiOutput =
-						new java.io.ByteArrayOutputStream();
-						
-						
-						byte[] apiBuffer =
-						new byte[4096];
-						
-						
-						int apiLength;
-						
-						
-						while ((apiLength =
-						apiInput.read(apiBuffer)) != -1) {
-							
-							apiOutput.write(
-							apiBuffer,
-							0,
-							apiLength
-							);
-						}
-						
-						
-						String json =
-						new String(
-						apiOutput.toByteArray(),
-						"UTF-8"
-						);
-						
-						
-						// ====================================================
-						// JSON
-						// ====================================================
-						
-						org.json.JSONObject root =
-						new org.json.JSONObject(
-						json
-						);
-						
-						
-						if (!root.has("query")) {
-							return null;
-						}
-						
-						
-						org.json.JSONObject query =
-						root.getJSONObject(
-						"query"
-						);
-						
-						
-						if (!query.has("pages")) {
-							return null;
-						}
-						
-						
-						org.json.JSONObject pages =
-						query.getJSONObject(
-						"pages"
-						);
-						
-						
-						java.util.ArrayList<String>
-						validPages =
-						new java.util.ArrayList<String>();
-						
-						
-						java.util.Iterator<String>
-						iterator =
-						pages.keys();
-						
-						
-						// ====================================================
-						// FILTRA SOMENTE PAISAGENS HORIZONTAIS
-						// ====================================================
-						
-						while (iterator.hasNext()) {
-							
-							String key =
-							iterator.next();
-							
-							
-							try {
-								
-								org.json.JSONObject page =
-								pages.getJSONObject(
-								key
-								);
-								
-								
-								if (!page.has(
-								"imageinfo"
-								)) {
-									continue;
-								}
-								
-								
-								org.json.JSONArray imageInfo =
-								page.getJSONArray(
-								"imageinfo"
-								);
-								
-								
-								if (imageInfo.length() == 0) {
-									continue;
-								}
-								
-								
-								org.json.JSONObject info =
-								imageInfo.getJSONObject(
-								0
-								);
-								
-								
-								if (!info.has("width")
-								|| !info.has("height")) {
-									
-									continue;
-								}
-								
-								
-								int originalWidth =
-								info.getInt(
-								"width"
-								);
-								
-								
-								int originalHeight =
-								info.getInt(
-								"height"
-								);
-								
-								
-								if (originalHeight <= 0) {
-									continue;
-								}
-								
-								
-								// ------------------------------------------------
-								// PROPORÇÃO
-								//
-								// 1.25 ou maior = horizontal
-								// ------------------------------------------------
-								
-								float ratio =
-								(float)
-								originalWidth
-								/
-								(float)
-								originalHeight;
-								
-								
-								// Evita imagens verticais/quadradas
-								if (ratio >= 1.25f
-								&& originalWidth >= 1000
-								&& originalHeight >= 500) {
-									
-									validPages.add(
-									key
-									);
-								}
-								
-							} catch (Exception ignored) {
-							}
-						}
-						
-						
-						// ====================================================
-						// NÃO ENCONTROU PAISAGEM
-						// ====================================================
-						
-						if (validPages.size() == 0) {
-							return null;
-						}
-						
-						
-						// ====================================================
-						// ESCOLHE UMA PAISAGEM
-						// ====================================================
-						
-						String selectedKey =
-						validPages.get(
-						random.nextInt(
-						validPages.size()
-						)
-						);
-						
-						
-						org.json.JSONObject selectedPage =
-						pages.getJSONObject(
-						selectedKey
-						);
-						
-						
-						org.json.JSONArray imageInfo =
-						selectedPage.getJSONArray(
-						"imageinfo"
-						);
-						
-						
-						org.json.JSONObject info =
-						imageInfo.getJSONObject(
-						0
-						);
-						
-						
-						// ====================================================
-						// URL DO THUMBNAIL
-						// ====================================================
-						
-						String imageUrl = null;
-						
-						
-						if (info.has("thumburl")) {
-							
-							imageUrl =
-							info.getString(
-							"thumburl"
-							);
-							
-						} else if (info.has("url")) {
-							
-							imageUrl =
-							info.getString(
-							"url"
-							);
-						}
-						
-						
-						if (imageUrl == null
-						|| imageUrl.length() == 0) {
-							
-							return null;
-						}
-						
-						
-						// ====================================================
-						// DOWNLOAD DA PAISAGEM
-						// ====================================================
-						
-						java.net.URL imageURL =
-						new java.net.URL(
-						imageUrl
-						);
-						
-						
-						imageConnection =
-						(java.net.HttpURLConnection)
-						imageURL.openConnection();
-						
-						
-						imageConnection.setRequestMethod(
-						"GET"
-						);
-						
-						
-						imageConnection.setConnectTimeout(
-						10000
-						);
-						
-						
-						imageConnection.setReadTimeout(
-						20000
-						);
-						
-						
-						imageConnection.setRequestProperty(
-						"User-Agent",
-						"SketchwarePro-Landscape/1.0"
-						);
-						
-						
-						imageInput =
-						imageConnection.getInputStream();
-						
-						
-						android.graphics.Bitmap bitmap =
-						android.graphics.BitmapFactory
-						.decodeStream(
-						imageInput
-						);
-						
-						
-						if (bitmap == null) {
-							return null;
-						}
-						
-						
-						// ====================================================
-						// SALVA NO CACHE
-						// ====================================================
-						
-						fileOutput =
-						new java.io.FileOutputStream(
-						wallpaperFile
-						);
-						
-						
-						bitmap.compress(
-						android.graphics.Bitmap.CompressFormat.JPEG,
-						80,
-						fileOutput
-						);
-						
-						
-						fileOutput.flush();
-						
-						
-						fileOutput.close();
-						
-						
-						fileOutput = null;
-						
-						
-						// ====================================================
-						// SALVA HORÁRIO
-						// ====================================================
-						
-						java.io.FileWriter writer =
-						new java.io.FileWriter(
-						wallpaperTimeFile
-						);
-						
-						
-						writer.write(
-						String.valueOf(
-						System.currentTimeMillis()
-						)
-						);
-						
-						
-						writer.close();
-						
-						
-						return bitmap;
-						
-						
-					} catch (Exception e) {
-						
-						return null;
-						
-						
-					} finally {
-						
-						try {
-							
-							if (apiInput != null) {
-								apiInput.close();
-							}
-							
-						} catch (Exception e) {
-						}
-						
-						
-						try {
-							
-							if (imageInput != null) {
-								imageInput.close();
-							}
-							
-						} catch (Exception e) {
-						}
-						
-						
-						try {
-							
-							if (fileOutput != null) {
-								fileOutput.close();
-							}
-							
-						} catch (Exception e) {
-						}
-						
-						
-						if (apiConnection != null) {
-							apiConnection.disconnect();
-						}
-						
-						
-						if (imageConnection != null) {
-							imageConnection.disconnect();
-						}
-					}
-				}
-				
-				
-				// ========================================================
-				// EXIBE NOVA PAISAGEM
-				// ========================================================
-				
-				@Override
-				protected void onPostExecute(
-				android.graphics.Bitmap bitmap) {
-					
-					if (bitmap != null) {
-						
-						currentBitmap[0] =
-						bitmap;
-						
-						
-						LandscapeDrawable drawable =
-						new LandscapeDrawable(
-						bitmap
-						);
-						
-						
-						wallpaperLayout
-						.setBackgroundDrawable(
-						drawable
-						);
-					}
-				}
-				
-			}.execute();
-		}
+		setupUnsplashWallpaper();
+		setupPullToRefresh();
 	}
 	
 	
