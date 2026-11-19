@@ -108,6 +108,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private MaterialSwitch checkbox_wallpaper;
 	private ImageButton button_load_stop;
 	private UnsplashWallpaperManager wallpaperManager;
+	private UnsplashWallpaperManager.Callback wallpaperCallback;
 	private float pullStartY;
 	private float pullDistance;
 	private boolean pullTracking;
@@ -885,6 +886,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	@Override
 	protected void onDestroy() {
 		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
+		wallpaperCallback = null;
 		super.onDestroy();
 	}
 
@@ -1363,7 +1365,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void setupUnsplashWallpaper() {
 		if (checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) return;
 		if (wallpaperManager == null) wallpaperManager = new UnsplashWallpaperManager(this);
-		wallpaperManager.load(true, new UnsplashWallpaperManager.Callback() {
+		wallpaperCallback = new UnsplashWallpaperManager.Callback() {
 			@Override
 			public void onWallpaperReady(Bitmap bitmap) {
 				if (isFinishing() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) {
@@ -1373,7 +1375,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				tela1.setBackground(new UnsplashWallpaperDrawable(bitmap));
 				text_icon.setTextColor(Color.WHITE);
 			}
-		});
+		};
+		wallpaperManager.load(true, wallpaperCallback);
 	}
 
 	private static final class UnsplashWallpaperDrawable extends android.graphics.drawable.Drawable {
