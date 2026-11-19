@@ -970,9 +970,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 									targetNames.clear();
 									for (TranslationsController.Language language : sourceLanguages) sourceNames.add(language.localizedDisplayName == null ? language.code : language.localizedDisplayName);
 									for (TranslationsController.Language language : targetLanguages) targetNames.add(language.localizedDisplayName == null ? language.code : language.localizedDisplayName);
-									ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(MainActivity.this, com.google.android.material.R.layout.support_simple_spinner_dropdown_item, sourceNames);
+									ArrayAdapter<String> sourceAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_dropdown_item_1line, sourceNames);
 									fromInput.setAdapter(sourceAdapter);
-									ArrayAdapter<String> targetAdapter = new ArrayAdapter<>(MainActivity.this, com.google.android.material.R.layout.support_simple_spinner_dropdown_item, targetNames);
+									ArrayAdapter<String> targetAdapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_dropdown_item_1line, targetNames);
 									toInput.setAdapter(targetAdapter);
 									fromInput.setText(sourceNames.get(findLanguageIndex(sourceLanguages, detectedPageLanguage)), false);
 									toInput.setText(targetNames.get(findLanguageIndex(targetLanguages, "pt")), false);
