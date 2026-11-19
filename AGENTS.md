@@ -530,9 +530,9 @@ A especificação normativa completa está em `docs/PRIVACY_SECURITY_POLICY.md`.
 - Downloads exigem confirmação explícita e controle do usuário.
 - Localização, câmera e microfone negados por padrão; solicitar somente no contexto de uso e após consentimento.
 - Erros de certificado TLS sempre cancelam a navegação; nunca oferecer bypass inseguro.
-- HTTP deve receber aviso explícito antes de continuar quando HTTPS não estiver disponível.
+- HTTP deve ser bloqueado: oferecer somente tentativa de upgrade para HTTPS; não habilitar cleartext global.
 - Do Not Track é opcional e deve explicar que sites podem ignorar o sinal.
-- Limpeza por site deve remover somente os dados da origem selecionada; nunca simular limpeza por site usando limpeza global.
+- Limpeza por site deve remover somente os dados da origem selecionada; nunca simular limpeza por site usando limpeza global. Documentar limites das APIs WebView.
 - Não afirmar bloqueio total de rastreadores nem remoção completa de dados sem cobertura comprovada.
 
 ## Interface de privacidade — MD3
