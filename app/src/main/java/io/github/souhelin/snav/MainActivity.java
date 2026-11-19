@@ -325,6 +325,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if ((toque % 2) == 1) {
 					linear_modo_leitura.setAlpha((float)(0.5d));
 					webview.setWebViewClient(new WebViewClient(){
+			@Override
+			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
+				return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
+			}
+
 						@Override
 						public boolean shouldOverrideUrlLoading(WebView view, String url) {
 							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
@@ -396,6 +402,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				} else {
 					linear_modo_leitura.setAlpha((float)(1.0d));
 					webview.setWebViewClient(new WebViewClient(){
+			@Override
+			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
+				return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
+			}
+
 						@Override
 						public boolean shouldOverrideUrlLoading(WebView view, String url) {
 							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
@@ -1110,6 +1122,26 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
 	}
 
+	private WebResourceResponse blockInsecurePostFromSecurePage(final WebView view, WebResourceRequest request) {
+		if (request == null || !request.isForMainFrame()
+			|| !"POST".equalsIgnoreCase(request.getMethod())) return null;
+		Uri target = request.getUrl();
+		if (target == null || !"http".equalsIgnoreCase(target.getScheme())) return null;
+		String current = view == null ? null : view.getUrl();
+		if (current == null || !current.regionMatches(true, 0, "https://", 0, 8)) return null;
+		if (view != null) {
+			view.post(new Runnable() {
+				@Override public void run() {
+					Toast.makeText(MainActivity.this,
+						"Envio de formulário HTTP bloqueado para proteger seus dados.",
+						Toast.LENGTH_LONG).show();
+				}
+			});
+		}
+		return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked",
+			"Content-Type", new java.io.ByteArrayInputStream(new byte[0]));
+	}
+
 	private void showInsecureConnectionDialog(final WebView view, final String url) {
 		final Uri parsed = Uri.parse(url);
 		final String host = parsed.getHost() == null ? "este endereço" : parsed.getHost();
@@ -1279,7 +1311,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		
 		// WebViewClient
-		webview.setWebViewClient(new android.webkit.WebViewClient() {
+		webview.setWebViewClient(new android.webkit.WebViewClient() {			@Override
+			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
+				return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
+			}
+
+
 			@Override
 			public boolean shouldOverrideUrlLoading(final WebView view, final WebResourceRequest request) {
 				if (android.os.Build.VERSION.SDK_INT >= 21 && request != null && !request.isForMainFrame()) {
