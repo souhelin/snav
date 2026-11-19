@@ -34,7 +34,7 @@ Consulte [CHANGELOG.md](CHANGELOG.md) para o histórico detalhado.
 
 ## Segurança e privacidade
 
-O manifesto atual desabilita tráfego cleartext global e backup Android; o WebView cancela erros de certificado SSL. Esses controles não equivalem a um bloqueador completo de rastreadores.
+O manifesto desabilita backup Android e permite HTTP no nível da plataforma para suportar a escolha explícita do usuário após o aviso do Snav. Navegações HTTP e downloads passam por confirmação; erros de certificado SSL são cancelados. Essa exceção aumenta a superfície de risco e exige que novos clientes de rede não façam chamadas HTTP em segundo plano. Esses controles não equivalem a um bloqueador completo de rastreadores.
 
 A política e o plano de evolução estão em [docs/PRIVACY_SECURITY_POLICY.md](docs/PRIVACY_SECURITY_POLICY.md). A documentação distingue recursos existentes de itens planejados para evitar alegações incorretas.
 
