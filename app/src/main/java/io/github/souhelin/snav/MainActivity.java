@@ -200,26 +200,11 @@ public class MainActivity extends Activity {
 			}
 
 			@Override
-			public void onReceivedError(WebView view, WebResourceRequest request,
-				WebResourceError error) {
-				if (android.os.Build.VERSION.SDK_INT >= 23 && request != null && request.isForMainFrame()) {
-					String host = safeHostForDiagnostics(request.getUrl().toString());
-					int code = android.os.Build.VERSION.SDK_INT >= 23 ? error.getErrorCode() : 0;
-					logDiagnostic("Erro de carregamento da página principal: código " + code
-						+ "; host=" + host);
-				}
-				super.onReceivedError(view, request, error);
-			}
-
-			@Override
-			public void onReceivedHttpError(WebView view, WebResourceRequest request,
-				WebResourceResponse response) {
-				if (android.os.Build.VERSION.SDK_INT >= 23 && request != null && request.isForMainFrame()
-					&& response != null) {
-					logDiagnostic("Resposta HTTP de erro: código " + response.getStatusCode()
-						+ "; host=" + safeHostForDiagnostics(request.getUrl().toString()));
-				}
-				super.onReceivedHttpError(view, request, response);
+			public void onReceivedError(WebView view, int errorCode,
+				String description, String failingUrl) {
+				logDiagnostic("Erro de carregamento WebView: código " + errorCode
+					+ "; host=" + safeHostForDiagnostics(failingUrl));
+				super.onReceivedError(view, errorCode, description, failingUrl);
 			}
 
 			@Override
