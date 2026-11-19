@@ -39,7 +39,7 @@ public final class UnsplashWallpaperManager {
         "photo-1518837695005-2083093ee35b"
     };
     private static final int MAX_IMAGES = 8;
-    private static final int MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+    private static final int MAX_IMAGE_BYTES = 1536 * 1024;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
     private final Context appContext;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -121,7 +121,7 @@ public final class UnsplashWallpaperManager {
         File temporary = new File(target.getParentFile(), target.getName() + ".part");
         try {
             String address = "https://images.unsplash.com/" + photoId
-                + "?fit=crop&w=1440&h=900&q=72&fm=jpg";
+                + "?fit=crop&w=1280&h=800&q=68&fm=jpg";
             URL url = new URL(address);
             if (!"https".equalsIgnoreCase(url.getProtocol())
                 || !"images.unsplash.com".equalsIgnoreCase(url.getHost())) return false;
