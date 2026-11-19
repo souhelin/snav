@@ -1377,7 +1377,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		wallpaperCallback = new UnsplashWallpaperManager.Callback() {
 			@Override
 			public void onWallpaperReady(Bitmap bitmap) {
-				if (isFinishing() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) {
+				if (isFinishing() || isDestroyed() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) {
 					if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
 					return;
 				}
@@ -1431,7 +1431,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						if (!pullTracking || webview.getScrollY() > 0) return false;
 						float horizontalDistance = Math.abs(event.getX() - pullStartX);
 						pullDistance = event.getY() - pullStartY;
-						if (pullDistance <= 0f || horizontalDistance > pullDistance) return false;
+						if (horizontalDistance > pullDistance) {
+							pullTracking = false;
+							pullConsumed = false;
+							button_load_stop.setRotation(0f);
+							return false;
+						}
+						if (pullDistance <= 0f) return false;
 						button_load_stop.setRotation(Math.min(180f, pullDistance * 0.8f));
 						if (pullDistance > getDip(12)) pullConsumed = true;
 						return pullConsumed;
