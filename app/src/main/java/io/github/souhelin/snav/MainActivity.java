@@ -54,6 +54,15 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private Timer _timer = new Timer();
 	
 	private double toque = 0;
+	private static final String[] TRACKER_DOMAINS = new String[] {
+		"doubleclick.net", "googlesyndication.com", "google-analytics.com",
+		"googletagmanager.com", "adservice.google.com", "connect.facebook.net",
+		"facebook.net", "hotjar.com", "scorecardresearch.com", "clarity.ms",
+		"quantserve.com", "taboola.com", "outbrain.com"
+	};
+	private PermissionRequest pendingWebPermissionRequest;
+	private String pendingGeolocationOrigin;
+	private GeolocationPermissions.Callback pendingGeolocationCallback;
 	
 	private LinearLayout linear1;
 	private LinearLayout linear_c;
@@ -322,6 +331,28 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if ((toque % 2) == 1) {
 					linear_modo_leitura.setAlpha((float)(0.5d));
 					webview.setWebViewClient(new WebViewClient(){
+			@Override
+			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
+				if (blocked != null) return blocked;
+				if (shouldBlockThirdPartyTracker(view, request)) {
+					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+				}
+				return super.shouldInterceptRequest(view, request);
+			}
+
+						@Override
+						public boolean shouldOverrideUrlLoading(WebView view, String url) {
+							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
+						showInsecureConnectionDialog(view, url);
+						return true;
+					}
+						@Override
+						public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
+							handler.cancel();
+						}
+
 						@Override
 						public void onPageFinished(WebView v, String url){
 							String js =
@@ -382,6 +413,28 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				} else {
 					linear_modo_leitura.setAlpha((float)(1.0d));
 					webview.setWebViewClient(new WebViewClient(){
+			@Override
+			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
+				if (blocked != null) return blocked;
+				if (shouldBlockThirdPartyTracker(view, request)) {
+					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+				}
+				return super.shouldInterceptRequest(view, request);
+			}
+
+						@Override
+						public boolean shouldOverrideUrlLoading(WebView view, String url) {
+							if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
+						showInsecureConnectionDialog(view, url);
+						return true;
+					}
+						@Override
+						public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
+							handler.cancel();
+						}
+
 						@Override
 						public void onPageFinished(WebView v, String url){
 							String js =
@@ -476,7 +529,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		String destination = resolveNavigationInput(input);
 		if (destination == null) return false;
 
-		webview.loadUrl(destination);
+		if (destination.regionMatches(true, 0, "http://", 0, 7)) {
+			showInsecureConnectionDialog(webview, destination);
+		} else {
+			loadUrlWithPrivacyHeaders(webview, destination);
+		}
 		tela1.setVisibility(View.GONE);
 		tela2.setVisibility(View.VISIBLE);
 		tela3.setVisibility(View.GONE);
@@ -914,8 +971,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			connection = "Não disponível";
 		}
 		addSiteInfoRow(content, "CONEXÃO", connection);
-		addSiteInfoRow(content, "PERMISSÕES DO SITE", "O Snav não concede permissões WebView às páginas. Solicitações de recursos como câmera e microfone permanecem bloqueadas.");
-		addSiteInfoRow(content, "COOKIES E DADOS", "Os cookies são gerenciados pelo WebView. A remoção individual de cookies por domínio ainda não está disponível. O botão abaixo remove o armazenamento web deste domínio.");
+		addSiteInfoRow(content, "PERMISSÕES DO SITE", "Câmera e microfone dependem também das permissões Android do aplicativo. A localização pode ser limpa para esta origem. O WebView não oferece API pública para revogar câmera/microfone individualmente por domínio; use as configurações Android para revogação global.");
+		addSiteInfoRow(content, "COOKIES E DADOS", "O Snav remove o DOM Storage da origem e tenta expirar cookies visíveis no caminho raiz. O WebView não expõe uma API pública para apagar todos os cookies de uma única origem com garantia de escopo.");
 
 		TextView clearData = new TextView(this);
 		clearData.setText("Limpar armazenamento local");
@@ -941,15 +998,44 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 				new AlertDialog.Builder(MainActivity.this)
 					.setTitle("Limpar dados do site")
-					.setMessage("Remover o armazenamento local de " + host + "? Os cookies não serão removidos.")
+					.setMessage("Remover o armazenamento local e tentar apagar os cookies visíveis de " + host + "? Cookies com caminhos ou domínios específicos podem exigir limpeza adicional.")
 					.setNegativeButton("Cancelar", null)
 					.setPositiveButton("Limpar", new DialogInterface.OnClickListener() {
 						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							WebStorage.getInstance().deleteOrigin(origin);
-							Toast.makeText(MainActivity.this, "Armazenamento local removido", Toast.LENGTH_SHORT).show();
+							clearCookiesForOrigin(currentUrl);
+							Toast.makeText(MainActivity.this, "Limpeza solicitada para este domínio", Toast.LENGTH_SHORT).show();
 						}
 					}).show();
+			}
+		});
+
+		TextView managePermissions = new TextView(this);
+		managePermissions.setText("Gerenciar permissões do aplicativo");
+		managePermissions.setTextColor(Color.WHITE);
+		managePermissions.setTextSize(14);
+		managePermissions.setGravity(Gravity.CENTER);
+		managePermissions.setMinHeight(siteInfoDp(48));
+		managePermissions.setPadding(siteInfoDp(16), siteInfoDp(10), siteInfoDp(16), siteInfoDp(10));
+		managePermissions.setBackgroundResource(R.drawable.snav_accent_ripple);
+		managePermissions.setClickable(true);
+		managePermissions.setFocusable(true);
+		LinearLayout.LayoutParams permissionParams = new LinearLayout.LayoutParams(-1, -2);
+		permissionParams.topMargin = siteInfoDp(8);
+		content.addView(managePermissions, permissionParams);
+		managePermissions.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) {
+				if (origin != null) {
+					GeolocationPermissions.getInstance().clear(origin);
+				}
+				Intent settings = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+					Uri.parse("package:" + getPackageName()));
+				try {
+					startActivity(settings);
+				} catch (ActivityNotFoundException error) {
+					Toast.makeText(MainActivity.this, "Não foi possível abrir as configurações do aplicativo", Toast.LENGTH_SHORT).show();
+				}
 			}
 		});
 
@@ -976,6 +1062,260 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (sheet.getWindow() != null) {
 			sheet.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
 		}
+	}
+
+
+
+	private void grantWebPermissionWhenAndroidAllows(PermissionRequest request, String[] resources) {
+		if (request == null || isFinishing()) return;
+		java.util.ArrayList<String> required = new java.util.ArrayList<String>();
+		for (String resource : resources) {
+			if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+				required.add(android.Manifest.permission.CAMERA);
+			} else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
+				required.add(android.Manifest.permission.RECORD_AUDIO);
+			} else {
+				request.deny();
+				return;
+			}
+		}
+		if (Build.VERSION.SDK_INT >= 23) {
+			java.util.ArrayList<String> missing = new java.util.ArrayList<String>();
+			for (String permission : required) {
+				if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) missing.add(permission);
+			}
+			if (!missing.isEmpty()) {
+				pendingWebPermissionRequest = request;
+				requestPermissions(missing.toArray(new String[missing.size()]), 4101);
+				return;
+			}
+		}
+		request.grant(resources);
+	}
+
+	private void grantGeolocationWhenAndroidAllows(String origin, GeolocationPermissions.Callback callback) {
+		if (Build.VERSION.SDK_INT >= 23
+			&& checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED
+			&& checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+			pendingGeolocationOrigin = origin;
+			pendingGeolocationCallback = callback;
+			requestPermissions(new String[] {
+				android.Manifest.permission.ACCESS_FINE_LOCATION,
+				android.Manifest.permission.ACCESS_COARSE_LOCATION
+			}, 4102);
+			return;
+		}
+		callback.invoke(origin, true, false);
+	}
+
+	@Override
+	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+		if (requestCode == 4101) {
+			PermissionRequest pending = pendingWebPermissionRequest;
+			pendingWebPermissionRequest = null;
+			if (pending == null) return;
+			boolean granted = grantResults.length > 0;
+			for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
+			if (granted) pending.grant(pending.getResources()); else pending.deny();
+		} else if (requestCode == 4102) {
+			GeolocationPermissions.Callback callback = pendingGeolocationCallback;
+			String origin = pendingGeolocationOrigin;
+			pendingGeolocationCallback = null;
+			pendingGeolocationOrigin = null;
+			if (callback == null) return;
+			boolean granted = Build.VERSION.SDK_INT < 23
+				|| checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+				|| checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+			callback.invoke(origin, granted, false);
+		}
+	}
+
+	private void addThirdPartyCookiePreference(boolean enabled) {
+		if (linear33 == null || android.os.Build.VERSION.SDK_INT < 21
+			|| linear33.findViewWithTag("snav_third_party_cookie_preference") != null) return;
+		LinearLayout row = new LinearLayout(this);
+		row.setTag("snav_third_party_cookie_preference");
+		row.setOrientation(LinearLayout.VERTICAL);
+		row.setPadding(dp(8), dp(8), dp(8), dp(8));
+		MaterialSwitch toggle = new MaterialSwitch(this);
+		toggle.setText("Cookies de terceiros");
+		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextSize(14);
+		toggle.setChecked(enabled);
+		TextView summary = new TextView(this);
+		summary.setText("Bloqueados por padrão; permitir pode aumentar o rastreamento entre sites.");
+		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextSize(12);
+		summary.setPadding(dp(40), 0, dp(8), 0);
+		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
+		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+				Dados.edit().putBoolean("third_party_cookies", checked).apply();
+				CookieManager.getInstance().setAcceptThirdPartyCookies(webview, checked);
+				com.google.android.material.snackbar.Snackbar.make(linear33,
+					checked ? "Cookies de terceiros permitidos" : "Cookies de terceiros bloqueados",
+					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+			}
+		});
+		int insertAt = Math.max(0, linear33.getChildCount() - 1);
+		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+	}
+
+	private void addTrackerBlockingPreference(boolean enabled) {
+		if (linear33 == null || linear33.findViewWithTag("snav_tracker_preference") != null) return;
+		LinearLayout row = new LinearLayout(this);
+		row.setTag("snav_tracker_preference");
+		row.setOrientation(LinearLayout.VERTICAL);
+		row.setPadding(dp(8), dp(8), dp(8), dp(8));
+		MaterialSwitch toggle = new MaterialSwitch(this);
+		toggle.setText("Bloquear rastreadores conhecidos");
+		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextSize(14);
+		toggle.setChecked(enabled);
+		TextView summary = new TextView(this);
+		summary.setText("Filtro local e limitado a domínios conhecidos de terceiros; não bloqueia todo rastreamento.");
+		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextSize(12);
+		summary.setPadding(dp(40), 0, dp(8), 0);
+		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
+		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+				Dados.edit().putBoolean("tracker_blocking", checked).apply();
+				com.google.android.material.snackbar.Snackbar.make(linear33,
+					checked ? "Filtro de rastreadores ativado" : "Filtro de rastreadores desativado",
+					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+			}
+		});
+		int insertAt = Math.max(0, linear33.getChildCount() - 1);
+		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+	}
+
+	private void addDoNotTrackPreference(boolean enabled) {
+		if (linear33 == null || linear33.findViewWithTag("snav_dnt_preference") != null) return;
+		LinearLayout row = new LinearLayout(this);
+		row.setTag("snav_dnt_preference");
+		row.setOrientation(LinearLayout.VERTICAL);
+		row.setPadding(dp(8), dp(8), dp(8), dp(8));
+		MaterialSwitch toggle = new MaterialSwitch(this);
+		toggle.setText("Do Not Track");
+		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextSize(14);
+		toggle.setChecked(enabled);
+		TextView summary = new TextView(this);
+		summary.setText("Envia DNT: 1 nas navegações iniciadas pelo Snav; sites não são obrigados a respeitar.");
+		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextSize(12);
+		summary.setPadding(dp(40), 0, dp(8), 0);
+		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
+		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
+		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+				Dados.edit().putBoolean("do_not_track", checked).apply();
+				com.google.android.material.snackbar.Snackbar.make(linear33,
+					checked ? "Do Not Track ativado" : "Do Not Track desativado",
+					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
+			}
+		});
+		int insertAt = Math.max(0, linear33.getChildCount() - 1);
+		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+	}
+
+	private void loadUrlWithPrivacyHeaders(WebView view, String url) {
+		if (view == null || url == null) return;
+		if (Dados.getBoolean("do_not_track", false)) {
+			java.util.HashMap<String, String> headers = new java.util.HashMap<String, String>();
+			headers.put("DNT", "1");
+			view.loadUrl(url, headers);
+		} else {
+			view.loadUrl(url);
+		}
+	}
+
+	private void clearCookiesForOrigin(String url) {
+		if (url == null) return;
+		CookieManager manager = CookieManager.getInstance();
+		String cookies = manager.getCookie(url);
+		if (cookies == null || cookies.trim().isEmpty()) return;
+		String[] pairs = cookies.split(";");
+		for (String pair : pairs) {
+			int separator = pair.indexOf('=');
+			if (separator <= 0) continue;
+			String name = pair.substring(0, separator).trim();
+			if (!name.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) continue;
+			manager.setCookie(url, name + "=; Path=/; Max-Age=0; SameSite=Lax");
+		}
+
+	}
+
+	private boolean shouldBlockThirdPartyTracker(WebView view, WebResourceRequest request) {
+		if (view == null || request == null || request.isForMainFrame()) return false;
+		return shouldBlockThirdPartyTracker(request);
+	}
+
+	private boolean shouldBlockThirdPartyTracker(WebResourceRequest request) {
+		if (!Dados.getBoolean("tracker_blocking", true) || request == null) return false;
+		Uri resource = request.getUrl();
+		String referrer = request.getRequestHeaders().get("Referer");
+		if (referrer == null || referrer.trim().isEmpty()) return false;
+		Uri page = Uri.parse(referrer);
+		String resourceHost = resource == null ? null : resource.getHost();
+		String pageHost = page.getHost();
+		if (resourceHost == null || pageHost == null || resourceHost.equalsIgnoreCase(pageHost)) return false;
+		if (isSameSiteHost(resourceHost, pageHost)) return false;
+		for (String domain : TRACKER_DOMAINS) {
+			if (resourceHost.equalsIgnoreCase(domain)
+				|| resourceHost.toLowerCase(java.util.Locale.US).endsWith("." + domain)) return true;
+		}
+		return false;
+	}
+
+	private boolean isSameSiteHost(String first, String second) {
+		String a = first.toLowerCase(java.util.Locale.US);
+		String b = second.toLowerCase(java.util.Locale.US);
+		return a.endsWith("." + b) || b.endsWith("." + a);
+	}
+
+	private int dp(float value) {
+		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
+	}
+
+	private WebResourceResponse blockInsecurePostFromSecurePage(final WebView view, WebResourceRequest request) {
+		if (request == null || !request.isForMainFrame()
+			|| !"POST".equalsIgnoreCase(request.getMethod())) return null;
+		Uri target = request.getUrl();
+		if (target == null || !"http".equalsIgnoreCase(target.getScheme())) return null;
+		String current = view == null ? null : view.getUrl();
+		if (current == null || !current.regionMatches(true, 0, "https://", 0, 8)) return null;
+		if (view != null) {
+			view.post(new Runnable() {
+				@Override public void run() {
+					Toast.makeText(MainActivity.this,
+						"Envio de formulário HTTP bloqueado para proteger seus dados.",
+						Toast.LENGTH_LONG).show();
+				}
+			});
+		}
+		return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked",
+			new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+	}
+
+	private void showInsecureConnectionDialog(final WebView view, final String url) {
+		final Uri parsed = Uri.parse(url);
+		final String host = parsed.getHost() == null ? "este endereço" : parsed.getHost();
+		final String secureUrl = parsed.buildUpon().scheme("https").build().toString();
+		new AlertDialog.Builder(this)
+			.setTitle("HTTP bloqueado")
+			.setMessage("O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS? Se o site não oferecer HTTPS, a navegação será bloqueada.")
+			.setPositiveButton("Tentar HTTPS", new DialogInterface.OnClickListener() {
+				@Override public void onClick(DialogInterface dialog, int which) {
+					loadUrlWithPrivacyHeaders(view, secureUrl);
+				}
+			})
+			.setNegativeButton("Cancelar", null)
+			.show();
 	}
 
 	private void initializeLogic() {
@@ -1067,10 +1407,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
 		cookieManager.setAcceptCookie(true);
 		
+		final boolean thirdPartyCookiesEnabled = Dados.getBoolean("third_party_cookies", false);
 		if (android.os.Build.VERSION.SDK_INT >= 21) {
-			cookieManager.setAcceptThirdPartyCookies(webview, false);
+			cookieManager.setAcceptThirdPartyCookies(webview, thirdPartyCookiesEnabled);
 		}
-		
+		addThirdPartyCookiePreference(thirdPartyCookiesEnabled);
+		addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
+		addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
+
 		// Layout WebView
 		webview.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
 		webview.setVerticalScrollBarEnabled(true);
@@ -1128,7 +1472,42 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		
 		// WebViewClient
-		webview.setWebViewClient(new android.webkit.WebViewClient() {
+		webview.setWebViewClient(new android.webkit.WebViewClient() {			@Override
+			public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+				WebResourceResponse blocked = blockInsecurePostFromSecurePage(view, request);
+				if (blocked != null) return blocked;
+				if (shouldBlockThirdPartyTracker(view, request)) {
+					return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+						new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+				}
+				return super.shouldInterceptRequest(view, request);
+			}
+
+
+			@Override
+			public boolean shouldOverrideUrlLoading(final WebView view, final WebResourceRequest request) {
+				if (android.os.Build.VERSION.SDK_INT >= 21 && request != null && !request.isForMainFrame()) {
+					return false;
+				}
+				String target = request == null ? null : request.getUrl().toString();
+				if (target == null || !target.regionMatches(true, 0, "http://", 0, 7)) return false;
+				showInsecureConnectionDialog(view, target);
+				return true;
+			}
+
+			@Override
+			public boolean shouldOverrideUrlLoading(WebView view, String url) {
+				if (url == null || !url.regionMatches(true, 0, "http://", 0, 7)) return false;
+				showInsecureConnectionDialog(view, url);
+				return true;
+			}
+
+			@Override
+			public void onReceivedSslError(WebView view, SslErrorHandler handler, android.net.http.SslError error) {
+				logDiagnostic("Erro TLS cancelado pelo navegador");
+				handler.cancel();
+			}
+
 			@Override
 			public void onPageStarted(WebView view, String url, Bitmap favicon) {
 				super.onPageStarted(view, url, favicon);
@@ -1142,6 +1521,23 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
+		// Service Workers não passam pelo WebViewClient em todas as versões.
+		// API 24+ recebe filtro equivalente para recursos com Referer disponível.
+		if (Build.VERSION.SDK_INT >= 24) {
+			android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(
+				new android.webkit.ServiceWorkerClient() {
+					@Override
+					public WebResourceResponse shouldInterceptRequest(WebResourceRequest request) {
+						if (shouldBlockThirdPartyTracker(request)) {
+							return new WebResourceResponse("text/plain", "UTF-8", 204, "Blocked",
+								new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
+						}
+						return null;
+					}
+				}
+			);
+		}
+
 		// WebChromeClient
 		webview.setWebChromeClient(new android.webkit.WebChromeClient() {
 			
@@ -1154,6 +1550,56 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				text_barra.setText(t);
 			}
 			
+			@Override
+			public void onPermissionRequest(final PermissionRequest request) {
+				if (request == null) return;
+				final Uri origin = request.getOrigin();
+				final String[] requested = request.getResources();
+				if (origin == null || !"https".equalsIgnoreCase(origin.getScheme())
+					|| requested == null || requested.length == 0) {
+					request.deny();
+					return;
+				}
+				final String host = origin.getHost() == null ? "site desconhecido" : origin.getHost();
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Permissão do site")
+					.setMessage(host + " solicita acesso à câmera ou ao microfone. Permita somente se você iniciou essa ação e confia no site.")
+					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) {
+							grantWebPermissionWhenAndroidAllows(request, requested);
+						}
+					})
+					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) { request.deny(); }
+					})
+					.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override public void onCancel(DialogInterface dialog) { request.deny(); }
+					}).show();
+			}
+
+			@Override
+			public void onGeolocationPermissionsShowPrompt(final String origin, final GeolocationPermissions.Callback callback) {
+				Uri parsed = Uri.parse(origin == null ? "" : origin);
+				if (!"https".equalsIgnoreCase(parsed.getScheme())) {
+					callback.invoke(origin, false, false);
+					return;
+				}
+				new AlertDialog.Builder(MainActivity.this)
+					.setTitle("Permitir localização?")
+					.setMessage("O site " + (parsed.getHost() == null ? "" : parsed.getHost()) + " solicita sua localização. A permissão vale somente para esta solicitação.")
+					.setPositiveButton("Permitir", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) {
+							grantGeolocationWhenAndroidAllows(origin, callback);
+						}
+					})
+					.setNegativeButton("Bloquear", new DialogInterface.OnClickListener() {
+						@Override public void onClick(DialogInterface dialog, int which) { callback.invoke(origin, false, false); }
+					})
+					.setOnCancelListener(new DialogInterface.OnCancelListener() {
+						@Override public void onCancel(DialogInterface dialog) { callback.invoke(origin, false, false); }
+					}).show();
+			}
+
 			@Override
 			public void onProgressChanged(WebView v, int p) {
 				if (!pageLoading) {
@@ -2301,7 +2747,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		webview.setDownloadListener(new DownloadListener() {
 			@Override
 			public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, long contentLength) {
-				final String fileName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+				Uri downloadUri = Uri.parse(url == null ? "" : url);
+				String downloadScheme = downloadUri.getScheme();
+				if (downloadUri.getHost() == null || downloadUri.getUserInfo() != null
+					|| !"https".equalsIgnoreCase(downloadScheme)) {
+					Toast.makeText(MainActivity.this, "Download bloqueado: somente endereços HTTPS são permitidos.", Toast.LENGTH_LONG).show();
+					return;
+				}
+				String suggestedName = URLUtil.guessFileName(url, contentDisposition, mimetype);
+				final String fileName = (suggestedName == null ? "download" : suggestedName)
+					.replace('/', '_').replace(':', '_');
 				
 				// Verifica permissão no Sketchware/Android
 				if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28) {
@@ -2316,6 +2771,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				builder.setPositiveButton("Sim", new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
+						if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28
+							&& checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+							!= android.content.pm.PackageManager.PERMISSION_GRANTED) {
+							Toast.makeText(MainActivity.this, "Permissão de armazenamento negada. Download cancelado.", Toast.LENGTH_LONG).show();
+							return;
+						}
 						try {
 							DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
 							request.setTitle(fileName);
@@ -2324,15 +2785,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 							request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
 							
 							// Adiciona UserAgent e Cookies para evitar erros de 403 Forbidden
-							String cookie = android.webkit.CookieManager.getInstance().getCookie(url);
-							request.addRequestHeader("Cookie", cookie);
-							request.addRequestHeader("User-Agent", userAgent);
+								String cookie = android.webkit.CookieManager.getInstance().getCookie(url);
+							if (cookie != null && !cookie.trim().isEmpty()) {
+								request.addRequestHeader("Cookie", cookie);
+							}
+							if (userAgent != null && !userAgent.trim().isEmpty()) {
+								request.addRequestHeader("User-Agent", userAgent);
+							}
 							
 							DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+							if (dm == null) throw new IllegalStateException("Gerenciador de downloads indisponível");
 							dm.enqueue(request);
 							android.widget.Toast.makeText(getApplicationContext(), "Download iniciado...", android.widget.Toast.LENGTH_SHORT).show();
 						} catch (Exception e) {
-							android.widget.Toast.makeText(getApplicationContext(), "Erro: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+							logDiagnostic("Falha ao iniciar download: " + e.getClass().getSimpleName());
+							android.widget.Toast.makeText(getApplicationContext(), "Não foi possível iniciar o download", android.widget.Toast.LENGTH_SHORT).show();
 						}
 					}
 				});

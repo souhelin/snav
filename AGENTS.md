@@ -515,3 +515,36 @@ A prioridade é construir um navegador Android:
 **O Snav deve evoluir sem perder sua identidade.**
 
 Estas regras são obrigatórias para todos os agentes de inteligência artificial que trabalham neste repositório.
+
+
+---
+
+# 17. POLÍTICA OBRIGATÓRIA DE PRIVACIDADE E PERMISSÕES
+
+A especificação normativa completa está em `docs/PRIVACY_SECURITY_POLICY.md`. Toda alteração relacionada a cookies, rastreamento, HTTPS, permissões, armazenamento, notificações ou downloads deve respeitá-la.
+
+## Padrões obrigatórios para novas implementações
+
+- Cookies first-party permitidos; cookies de terceiros bloqueados por padrão, com controle separado.
+- Notificações bloqueadas por padrão e ativadas manualmente por origem.
+- Downloads exigem confirmação explícita e controle do usuário.
+- Localização, câmera e microfone negados por padrão; solicitar somente no contexto de uso e após consentimento.
+- Erros de certificado TLS sempre cancelam a navegação; nunca oferecer bypass inseguro.
+- HTTP deve ser bloqueado: oferecer somente tentativa de upgrade para HTTPS; não habilitar cleartext global.
+- Do Not Track é opcional e deve explicar que sites podem ignorar o sinal.
+- Limpeza por site deve remover somente os dados da origem selecionada; nunca simular limpeza por site usando limpeza global. Documentar limites das APIs WebView.
+- Não afirmar bloqueio total de rastreadores nem remoção completa de dados sem cobertura comprovada.
+
+## Interface de privacidade — MD3
+
+- Lista enxuta com Material Symbols Rounded oficiais.
+- Texto secundário que descreva o efeito real da configuração.
+- Badge discreto para Permitido, Bloqueado ou Perguntar.
+- Switch MD3 para preferências persistentes binárias.
+- Dialog MD3 para solicitações de permissão, avisos HTTP e confirmações destrutivas.
+- Snackbar para feedback breve.
+- Preservar cores, ícones e minimalismo existentes do Snav.
+
+## Regra de evidência
+
+Documentação, roadmap e interface não provam implementação. Marcar qualquer item como concluído somente após inspecionar o código, executar testes relevantes e registrar limitações. Se uma API WebView não oferecer controle por origem ou cobertura universal, explicar a limitação em vez de prometer comportamento inexistente.
