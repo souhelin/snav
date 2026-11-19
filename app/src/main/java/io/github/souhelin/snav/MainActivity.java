@@ -1569,7 +1569,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private static final class UnsplashWallpaperDrawable extends android.graphics.drawable.Drawable {
 		private final Bitmap bitmap;
 		private final Paint imagePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
-		private final Paint shadePaint = new Paint();
+		private final Paint shadePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 		UnsplashWallpaperDrawable(Bitmap image) {
 			bitmap = image;
 			shadePaint.setColor(0x66000000);
@@ -1577,29 +1577,45 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		@Override public void draw(Canvas canvas) {
 			if (bitmap == null || bitmap.isRecycled()) return;
 			android.graphics.Rect bounds = getBounds();
+			if (bounds.isEmpty()) return;
 			float scale = Math.max((float) bounds.width() / bitmap.getWidth(),
 				(float) bounds.height() / bitmap.getHeight());
 			float width = bitmap.getWidth() * scale;
 			float height = bitmap.getHeight() * scale;
 			float left = bounds.left + (bounds.width() - width) / 2f;
 			float top = bounds.top + (bounds.height() - height) / 2f;
+			int saveCount = canvas.save();
+			canvas.clipRect(bounds);
 			canvas.drawBitmap(bitmap, null, new android.graphics.RectF(left, top, left + width, top + height), imagePaint);
 			canvas.drawRect(bounds, shadePaint);
+			canvas.restoreToCount(saveCount);
 		}
-		@Override public void setAlpha(int alpha) { shadePaint.setAlpha(alpha); invalidateSelf(); }
-		@Override public void setColorFilter(android.graphics.ColorFilter filter) { imagePaint.setColorFilter(filter); invalidateSelf(); }
-		@Override public int getOpacity() { return android.graphics.PixelFormat.OPAQUE; }
+		@Override public void setAlpha(int alpha) {
+			imagePaint.setAlpha(alpha);
+			shadePaint.setAlpha(Math.round(alpha * (102f / 255f)));
+			invalidateSelf();
+		}
+		@Override public void setColorFilter(android.graphics.ColorFilter filter) {
+			imagePaint.setColorFilter(filter);
+			invalidateSelf();
+		}
+		@Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
 	}
 
 	private void setupPullToRefresh() {
 		if (geckoView == null || button_load_stop == null) return;
 		geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+		final int touchSlop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+		final float refreshThreshold = getDip(96);
+		final float consumeThreshold = getDip(32);
 		geckoView.setOnTouchListener(new View.OnTouchListener() {
 			@Override
 			public boolean onTouch(View view, android.view.MotionEvent event) {
-				if (event.getActionMasked() != android.view.MotionEvent.ACTION_DOWN
-					&& pullVelocityTracker != null) pullVelocityTracker.addMovement(event);
-				switch (event.getActionMasked()) {
+				int action = event.getActionMasked();
+				if (action != android.view.MotionEvent.ACTION_DOWN && pullVelocityTracker != null) {
+					pullVelocityTracker.addMovement(event);
+				}
+				switch (action) {
 					case android.view.MotionEvent.ACTION_DOWN:
 						if (pullVelocityTracker != null) pullVelocityTracker.recycle();
 						pullVelocityTracker = VelocityTracker.obtain();
@@ -1612,53 +1628,79 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						if (pullRotationSpring != null) pullRotationSpring.cancel();
 						button_load_stop.setRotation(0f);
 						return false;
+
 					case android.view.MotionEvent.ACTION_MOVE:
-						if (!pullTracking || geckoScrollY > 0) return false;
-						float horizontalDistance = Math.abs(event.getX() - pullStartX);
-						pullDistance = event.getY() - pullStartY;
-						if (horizontalDistance > pullDistance) {
-							pullTracking = false;
-							pullConsumed = false;
+						if (!pullTracking || pageLoading || geckoScrollY > 0) return false;
+						float dx = event.getX() - pullStartX;
+						float dy = event.getY() - pullStartY;
+						pullDistance = dy;
+						if (dy <= 0f) {
 							button_load_stop.setRotation(0f);
 							return false;
 						}
-						if (pullDistance <= 0f) return false;
-						button_load_stop.setRotation(Math.min(180f, pullDistance * 0.8f));
-						if (pullDistance > getDip(12)) pullConsumed = true;
-						return pullConsumed;
+					// A clear horizontal/diagonal gesture belongs to page navigation,
+					// not to pull-to-refresh.
+					if (Math.abs(dx) > touchSlop && Math.abs(dx) > dy * 0.8f) {
+						pullTracking = false;
+						pullConsumed = false;
+						button_load_stop.setRotation(0f);
+						return false;
+					}
+					if (dy < touchSlop || dy < Math.abs(dx) * 1.25f) return false;
+					button_load_stop.setRotation(Math.min(180f, (dy - touchSlop) * 0.65f));
+					pullConsumed = dy >= consumeThreshold;
+					return pullConsumed;
+
+					case android.view.MotionEvent.ACTION_POINTER_DOWN:
+						pullTracking = false;
+						pullConsumed = false;
+						button_load_stop.setRotation(0f);
+						return false;
+
 					case android.view.MotionEvent.ACTION_UP:
 					case android.view.MotionEvent.ACTION_CANCEL:
-						boolean refresh = event.getActionMasked() == android.view.MotionEvent.ACTION_UP
-							&& pullTracking && pullConsumed && pullDistance >= getDip(72);
+						final boolean refresh = action == android.view.MotionEvent.ACTION_UP
+							&& pullTracking && pullConsumed && !pageLoading
+							&& geckoScrollY <= 0 && pullDistance >= refreshThreshold;
 						float rotation = button_load_stop.getRotation();
 						float rotationVelocity = 0f;
 						if (pullVelocityTracker != null) {
 							pullVelocityTracker.computeCurrentVelocity(1000);
 							rotationVelocity = Math.max(-3600f, Math.min(3600f,
-								pullVelocityTracker.getYVelocity() * 0.8f));
+								pullVelocityTracker.getYVelocity() * 0.65f));
 							pullVelocityTracker.recycle();
 							pullVelocityTracker = null;
 						}
-						pullTracking = false;
-						pullConsumed = false;
-						if (event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
-						if (rotation > 0f) animatePullRelease(rotationVelocity);
-						if (refresh && geckoEngine != null && geckoEngine.getCurrentUri() != null) {
-							geckoEngine.reload();
+					pullTracking = false;
+					pullConsumed = false;
+					if (action == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
+					if (rotation > 0f) {
+						if (refresh) {
+							animatePullRelease(rotationVelocity, new Runnable() {
+								@Override public void run() {
+									if (!isFinishing() && !isDestroyed() && !pageLoading
+										&& geckoEngine != null && geckoEngine.getCurrentUri() != null) {
+										geckoEngine.reload();
+									}
+								}
+							});
 							return true;
 						}
-						return false;
+						animatePullRelease(rotationVelocity, null);
+					}
+					return false;
 				}
 				return false;
 			}
 		});
 	}
 
-	private void animatePullRelease(float initialVelocity) {
+	private void animatePullRelease(float initialVelocity, final Runnable onFinished) {
 		if (button_load_stop == null) return;
 		if (pullRotationSpring != null) pullRotationSpring.cancel();
 		if (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()) {
 			button_load_stop.setRotation(0f);
+			if (onFinished != null) onFinished.run();
 			return;
 		}
 
@@ -1668,23 +1710,36 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			com.google.android.material.R.style.Motion_Material3_Spring_Standard_Fast_Spatial);
 		pullRotationSpring = new SpringAnimation(
 			button_load_stop, DynamicAnimation.ROTATION, 0f);
-		// Keep the animation's target position (0 degrees) and copy only the
-		// Material spring parameters. Replacing its SpringForce directly leaves
-		// the resolver's final position unset and can crash SpringAnimation.start().
+		// Keep the zero-degree final position and copy Material 3 spatial
+		// spring parameters; replacing the force would leave its final position unset.
 		pullRotationSpring.getSpring()
 			.setDampingRatio(spatialSpring.getDampingRatio())
 			.setStiffness(spatialSpring.getStiffness());
 		pullRotationSpring.setStartVelocity(initialVelocity);
 		pullRotationSpring.setMinimumVisibleChange(DynamicAnimation.MIN_VISIBLE_CHANGE_ROTATION_DEGREES);
+		if (onFinished != null) {
+			pullRotationSpring.addEndListener(new DynamicAnimation.OnAnimationEndListener() {
+				@Override
+				public void onAnimationEnd(DynamicAnimation animation, boolean canceled, float value, float velocity) {
+					if (!canceled) onFinished.run();
+				}
+			});
+		}
 		pullRotationSpring.start();
 	}
 
-
 	private void setLoadStopIcon(boolean loading) {
 		if (button_load_stop == null) return;
+		// Loading/stop state changes are static; rotation is reserved for the
+		// explicit pull gesture and its Material 3 spatial-spring release.
+		if (pullRotationSpring != null && pullRotationSpring.isRunning()) {
+			pullRotationSpring.cancel();
+		}
+		button_load_stop.setRotation(0f);
 		button_load_stop.setImageResource(loading ? R.drawable.ms_stop : R.drawable.ms_refresh);
 		button_load_stop.setContentDescription(loading ? "Interromper carregamento" : "Atualizar página");
 	}
+
 
 	private void initializeLogic() {
 		_armazenamento();
