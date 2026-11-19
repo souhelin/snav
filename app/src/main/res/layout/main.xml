@@ -139,7 +139,7 @@
                         android:layout_weight="1"
                         android:gravity="center_vertical"
                         android:maxLines="1"
-                        android:ellipsize="middle"
+                        android:ellipsize="end"
                         android:text="Snav Browser"
                         android:textColor="@color/snav_on_surface"
                         android:textSize="15sp"
