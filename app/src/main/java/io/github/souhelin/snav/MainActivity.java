@@ -1497,7 +1497,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 
 		SpringForce spatialSpring = MotionUtils.resolveThemeSpringForce(
-			this, com.google.android.material.R.attr.motionSpringFastSpatial);
+			this,
+			com.google.android.material.R.attr.motionSpringFastSpatial,
+			com.google.android.material.R.style.Motion_Material3_Spring_Standard_Fast_Spatial);
 		pullRotationSpring = new SpringAnimation(
 			button_load_stop, DynamicAnimation.ROTATION, 0f);
 		pullRotationSpring.setSpring(spatialSpring);
