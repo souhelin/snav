@@ -1,3 +1,19 @@
+## 2026-11-19 — Wallpaper Unsplash e atualização por gesto
+
+### Adicionado
+- Fonte exclusiva de wallpapers em imagens hospedadas no CDN oficial `images.unsplash.com`, com fotografias de natureza, paisagens e lugares.
+- Switch persistente para ativar ou desativar o wallpaper na tela de ferramentas.
+- Cache local persistente limitado a oito imagens, baixadas em segundo plano por HTTPS e reutilizadas sem conexão.
+- Enquadramento central proporcional com recorte para preencher a tela, sem deformar as imagens.
+- Controle único de carregar/interromper ao lado das informações do site na barra de endereço.
+- Gesto Pull to Refresh no topo da página, com rotação amortecida tipo mola e sem dependência adicional.
+
+### Corrigido
+- Contraste do texto digitado no campo de pesquisa no tema claro.
+
+### Verificação
+- Compilação e testes locais ainda não foram executados neste ambiente; validar com `./gradlew test assembleDebug` antes de integrar à `main`.
+
 # Histórico de alterações — Snav Browser
 
 Este arquivo registra mudanças confirmadas no repositório. Itens de privacidade ainda em planejamento ficam separados do histórico de recursos implementados.
