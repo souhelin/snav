@@ -1016,104 +1016,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 
 
-	private void grantWebPermissionWhenAndroidAllows(PermissionRequest request, String[] resources) {
-		if (request == null || isFinishing()) return;
-		java.util.ArrayList<String> required = new java.util.ArrayList<String>();
-		for (String resource : resources) {
-			if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
-				required.add(android.Manifest.permission.CAMERA);
-			} else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
-				required.add(android.Manifest.permission.RECORD_AUDIO);
-			} else {
-				request.deny();
-				return;
-			}
-		}
-		if (Build.VERSION.SDK_INT >= 23) {
-			java.util.ArrayList<String> missing = new java.util.ArrayList<String>();
-			for (String permission : required) {
-				if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) missing.add(permission);
-			}
-			if (!missing.isEmpty()) {
-				pendingWebPermissionRequest = request;
-				requestPermissions(missing.toArray(new String[missing.size()]), 4101);
-				return;
-			}
-		}
-		request.grant(resources);
-	}
-
-	private void grantGeolocationWhenAndroidAllows(String origin, GeolocationPermissions.Callback callback) {
-		if (Build.VERSION.SDK_INT >= 23
-			&& checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED
-			&& checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-			pendingGeolocationOrigin = origin;
-			pendingGeolocationCallback = callback;
-			requestPermissions(new String[] {
-				android.Manifest.permission.ACCESS_FINE_LOCATION,
-				android.Manifest.permission.ACCESS_COARSE_LOCATION
-			}, 4102);
-			return;
-		}
-		callback.invoke(origin, true, false);
-	}
-
-	@Override
+			@Override
 	public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
 		super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-		if (requestCode == 4101) {
-			PermissionRequest pending = pendingWebPermissionRequest;
-			pendingWebPermissionRequest = null;
-			if (pending == null) return;
-			boolean granted = grantResults.length > 0;
-			for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
-			if (granted) pending.grant(pending.getResources()); else pending.deny();
-		} else if (requestCode == 4102) {
-			GeolocationPermissions.Callback callback = pendingGeolocationCallback;
-			String origin = pendingGeolocationOrigin;
-			pendingGeolocationCallback = null;
-			pendingGeolocationOrigin = null;
-			if (callback == null) return;
-			boolean granted = Build.VERSION.SDK_INT < 23
-				|| checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
-				|| checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
-			callback.invoke(origin, granted, false);
+		if (requestCode == 4103) {
+			GeckoSession.PermissionDelegate.Callback callback = pendingAndroidPermissionCallback;
+			pendingAndroidPermissionCallback = null;
+			if (callback != null) {
+				boolean granted = grantResults != null && grantResults.length > 0;
+				for (int result : grantResults) granted = granted && result == android.content.pm.PackageManager.PERMISSION_GRANTED;
+				if (granted) callback.grant(); else callback.reject();
+			}
 		}
 	}
 
-	private void addThirdPartyCookiePreference(boolean enabled) {
-		if (linear33 == null || android.os.Build.VERSION.SDK_INT < 21
-			|| linear33.findViewWithTag("snav_third_party_cookie_preference") != null) return;
-		LinearLayout row = new LinearLayout(this);
-		row.setTag("snav_third_party_cookie_preference");
-		row.setOrientation(LinearLayout.VERTICAL);
-		row.setPadding(dp(8), dp(8), dp(8), dp(8));
-		MaterialSwitch toggle = new MaterialSwitch(this);
-		toggle.setText("Cookies de terceiros");
-		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
-		toggle.setTextSize(14);
-		toggle.setChecked(enabled);
-		TextView summary = new TextView(this);
-		summary.setText("Bloqueados por padrão; permitir pode aumentar o rastreamento entre sites.");
-		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
-		summary.setTextSize(12);
-		summary.setPadding(dp(40), 0, dp(8), 0);
-		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
-		row.addView(summary, new LinearLayout.LayoutParams(-1, -2));
-		toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-			@Override public void onCheckedChanged(CompoundButton button, boolean checked) {
-				Dados.edit().putBoolean("third_party_cookies", checked).apply();
-				CookieManager.getInstance().setAcceptThirdPartyCookies(geckoView, checked);
-				com.google.android.material.snackbar.Snackbar.make(linear33,
-					checked ? "Cookies de terceiros permitidos" : "Cookies de terceiros bloqueados",
-					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
-			}
-		});
-		int insertAt = Math.max(0, linear33.getChildCount() - 1);
-		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
-	}
-
-	private void addTrackerBlockingPreference(boolean enabled) {
+		private void addTrackerBlockingPreference(boolean enabled) {
 		if (linear33 == null || linear33.findViewWithTag("snav_tracker_preference") != null) return;
 		LinearLayout row = new LinearLayout(this);
 		row.setTag("snav_tracker_preference");
@@ -1173,99 +1090,31 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
 	}
 
-	private void loadUrlWithPrivacyHeaders(WebView view, String url) {
-		if (view == null || url == null) return;
-		if (Dados.getBoolean("do_not_track", false)) {
-			java.util.HashMap<String, String> headers = new java.util.HashMap<String, String>();
-			headers.put("DNT", "1");
-			view.loadUrl(url, headers);
-		} else {
-			view.loadUrl(url);
+	private void loadUrlWithPrivacyHeaders(String url) {
+		if (geckoEngine == null || url == null) return;
+		try { geckoEngine.loadUri(url, Dados.getBoolean("do_not_track", false)); }
+		catch (IllegalArgumentException | SecurityException error) {
+			logDiagnostic("Navegação recusada: " + error.getClass().getSimpleName());
+			Toast.makeText(this, "Endereço não permitido. O Snav exige HTTPS.", Toast.LENGTH_LONG).show();
 		}
 	}
 
-	private void clearCookiesForOrigin(String url) {
-		if (url == null) return;
-		CookieManager manager = CookieManager.getInstance();
-		String cookies = manager.getCookie(url);
-		if (cookies == null || cookies.trim().isEmpty()) return;
-		String[] pairs = cookies.split(";");
-		for (String pair : pairs) {
-			int separator = pair.indexOf('=');
-			if (separator <= 0) continue;
-			String name = pair.substring(0, separator).trim();
-			if (!name.matches("[!#$%&'*+.^_`|~0-9A-Za-z-]+")) continue;
-			manager.setCookie(url, name + "=; Path=/; Max-Age=0; SameSite=Lax");
-		}
-
-	}
-
-	private boolean shouldBlockThirdPartyTracker(WebView view, WebResourceRequest request) {
-		if (view == null || request == null || request.isForMainFrame()) return false;
-		return shouldBlockThirdPartyTracker(request);
-	}
-
-	private boolean shouldBlockThirdPartyTracker(WebResourceRequest request) {
-		if (!Dados.getBoolean("tracker_blocking", true) || request == null) return false;
-		Uri resource = request.getUrl();
-		String referrer = request.getRequestHeaders().get("Referer");
-		if (referrer == null || referrer.trim().isEmpty()) return false;
-		Uri page = Uri.parse(referrer);
-		String resourceHost = resource == null ? null : resource.getHost();
-		String pageHost = page.getHost();
-		if (resourceHost == null || pageHost == null || resourceHost.equalsIgnoreCase(pageHost)) return false;
-		if (isSameSiteHost(resourceHost, pageHost)) return false;
-		for (String domain : TRACKER_DOMAINS) {
-			if (resourceHost.equalsIgnoreCase(domain)
-				|| resourceHost.toLowerCase(java.util.Locale.US).endsWith("." + domain)) return true;
-		}
-		return false;
-	}
-
-	private boolean isSameSiteHost(String first, String second) {
-		String a = first.toLowerCase(java.util.Locale.US);
-		String b = second.toLowerCase(java.util.Locale.US);
-		return a.endsWith("." + b) || b.endsWith("." + a);
-	}
-
-	private int dp(float value) {
+					private int dp(float value) {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
 	}
 
-	private WebResourceResponse blockInsecurePostFromSecurePage(final WebView view, WebResourceRequest request) {
-		if (request == null || !request.isForMainFrame()
-			|| !"POST".equalsIgnoreCase(request.getMethod())) return null;
-		Uri target = request.getUrl();
-		if (target == null || !"http".equalsIgnoreCase(target.getScheme())) return null;
-		String current = view == null ? null : view.getUrl();
-		if (current == null || !current.regionMatches(true, 0, "https://", 0, 8)) return null;
-		if (view != null) {
-			view.post(new Runnable() {
-				@Override public void run() {
-					Toast.makeText(MainActivity.this,
-						"Envio de formulário HTTP bloqueado para proteger seus dados.",
-						Toast.LENGTH_LONG).show();
-				}
-			});
-		}
-		return new WebResourceResponse("text/plain", "UTF-8", 403, "Blocked",
-			new java.util.HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
-	}
-
-	private void showInsecureConnectionDialog(final WebView view, final String url) {
+		private void showInsecureConnectionDialog(final String url) {
 		final Uri parsed = Uri.parse(url);
-		final String host = parsed.getHost() == null ? "este endereço" : parsed.getHost();
+		if (parsed.getHost() == null || parsed.getUserInfo() != null) return;
+		final String host = parsed.getHost();
 		final String secureUrl = parsed.buildUpon().scheme("https").build().toString();
 		new AlertDialog.Builder(this)
 			.setTitle("HTTP bloqueado")
-			.setMessage("O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS? Se o site não oferecer HTTPS, a navegação será bloqueada.")
+			.setMessage("O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS?")
 			.setPositiveButton("Tentar HTTPS", new DialogInterface.OnClickListener() {
-				@Override public void onClick(DialogInterface dialog, int which) {
-					loadUrlWithPrivacyHeaders(view, secureUrl);
-				}
+				@Override public void onClick(DialogInterface dialog, int which) { loadUrlWithPrivacyHeaders(secureUrl); }
 			})
-			.setNegativeButton("Cancelar", null)
-			.show();
+			.setNegativeButton("Cancelar", null).show();
 	}
 
 
@@ -1561,52 +1410,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	
 	public void _armazenamento() {
-		//PARA O ARMAZENAMENTO DE DADOS
-		//brilho da tela
-		if (Dados.getString("brilho", "").equals("ativado")) {
-			checkbox_brilho.setChecked(true);
-			geckoView.setAlpha((float)(0.5d));
-		} else {
-			
-		}
-		if (Dados.getString("brilho", "").equals("desativado")) {
-			checkbox_brilho.setChecked(false);
-			geckoView.setAlpha((float)(1.0d));
-		} else {
-			
-		}
-		//javascript
-		if (Dados.getString("java", "").equals("ativado")) {
-			checkbox_javascript2.setChecked(true);
-			geckoView.getSettings().setJavaScriptEnabled(true); 
-		} else {
-			
-		}
-		if (Dados.getString("java", "").equals("desativado")) {
-			checkbox_javascript2.setChecked(false);
-			geckoView.getSettings().setJavaScriptEnabled(false); 
-		} else {
-			
-		}
-		//vazio
-		if (Dados.getString("vazio", "").equals("desativado")) {
-			geckoView.setWebViewClient(new android.webkit.WebViewClient() {
-				@Override
-				public void onPageFinished(android.webkit.WebView view, String url) {
-					super.onPageFinished(view, url);
-					
-					String u = view.getUrl();
-					
-					if (u == null || u.equals("") || u.equals("about:blank")) {
-						vazio.setVisibility(android.view.View.VISIBLE);
-					} else {
-						vazio.setVisibility(android.view.View.GONE);
-					}
-				}
-			});
-		} else {
-			
-		}
+		boolean dimmed = "ativado".equals(Dados.getString("brilho", ""));
+		checkbox_brilho.setChecked(dimmed);
+		geckoView.setAlpha(dimmed ? 0.5f : 1f);
+		javaScriptEnabled = !"desativado".equals(Dados.getString("java", "ativado"));
+		checkbox_javascript2.setChecked(javaScriptEnabled);
+		if (geckoEngine != null) geckoEngine.setJavaScriptEnabled(javaScriptEnabled);
+		vazio.setVisibility(View.VISIBLE);
 	}
 	
 	
@@ -1616,92 +1426,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	
 	public void _download() {
-		geckoView.setDownloadListener(new DownloadListener() {
-			@Override
-			public void onDownloadStart(final String url, final String userAgent, final String contentDisposition, final String mimetype, long contentLength) {
-				Uri downloadUri = Uri.parse(url == null ? "" : url);
-				String downloadScheme = downloadUri.getScheme();
-				if (downloadUri.getHost() == null || downloadUri.getUserInfo() != null
-					|| !"https".equalsIgnoreCase(downloadScheme)) {
-					Toast.makeText(MainActivity.this, "Download bloqueado: somente endereços HTTPS são permitidos.", Toast.LENGTH_LONG).show();
-					return;
-				}
-				String suggestedName = URLUtil.guessFileName(url, contentDisposition, mimetype);
-				final String fileName = (suggestedName == null ? "download" : suggestedName)
-					.replace('/', '_').replace(':', '_');
-				
-				// Verifica permissão no Sketchware/Android
-				if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28) {
-					if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_DENIED) {
-						requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1000);
-					}
-				}
-				
-				AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-				builder.setTitle("Download");
-				builder.setMessage("Deseja baixar o arquivo " + fileName + "?");
-				builder.setPositiveButton("Sim", new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						if (android.os.Build.VERSION.SDK_INT >= 23 && android.os.Build.VERSION.SDK_INT <= 28
-							&& checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-							!= android.content.pm.PackageManager.PERMISSION_GRANTED) {
-							Toast.makeText(MainActivity.this, "Permissão de armazenamento negada. Download cancelado.", Toast.LENGTH_LONG).show();
-							return;
-						}
-						try {
-							DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-							request.setTitle(fileName);
-							request.setDescription("Baixando...");
-							request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-							request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-							
-							// Adiciona UserAgent e Cookies para evitar erros de 403 Forbidden
-								String cookie = android.webkit.CookieManager.getInstance().getCookie(url);
-							if (cookie != null && !cookie.trim().isEmpty()) {
-								request.addRequestHeader("Cookie", cookie);
-							}
-							if (userAgent != null && !userAgent.trim().isEmpty()) {
-								request.addRequestHeader("User-Agent", userAgent);
-							}
-							
-							DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-							if (dm == null) throw new IllegalStateException("Gerenciador de downloads indisponível");
-							dm.enqueue(request);
-							android.widget.Toast.makeText(getApplicationContext(), "Download iniciado...", android.widget.Toast.LENGTH_SHORT).show();
-						} catch (Exception e) {
-							logDiagnostic("Falha ao iniciar download: " + e.getClass().getSimpleName());
-							android.widget.Toast.makeText(getApplicationContext(), "Não foi possível iniciar o download", android.widget.Toast.LENGTH_SHORT).show();
-						}
-					}
-				});
-				builder.setNegativeButton("Não", null);
-				
-				// Estilo Customizado (Bordas 20, Fundo 34495E, Botões 9E9E9E)
-				final AlertDialog d = builder.create();
-				d.show();
-				
-				android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
-				gd.setColor(0xFF34495E);
-				gd.setCornerRadius(20);
-				d.getWindow().setBackgroundDrawable(gd);
-				d.getWindow().setDimAmount(0.7f);
-				
-				d.getButton(DialogInterface.BUTTON_POSITIVE).setTextColor(0xFF9E9E9E);
-				d.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(0xFF9E9E9E);
-				
-				// Cor do texto para contraste
-				android.widget.TextView tvMsg = (android.widget.TextView) d.findViewById(android.R.id.message);
-				if (tvMsg != null) tvMsg.setTextColor(android.graphics.Color.WHITE);
-				
-				int titleId = getResources().getIdentifier("alertTitle", "id", "android");
-				if (titleId > 0) {
-					android.widget.TextView tvTitle = (android.widget.TextView) d.findViewById(titleId);
-					tvTitle.setTextColor(android.graphics.Color.WHITE);
-				}
-			}
-		});
-		
+		// GeckoView delivers downloads through ContentDelegate.onExternalResponse.
 	}
 	
 	
