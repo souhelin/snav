@@ -47,6 +47,7 @@ public final class GeckoEngineController {
     private boolean closed;
     private boolean canGoBack;
     private boolean canGoForward;
+    private boolean storageOperationInProgress;
     private String currentUri;
     private GeckoSession.SessionState sessionState;
 
@@ -310,17 +311,20 @@ public final class GeckoEngineController {
     public GeckoResult<Void> clearSiteData(String host) {
         ensureOpen();
         if (host == null || host.trim().isEmpty()) throw new IllegalArgumentException("Host is required");
+        if (storageOperationInProgress) return GeckoResult.fromException(new IllegalStateException("A storage operation is already running"));
         return clearAndReattach(host,
             StorageController.ClearFlags.SITE_DATA | StorageController.ClearFlags.SITE_SETTINGS, false);
     }
 
     public GeckoResult<Void> clearBrowsingData() {
         ensureOpen();
+        if (storageOperationInProgress) return GeckoResult.fromException(new IllegalStateException("A storage operation is already running"));
         session.purgeHistory();
         return clearAndReattach(null, StorageController.ClearFlags.ALL, true);
     }
 
     private GeckoResult<Void> clearAndReattach(final String host, final long flags, final boolean allHosts) {
+        storageOperationInProgress = true;
         view.releaseSession();
         if (session.isOpen()) session.close();
         final GeckoResult<Void> result = new GeckoResult<Void>(mainHandler);
@@ -329,6 +333,7 @@ public final class GeckoEngineController {
                 if (closed) {
                     mainHandler.post(new Runnable() {
                         @Override public void run() {
+                            storageOperationInProgress = false;
                             result.completeExceptionally(new IllegalStateException("Gecko engine is closed"));
                         }
                     });
@@ -342,6 +347,7 @@ public final class GeckoEngineController {
                     mainHandler.post(new Runnable() {
                         @Override public void run() {
                             if (!closed) reattachSession(false);
+                            storageOperationInProgress = false;
                             result.completeExceptionally(error);
                         }
                     });
@@ -353,10 +359,12 @@ public final class GeckoEngineController {
                             mainHandler.post(new Runnable() {
                                 @Override public void run() {
                                     if (closed) {
+                                        storageOperationInProgress = false;
                                         result.completeExceptionally(new IllegalStateException("Gecko engine is closed"));
                                         return;
                                     }
                                     reattachSession(true);
+                                    storageOperationInProgress = false;
                                     result.complete(null);
                                 }
                             });
@@ -367,6 +375,7 @@ public final class GeckoEngineController {
                             mainHandler.post(new Runnable() {
                                 @Override public void run() {
                                     if (!closed) reattachSession(false);
+                                    storageOperationInProgress = false;
                                     result.completeExceptionally(error);
                                 }
                             });
@@ -374,7 +383,10 @@ public final class GeckoEngineController {
                     });
             }
         });
-        if (!posted) result.completeExceptionally(new IllegalStateException("Storage worker is unavailable"));
+        if (!posted) {
+            storageOperationInProgress = false;
+            result.completeExceptionally(new IllegalStateException("Storage worker is unavailable"));
+        }
         return result;
     }
 
@@ -423,6 +435,7 @@ public final class GeckoEngineController {
     public void close() {
         if (closed) return;
         closed = true;
+        storageOperationInProgress = false;
         listener = null;
         GeckoSession detached = view.releaseSession();
         if (detached != null && detached.isOpen()) detached.close();
