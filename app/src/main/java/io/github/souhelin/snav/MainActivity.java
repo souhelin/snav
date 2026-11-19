@@ -28,9 +28,12 @@ import android.view.*;
 import android.view.View;
 import android.view.View.*;
 import android.view.animation.*;
-import android.webkit.*;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
+import android.webkit.URLUtil;
+import android.provider.MediaStore;
+import org.mozilla.geckoview.GeckoResult;
+import org.mozilla.geckoview.GeckoSession;
+import org.mozilla.geckoview.GeckoView;
+import org.mozilla.geckoview.WebResponse;
 import android.widget.*;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.motion.MotionUtils;
@@ -65,9 +68,15 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		"facebook.net", "hotjar.com", "scorecardresearch.com", "clarity.ms",
 		"quantserve.com", "taboola.com", "outbrain.com"
 	};
-	private PermissionRequest pendingWebPermissionRequest;
-	private String pendingGeolocationOrigin;
-	private GeolocationPermissions.Callback pendingGeolocationCallback;
+	private GeckoEngineController geckoEngine;
+	private int geckoScrollY;
+	private boolean javaScriptEnabled = true;
+	private boolean readerMode;
+	private String readerOriginalUri;
+	private GeckoSession.PermissionDelegate.Callback pendingAndroidPermissionCallback;
+	private WebResponse pendingGeckoDownload;
+	private String pendingGeckoDownloadName;
+	private final java.util.concurrent.ExecutorService downloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 	
 	private LinearLayout linear1;
 	private LinearLayout linear_c;
@@ -82,7 +91,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private LinearLayout linear_tela2_base;
 	private LinearLayout linear_b;
 	private LinearLayout vazio;
-	private WebView webview;
+	private GeckoView geckoView;
 	private TextView text_barra;
 	private ImageButton button_site_info;
 	private ProgressBar prog;
@@ -156,7 +165,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_tela2_base = findViewById(R.id.linear_tela2_base);
 		linear_b = findViewById(R.id.linear_b);
 		vazio = findViewById(R.id.vazio);
-		webview = findViewById(R.id.webview);
+		geckoView = findViewById(R.id.webview);
 		webview.getSettings().setJavaScriptEnabled(true);
 		webview.getSettings().setSupportZoom(true);
 		text_barra = findViewById(R.id.text_barra);
