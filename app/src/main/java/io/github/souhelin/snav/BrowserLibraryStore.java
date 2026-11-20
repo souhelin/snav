@@ -122,8 +122,7 @@ public final class BrowserLibraryStore {
         int imported = 0;
         while (matcher.find()) {
             String url = matcher.group(1);
-            String title = android.text.Html.fromHtml(matcher.group(2),
-                android.text.Html.FROM_HTML_MODE_LEGACY).toString().trim();
+            String title = android.text.Html.fromHtml(matcher.group(2)).toString().trim();
             if (addBookmark(title, url)) imported++;
         }
         return imported;
@@ -136,7 +135,7 @@ public final class BrowserLibraryStore {
             html.append("<DT><A HREF=\"").append(escape(entry.url)).append("\">")
                 .append(escape(entry.title)).append("</A>\\n");
         }
-        return html.append("</DL><p>\\n").toString();
+        return html.append("</DL><p>\n").toString();
     }
 
     private static String escape(String value) {
