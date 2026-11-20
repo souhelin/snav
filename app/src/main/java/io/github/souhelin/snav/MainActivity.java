@@ -31,6 +31,7 @@ import android.view.animation.*;
 import android.provider.MediaStore;
 import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.geckoview.GeckoSession;
+import org.mozilla.geckoview.PageExtractionController;
 import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.WebResponse;
 import android.widget.*;
@@ -68,7 +69,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private int geckoScrollY;
 	private boolean javaScriptEnabled = true;
 	private boolean readerMode;
+	private boolean readerModePending;
+	private int readerRequestId;
 	private String readerOriginalUri;
+	private String currentPageTitle;
+	private View readerContentView;
 	private volatile String detectedPageLanguage;
 	private HandlerThread translationThread;
 	private Handler translationHandler;
@@ -733,6 +738,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onDestroy() {
 		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
 		wallpaperCallback = null;
+		readerRequestId++;
+		readerModePending = false;
 		if (pendingGeckoDownload != null) {
 			closeResponseBody(pendingGeckoDownload);
 			pendingGeckoDownload = null;
@@ -1052,7 +1059,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	private void showReaderOptionsBottomSheet() {
 		final String current = geckoEngine == null ? null : geckoEngine.getCurrentUri();
-		if (current == null || !isSecureOrigin(current) && !readerMode) {
+		if (current == null || !isSecureOrigin(current)) {
 			Toast.makeText(this, "Abra uma página HTTPS para usar o modo leitura", Toast.LENGTH_SHORT).show();
 			return;
 		}
@@ -1070,7 +1077,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		content.addView(title);
 		TextView description = new TextView(this);
-		description.setText("O Snav usa a visualização de leitura integrada ao GeckoView para apresentar o conteúdo principal da página sem a interface original do site.");
+		description.setText("Extrai o conteúdo principal da página e apresenta o texto em uma visualização limpa, sem navegar para uma página interna do navegador.");
 		description.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
 		description.setTextSize(14);
 		description.setPadding(0, dp(8), 0, dp(20));
@@ -1084,21 +1091,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(action, readerActionParams);
 		action.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
-				if (geckoEngine == null) return;
-				if (!readerMode) {
+				if (readerMode) {
+					exitReaderMode();
+				} else if (!readerModePending) {
 					readerOriginalUri = current;
-					try {
-						geckoEngine.loadUri("about:reader?url=" + Uri.encode(current), Dados.getBoolean("do_not_track", false));
-					} catch (RuntimeException error) {
-						readerOriginalUri = null;
-						readerMode = false;
-						linear_modo_leitura.setAlpha(1f);
-						Toast.makeText(MainActivity.this, "Não foi possível ativar o modo leitura nesta página", Toast.LENGTH_LONG).show();
-					}
-				} else {
-					readerMode = false;
-					linear_modo_leitura.setAlpha(1f);
-					if (readerOriginalUri != null) geckoEngine.loadUri(readerOriginalUri, Dados.getBoolean("do_not_track", false));
+					readerModePending = true;
+					activateReaderMode(current);
 				}
 				sheet.dismiss();
 			}
@@ -1111,6 +1109,189 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		sheet.getBehavior().setSkipCollapsed(true);
 	}
 
+	private void activateReaderMode(final String sourceUri) {
+		if (geckoEngine == null || !isSecureOrigin(sourceUri)) {
+			readerModePending = false;
+			readerOriginalUri = null;
+			Toast.makeText(this, "Não foi possível preparar esta página para leitura", Toast.LENGTH_LONG).show();
+			return;
+		}
+		final GeckoSession sourceSession = geckoEngine.getSession();
+		final int requestId = ++readerRequestId;
+		ensureTranslationThread();
+		translationHandler.post(new Runnable() {
+			@Override public void run() {
+				try {
+					sourceSession.getSessionPageExtractor().getPageMetadata().accept(
+						new GeckoResult.Consumer<PageExtractionController.PageMetadata>() {
+							@Override public void accept(final PageExtractionController.PageMetadata metadata) {
+								if (metadata == null || !metadata.isReaderable) {
+								showReaderExtractionError(requestId, sourceUri, sourceSession,
+									"Esta página não possui um artigo compatível com o modo de leitura");
+									return;
+								}
+								translationHandler.post(new Runnable() {
+									@Override public void run() {
+										try {
+											sourceSession.getSessionPageExtractor().getPageContent(
+												new PageExtractionController.ContentParams(true, true)
+											).accept(
+											new GeckoResult.Consumer<String>() {
+												@Override public void accept(final String article) {
+													runOnUiThread(new Runnable() {
+														@Override public void run() {
+															if (!isCurrentReaderRequest(requestId, sourceUri, sourceSession)) return;
+															if (article == null || article.trim().isEmpty()) {
+																showReaderExtractionErrorOnUi("Não foi possível extrair o conteúdo principal desta página");
+																return;
+															}
+															displayReaderContent(sourceUri, article);
+														}
+													});
+												}
+											},
+											new GeckoResult.Consumer<Throwable>() {
+												@Override public void accept(Throwable error) {
+													runOnUiThread(new Runnable() {
+													@Override public void run() {
+														if (isCurrentReaderRequest(requestId, sourceUri, sourceSession)) {
+															showReaderExtractionErrorOnUi("Não foi possível extrair o conteúdo desta página");
+														}
+													}
+												});
+												}
+											}
+										);
+										} catch (RuntimeException error) {
+										showReaderExtractionError(requestId, sourceUri, sourceSession,
+											"Não foi possível extrair o conteúdo desta página");
+									}
+								}
+							});
+							}
+						},
+						new GeckoResult.Consumer<Throwable>() {
+							@Override public void accept(Throwable error) {
+								showReaderExtractionError(requestId, sourceUri, sourceSession,
+									"Não foi possível analisar esta página para leitura");
+							}
+						}
+					);
+				} catch (RuntimeException error) {
+					showReaderExtractionError(requestId, sourceUri, sourceSession,
+						"Não foi possível iniciar o modo de leitura");
+				}
+			}
+		});
+	}
+
+	private boolean isCurrentReaderRequest(int requestId, String sourceUri, GeckoSession sourceSession) {
+		return !isFinishing() && !isDestroyed() && readerModePending
+			&& readerRequestId == requestId && geckoEngine != null
+			&& geckoEngine.getSession() == sourceSession
+			&& sourceUri.equals(geckoEngine.getCurrentUri());
+	}
+
+	private void showReaderExtractionError(int requestId, String sourceUri,
+		GeckoSession sourceSession, final String message) {
+		runOnUiThread(new Runnable() {
+			@Override public void run() {
+				if (isCurrentReaderRequest(requestId, sourceUri, sourceSession)) {
+					showReaderExtractionErrorOnUi(message);
+				}
+			}
+		});
+	}
+
+	private void showReaderExtractionErrorOnUi(String message) {
+		readerModePending = false;
+		readerOriginalUri = null;
+		Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+	}
+
+	private void displayReaderContent(String sourceUri, String article) {
+		if (browserContentContainer == null || geckoView == null) {
+			showReaderExtractionErrorOnUi("A visualização de leitura não está disponível");
+			return;
+		}
+		if (readerContentView != null) browserContentContainer.removeView(readerContentView);
+		LinearLayout page = new LinearLayout(this);
+		page.setOrientation(LinearLayout.VERTICAL);
+		page.setPadding(dp(24), dp(24), dp(24), dp(32));
+		page.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+
+		TextView eyebrow = new TextView(this);
+		eyebrow.setText("MODO DE LEITURA");
+		eyebrow.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		eyebrow.setTextSize(12);
+		eyebrow.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		page.addView(eyebrow);
+
+		String heading = currentPageTitle == null || currentPageTitle.trim().isEmpty()
+			? Uri.parse(sourceUri).getHost() : currentPageTitle.trim();
+		TextView title = new TextView(this);
+		title.setText(heading == null ? "Artigo" : heading);
+		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextSize(25);
+		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+		title.setLineSpacing(dp(2), 1.05f);
+		LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
+		titleParams.topMargin = dp(10);
+		page.addView(title, titleParams);
+
+		TextView source = new TextView(this);
+		source.setText(Uri.parse(sourceUri).getHost() == null ? sourceUri : Uri.parse(sourceUri).getHost());
+		source.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		source.setTextSize(13);
+		LinearLayout.LayoutParams sourceParams = new LinearLayout.LayoutParams(-1, -2);
+		sourceParams.topMargin = dp(8);
+		sourceParams.bottomMargin = dp(20);
+		page.addView(source, sourceParams);
+
+		MaterialButton back = new MaterialButton(this);
+		back.setText("Voltar à página original");
+		back.setAllCaps(false);
+		back.setCornerRadius(dp(20));
+		page.addView(back, new LinearLayout.LayoutParams(-1, dp(48)));
+		back.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) { exitReaderMode(); }
+		});
+
+		TextView body = new TextView(this);
+		body.setText(article);
+		body.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		body.setTextSize(18);
+		body.setLineSpacing(dp(8), 1.18f);
+		body.setTextIsSelectable(true);
+		LinearLayout.LayoutParams bodyParams = new LinearLayout.LayoutParams(-1, -2);
+		bodyParams.topMargin = dp(24);
+		page.addView(body, bodyParams);
+
+		ScrollView readerScroll = new ScrollView(this);
+		readerScroll.setFillViewport(false);
+		readerScroll.setClipToPadding(false);
+		readerScroll.addView(page, new ScrollView.LayoutParams(-1, -2));
+		readerContentView = readerScroll;
+		browserContentContainer.addView(readerContentView,
+			new FrameLayout.LayoutParams(-1, -1));
+		geckoView.setVisibility(View.GONE);
+		readerModePending = false;
+		readerMode = true;
+		if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(0.65f);
+	}
+
+	private void exitReaderMode() {
+		if (readerContentView != null && browserContentContainer != null) {
+			browserContentContainer.removeView(readerContentView);
+		}
+		readerContentView = null;
+		if (geckoView != null) geckoView.setVisibility(View.VISIBLE);
+		readerMode = false;
+		readerModePending = false;
+		readerOriginalUri = null;
+		readerRequestId++;
+		if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(1f);
+	}
 
 	private int siteInfoDp(float value) {
 		return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
@@ -2116,18 +2297,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     finishPageProgress();
                     setLoadStopIcon(false);
                     vazio.setVisibility(uri == null || uri.isEmpty() || "about:blank".equals(uri) ? View.VISIBLE : View.GONE);
-                    if (!success) {
-                        logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
-                        if (uri != null && uri.regionMatches(true, 0, "about:reader?", 0, 13)
-                            && readerOriginalUri != null && geckoEngine != null) {
-                            String original = readerOriginalUri;
-                            readerOriginalUri = null;
-                            readerMode = false;
-                            if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(1f);
-                            Toast.makeText(MainActivity.this, "Esta página não pôde ser convertida para o modo leitura", Toast.LENGTH_LONG).show();
-                            loadUrlWithPrivacyHeaders(original);
-                        }
-                    }
+                    if (!success) logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
                 }
                 @Override public void onProgressChanged(int value) {
                     if (!pageLoading) beginPageProgress();
@@ -2140,12 +2310,19 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     }
                 }
                 @Override public void onLocationChanged(String uri) {
-                    readerMode = uri != null && uri.regionMatches(true, 0, "about:reader?", 0, 13);
-                    if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(readerMode ? 0.65f : 1f);
-                    if (!readerMode && readerOriginalUri != null && uri != null && uri.equals(readerOriginalUri)) readerOriginalUri = null;
+                    if (uri != null && readerOriginalUri != null && !uri.equals(readerOriginalUri)) {
+                        if (readerModePending) {
+                            readerRequestId++;
+                            readerModePending = false;
+                            readerOriginalUri = null;
+                        } else if (readerMode) {
+                            exitReaderMode();
+                        }
+                    }
                     text_barra.setText(domainForAddressBar(uri));
                 }
                 @Override public void onTitleChanged(String title) {
+                    currentPageTitle = title;
                     // The address bar intentionally displays the domain, never the page title.
                 }
                 @Override public void onInsecureNavigationBlocked(String uri, String source) {
