@@ -157,6 +157,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onCreate(Bundle _savedInstanceState) {
 		super.onCreate(_savedInstanceState);
 		setContentView(R.layout.main);
+		applyImeInsetsWorkaround();
 		if (_savedInstanceState != null) {
 			if (Build.VERSION.SDK_INT >= 33) {
 				pendingSessionState = _savedInstanceState.getParcelable(STATE_GECKO_SESSION, GeckoSession.SessionState.class);
@@ -172,6 +173,35 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		showPendingCrashReport();
 	}
 	
+	/**
+	 * Android 15 enforces edge-to-edge for apps targeting SDK 35. In that mode
+	 * adjustResize alone may leave the content drawing behind the IME. Apply the
+	 * IME/system-bar insets to the content host so the weighted browser/home area
+	 * is measured in the actually visible region. Older releases keep the
+	 * manifest's adjustResize behavior.
+	 */
+	private void applyImeInsetsWorkaround() {
+		if (Build.VERSION.SDK_INT < 30) return;
+		final View content = findViewById(android.R.id.content);
+		if (content == null) return;
+		final int initialLeft = content.getPaddingLeft();
+		final int initialTop = content.getPaddingTop();
+		final int initialRight = content.getPaddingRight();
+		final int initialBottom = content.getPaddingBottom();
+		content.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+			@Override public WindowInsets onApplyWindowInsets(View view, WindowInsets insets) {
+				android.graphics.Insets bars = insets.getInsets(
+					WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+				android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
+				int bottomInset = Math.max(bars.bottom, ime.bottom);
+				view.setPadding(initialLeft, Math.max(initialTop, bars.top), initialRight,
+					Math.max(initialBottom, bottomInset));
+				return insets;
+			}
+		});
+		content.requestApplyInsets();
+	}
+
 	private void initialize(Bundle _savedInstanceState) {
 		linear1 = findViewById(R.id.linear1);
 		linear_c = findViewById(R.id.linear_c);
