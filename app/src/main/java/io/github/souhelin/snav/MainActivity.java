@@ -1426,7 +1426,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         readerRequestId++; readerModePending = false; readerMode = false; readerOriginalUri = null;
         if (target.state != null) geckoEngine.restoreState(target.state);
         else if (target.url != null && target.url.startsWith("https://")) loadUrlWithPrivacyHeaders(target.url);
-        else geckoEngine.loadUri("about:blank");
+        else geckoEngine.loadUri("about:blank", false);
         currentPageTitle = target.title; text_barra.setText(domainForAddressBar(target.url));
         vazio.setVisibility(target.url == null || target.url.isEmpty() || "about:blank".equals(target.url) ? View.VISIBLE : View.GONE);
         updateTabCounter(); persistBrowserTabs();
@@ -1443,7 +1443,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private void closeBrowserTab(int index) {
         if (browserTabs.size() <= 1) {
             BrowserTab only = browserTabs.get(0); only.title = "Nova guia"; only.url = null; only.state = null;
-            currentPageTitle = null; activeBrowserTab = 0; text_barra.setText("Snav Browser"); vazio.setVisibility(View.VISIBLE); if (geckoEngine != null) geckoEngine.loadUri("about:blank");
+            currentPageTitle = null; activeBrowserTab = 0; text_barra.setText("Snav Browser"); vazio.setVisibility(View.VISIBLE); if (geckoEngine != null) geckoEngine.loadUri("about:blank", false);
         } else {
             boolean closingActive = index == activeBrowserTab;
             if (closingActive) captureActiveTabState();
@@ -1454,7 +1454,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 BrowserTab selected = browserTabs.get(activeBrowserTab);
                 if (selected.state != null) geckoEngine.restoreState(selected.state);
                 else if (selected.url != null && selected.url.startsWith("https://")) loadUrlWithPrivacyHeaders(selected.url);
-                else geckoEngine.loadUri("about:blank");
+                else geckoEngine.loadUri("about:blank", false);
                 currentPageTitle = selected.title;
                 text_barra.setText(domainForAddressBar(selected.url));
                 vazio.setVisibility(selected.url == null || selected.url.isEmpty() || "about:blank".equals(selected.url) ? View.VISIBLE : View.GONE);
