@@ -1437,7 +1437,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         if (browserTabs.size() >= 12) { Toast.makeText(this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show(); return; }
         browserTabs.add(new BrowserTab("Nova guia", null, null));
         int next = browserTabs.size() - 1;
-        activeBrowserTab = Math.max(0, next - 1);
         switchBrowserTab(next);
     }
 
