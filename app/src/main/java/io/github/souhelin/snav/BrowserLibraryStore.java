@@ -16,6 +16,9 @@ public final class BrowserLibraryStore {
     private static final String BOOKMARKS = "bookmarks";
     private static final String HISTORY = "history";
     private static final int MAX_HISTORY = 1000;
+    private static final int MAX_BOOKMARKS = 1000;
+    private static final int MAX_URL_LENGTH = 8192;
+    private static final int MAX_TITLE_LENGTH = 512;
     private final SharedPreferences prefs;
 
     public static final class Entry {
@@ -49,16 +52,19 @@ public final class BrowserLibraryStore {
     public synchronized boolean addBookmark(String title, String url) {
         String safeUrl = clean(url);
         Uri parsed = Uri.parse(safeUrl);
-        if (!"https".equalsIgnoreCase(parsed.getScheme()) || parsed.getHost() == null
-            || parsed.getUserInfo() != null) return false;
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
         JSONArray values = read(BOOKMARKS);
         for (int i = 0; i < values.length(); i++) {
             JSONObject item = values.optJSONObject(i);
             if (item != null && safeUrl.equals(item.optString("url"))) return true;
         }
+        if (values.length() >= MAX_BOOKMARKS) return false;
         JSONObject item = new JSONObject();
         try {
-            item.put("title", clean(title).isEmpty() ? safeUrl : clean(title));
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            item.put("title", safeTitle.isEmpty() ? safeUrl : safeTitle);
             item.put("url", safeUrl);
             item.put("createdAt", System.currentTimeMillis());
             values.put(item);
@@ -83,8 +89,8 @@ public final class BrowserLibraryStore {
     public synchronized void addVisit(String title, String url) {
         String safeUrl = clean(url);
         Uri parsed = Uri.parse(safeUrl);
-        if (!"https".equalsIgnoreCase(parsed.getScheme()) || parsed.getHost() == null
-            || parsed.getUserInfo() != null) return;
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return;
         JSONArray source = read(HISTORY), result = new JSONArray();
         for (int i = 0; i < source.length(); i++) {
             JSONObject item = source.optJSONObject(i);
@@ -92,7 +98,9 @@ public final class BrowserLibraryStore {
         }
         JSONObject item = new JSONObject();
         try {
-            item.put("title", clean(title).isEmpty() ? safeUrl : clean(title));
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            item.put("title", safeTitle.isEmpty() ? safeUrl : safeTitle);
             item.put("url", safeUrl);
             item.put("visitedAt", System.currentTimeMillis());
             result.put(0, item);
