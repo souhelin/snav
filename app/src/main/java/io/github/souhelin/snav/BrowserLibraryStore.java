@@ -116,6 +116,19 @@ public final class BrowserLibraryStore {
 
     public synchronized List<Entry> getBookmarks() { return entries(BOOKMARKS, "createdAt"); }
     public synchronized List<Entry> getHistory() { return entries(HISTORY, "visitedAt"); }
+    public synchronized boolean removeHistory(String url) {
+        JSONArray source = read(HISTORY), result = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < source.length(); i++) {
+            JSONObject item = source.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(url).equals(item.optString("url"))) removed = true;
+            else result.put(item);
+        }
+        if (removed) write(HISTORY, result);
+        return removed;
+    }
+
     public synchronized void clearHistory() { write(HISTORY, new JSONArray()); }
 
     /** Validates and replaces bookmarks from a Netscape bookmark HTML import. */
