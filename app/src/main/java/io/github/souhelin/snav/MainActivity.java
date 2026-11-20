@@ -1438,6 +1438,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         };
         favorites.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = false; render[0].run(); } });
         history.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = true; render[0].run(); } });
+        addLibraryAction(root, "Gerenciador de downloads", new Runnable() {
+            @Override public void run() { sheet.dismiss(); showDownloadsBottomSheet(); }
+        });
         addLibraryAction(root, "Exportar favoritos", new Runnable() {
             @Override public void run() { exportBookmarks(); }
         });
@@ -1453,6 +1456,88 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             }
         });
         render[0].run();
+        sheet.setContentView(root);
+        sheet.show();
+        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+        sheet.getBehavior().setSkipCollapsed(true);
+    }
+
+    private void showDownloadsBottomSheet() {
+        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(18), dp(22), dp(24));
+        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
+        TextView heading = new TextView(this);
+        heading.setText("Downloads");
+        heading.setTextSize(21);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        root.addView(heading);
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        if (Build.VERSION.SDK_INT >= 29) {
+            android.database.Cursor cursor = null;
+            try {
+                String[] projection = {
+                    MediaStore.MediaColumns._ID,
+                    MediaStore.MediaColumns.DISPLAY_NAME,
+                    MediaStore.MediaColumns.SIZE,
+                    MediaStore.MediaColumns.DATE_MODIFIED
+                };
+                cursor = getContentResolver().query(MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                    projection, null, null, MediaStore.MediaColumns.DATE_MODIFIED + " DESC");
+                if (cursor != null) {
+                    int idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
+                    int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
+                    int sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE);
+                    while (cursor.moveToNext()) {
+                        final Uri itemUri = ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn));
+                        String name = cursor.getString(nameColumn);
+                        long size = cursor.getLong(sizeColumn);
+                        TextView item = new TextView(this);
+                        item.setText((name == null ? "Arquivo" : name) + "\n" + android.text.format.Formatter.formatShortFileSize(this, size));
+                        item.setTextColor(getResources().getColor(R.color.snav_on_surface));
+                        item.setTextSize(14);
+                        item.setPadding(dp(8), dp(14), dp(8), dp(14));
+                        item.setBackgroundResource(android.R.drawable.list_selector_background);
+                        item.setClickable(true);
+                        item.setOnClickListener(new View.OnClickListener() {
+                            @Override public void onClick(View view) {
+                                Intent open = new Intent(Intent.ACTION_VIEW);
+                                open.setDataAndType(itemUri, getContentResolver().getType(itemUri));
+                                open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                try { startActivity(open); }
+                                catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show(); }
+                            }
+                        });
+                        list.addView(item, new LinearLayout.LayoutParams(-1, -2));
+                    }
+                }
+            } catch (Exception error) {
+                logDiagnostic("Falha ao consultar downloads: " + error.getClass().getSimpleName());
+            } finally {
+                if (cursor != null) cursor.close();
+            }
+        } else {
+            TextView legacy = new TextView(this);
+            legacy.setText("A lista de downloads do sistema requer Android 10 ou superior. Os arquivos anteriores continuam disponíveis na pasta Downloads.");
+            legacy.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            legacy.setPadding(0, dp(18), 0, dp(18));
+            list.addView(legacy);
+        }
+        if (list.getChildCount() == 0) {
+            TextView empty = new TextView(this);
+            empty.setText("Nenhum download encontrado.");
+            empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            empty.setPadding(0, dp(18), 0, dp(18));
+            list.addView(empty);
+        }
         sheet.setContentView(root);
         sheet.show();
         sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
@@ -1487,7 +1572,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 StringBuilder html = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(getContentResolver().openInputStream(uri), "UTF-8"))) {
                     String line;
-                    while ((line = reader.readLine()) != null && html.length() <= 2_000_000) html.append(line).append('\\n');
+                    while ((line = reader.readLine()) != null && html.length() <= 2_000_000) html.append(line).append('\n');
                 }
                 int count = browserLibraryStore.importBookmarks(html.toString());
                 Toast.makeText(this, count + " favoritos importados ou já existentes", Toast.LENGTH_LONG).show();
