@@ -39,14 +39,10 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDragHandleView;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import org.mozilla.geckoview.TranslationsController;
-import com.google.android.material.motion.MotionUtils;
-import androidx.dynamicanimation.animation.DynamicAnimation;
-import androidx.dynamicanimation.animation.SpringAnimation;
-import androidx.dynamicanimation.animation.SpringForce;
-import android.view.VelocityTracker;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -105,6 +101,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private LinearLayout linear_b;
 	private LinearLayout vazio;
 	private GeckoView geckoView;
+	private FrameLayout browserContentContainer;
+	private CircularProgressIndicator refreshIndicator;
 	private TextView text_barra;
 	private ImageButton button_site_info;
 	private ProgressBar prog;
@@ -141,8 +139,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private float pullDistance;
 	private boolean pullTracking;
 	private boolean pullConsumed;
-	private SpringAnimation pullRotationSpring;
-	private VelocityTracker pullVelocityTracker;
+	private boolean refreshInProgress;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
@@ -186,6 +183,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_b = findViewById(R.id.linear_b);
 		vazio = findViewById(R.id.vazio);
 		geckoView = findViewById(R.id.geckoview);
+		browserContentContainer = findViewById(R.id.browser_content_container);
+		if (browserContentContainer != null) {
+			refreshIndicator = new CircularProgressIndicator(this);
+			refreshIndicator.setIndicatorSize(dp(36));
+			refreshIndicator.setTrackThickness(dp(3));
+			refreshIndicator.setIndeterminate(false);
+			refreshIndicator.setVisibility(View.GONE);
+			FrameLayout.LayoutParams refreshParams = new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+			refreshParams.topMargin = dp(12);
+			browserContentContainer.addView(refreshIndicator, refreshParams);
+		}
 		text_barra = findViewById(R.id.text_barra);
 		button_site_info = findViewById(R.id.button_site_info);
 		prog = findViewById(R.id.prog);
@@ -241,8 +249,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			button_load_stop.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View view) {
-					if (pullRotationSpring != null) pullRotationSpring.cancel();
-					button_load_stop.setRotation(0f);
 					if (pageLoading && geckoEngine != null) {
 						geckoEngine.stop();
 						finishPageProgress();
@@ -727,11 +733,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onDestroy() {
 		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
 		wallpaperCallback = null;
-		if (pullRotationSpring != null) pullRotationSpring.cancel();
-		if (pullVelocityTracker != null) {
-			pullVelocityTracker.recycle();
-			pullVelocityTracker = null;
-		}
 		if (pendingGeckoDownload != null) {
 			closeResponseBody(pendingGeckoDownload);
 			pendingGeckoDownload = null;
@@ -789,6 +790,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		pageLoading = false;
 		setLoadStopIcon(false);
+		refreshInProgress = false;
+		if (refreshIndicator != null) refreshIndicator.setVisibility(View.GONE);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
 		}
@@ -1084,9 +1087,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if (geckoEngine == null) return;
 				if (!readerMode) {
 					readerOriginalUri = current;
-					readerMode = true;
-					linear_modo_leitura.setAlpha(0.65f);
-					geckoEngine.loadUri("about:reader?url=" + Uri.encode(current), Dados.getBoolean("do_not_track", false));
+					try {
+						geckoEngine.loadUri("about:reader?url=" + Uri.encode(current), Dados.getBoolean("do_not_track", false));
+					} catch (RuntimeException error) {
+						readerOriginalUri = null;
+						readerMode = false;
+						linear_modo_leitura.setAlpha(1f);
+						Toast.makeText(MainActivity.this, "Não foi possível ativar o modo leitura nesta página", Toast.LENGTH_LONG).show();
+					}
 				} else {
 					readerMode = false;
 					linear_modo_leitura.setAlpha(1f);
@@ -1921,139 +1929,78 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void setupPullToRefresh() {
-		if (geckoView == null || button_load_stop == null) return;
+		if (geckoView == null || refreshIndicator == null) return;
 		geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-		final int touchSlop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+		final int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
 		final float refreshThreshold = getDip(96);
-		final float consumeThreshold = getDip(32);
 		geckoView.setOnTouchListener(new View.OnTouchListener() {
-			@Override
-			public boolean onTouch(View view, android.view.MotionEvent event) {
+			@Override public boolean onTouch(View view, MotionEvent event) {
 				int action = event.getActionMasked();
-				if (action != android.view.MotionEvent.ACTION_DOWN && pullVelocityTracker != null) {
-					pullVelocityTracker.addMovement(event);
-				}
 				switch (action) {
-					case android.view.MotionEvent.ACTION_DOWN:
-						if (pullVelocityTracker != null) pullVelocityTracker.recycle();
-						pullVelocityTracker = VelocityTracker.obtain();
-						pullVelocityTracker.addMovement(event);
+					case MotionEvent.ACTION_DOWN:
 						pullStartY = event.getY();
 						pullStartX = event.getX();
 						pullDistance = 0f;
 						pullTracking = geckoScrollY <= 0 && !pageLoading;
 						pullConsumed = false;
-						if (pullRotationSpring != null) pullRotationSpring.cancel();
-						button_load_stop.setRotation(0f);
+						refreshIndicator.setVisibility(View.GONE);
 						return false;
 
-					case android.view.MotionEvent.ACTION_MOVE:
+					case MotionEvent.ACTION_MOVE:
 						if (!pullTracking || pageLoading || geckoScrollY > 0) return false;
 						float dx = event.getX() - pullStartX;
 						float dy = event.getY() - pullStartY;
 						pullDistance = dy;
 						if (dy <= 0f) {
-							button_load_stop.setRotation(0f);
+							refreshIndicator.setVisibility(View.GONE);
 							return false;
 						}
-					// A clear horizontal/diagonal gesture belongs to page navigation,
-					// not to pull-to-refresh.
 					if (Math.abs(dx) > touchSlop && Math.abs(dx) > dy * 0.8f) {
 						pullTracking = false;
 						pullConsumed = false;
-						button_load_stop.setRotation(0f);
+						refreshIndicator.setVisibility(View.GONE);
 						return false;
 					}
 					if (dy < touchSlop || dy < Math.abs(dx) * 1.25f) return false;
-					button_load_stop.setRotation(Math.min(180f, (dy - touchSlop) * 0.65f));
-					pullConsumed = dy >= consumeThreshold;
-					return pullConsumed;
+					pullConsumed = true;
+					refreshIndicator.setVisibility(View.VISIBLE);
+					refreshIndicator.setIndeterminate(false);
+					refreshIndicator.setProgressCompat(Math.min(100, Math.round((dy / refreshThreshold) * 100f)), false);
+					refreshIndicator.setTranslationY(Math.max(dp(8), Math.min(dp(72), dy * 0.45f)));
+					return true;
 
-					case android.view.MotionEvent.ACTION_POINTER_DOWN:
+					case MotionEvent.ACTION_POINTER_DOWN:
 						pullTracking = false;
 						pullConsumed = false;
-						button_load_stop.setRotation(0f);
+						refreshIndicator.setVisibility(View.GONE);
 						return false;
 
-					case android.view.MotionEvent.ACTION_UP:
-					case android.view.MotionEvent.ACTION_CANCEL:
-						final boolean refresh = action == android.view.MotionEvent.ACTION_UP
+					case MotionEvent.ACTION_UP:
+					case MotionEvent.ACTION_CANCEL:
+						boolean refresh = action == MotionEvent.ACTION_UP
 							&& pullTracking && pullConsumed && !pageLoading
 							&& geckoScrollY <= 0 && pullDistance >= refreshThreshold;
-						float rotation = button_load_stop.getRotation();
-						float rotationVelocity = 0f;
-						if (pullVelocityTracker != null) {
-							pullVelocityTracker.computeCurrentVelocity(1000);
-							rotationVelocity = Math.max(-3600f, Math.min(3600f,
-								pullVelocityTracker.getYVelocity() * 0.65f));
-							pullVelocityTracker.recycle();
-							pullVelocityTracker = null;
-						}
-					pullTracking = false;
-					pullConsumed = false;
-					if (action == android.view.MotionEvent.ACTION_CANCEL) rotationVelocity = 0f;
-					if (rotation > 0f) {
-						if (refresh) {
-							animatePullRelease(rotationVelocity, new Runnable() {
-								@Override public void run() {
-									if (!isFinishing() && !isDestroyed() && !pageLoading
-										&& geckoEngine != null && geckoEngine.getCurrentUri() != null) {
-										geckoEngine.reload();
-									}
-								}
-							});
+						boolean consumed = pullConsumed;
+						pullTracking = false;
+						pullConsumed = false;
+						if (refresh && geckoEngine != null && geckoEngine.getCurrentUri() != null) {
+							refreshInProgress = true;
+							refreshIndicator.setIndeterminate(true);
+							refreshIndicator.setTranslationY(dp(24));
+							refreshIndicator.setVisibility(View.VISIBLE);
+							geckoEngine.reload();
 							return true;
 						}
-						animatePullRelease(rotationVelocity, null);
-					}
-					return false;
+					refreshIndicator.setVisibility(View.GONE);
+					return consumed;
 				}
 				return false;
 			}
 		});
 	}
 
-	private void animatePullRelease(float initialVelocity, final Runnable onFinished) {
-		if (button_load_stop == null) return;
-		if (pullRotationSpring != null) pullRotationSpring.cancel();
-		if (Build.VERSION.SDK_INT >= 26 && !ValueAnimator.areAnimatorsEnabled()) {
-			button_load_stop.setRotation(0f);
-			if (onFinished != null) onFinished.run();
-			return;
-		}
-
-		SpringForce spatialSpring = MotionUtils.resolveThemeSpringForce(
-			this,
-			com.google.android.material.R.attr.motionSpringFastSpatial,
-			com.google.android.material.R.style.Motion_Material3_Spring_Standard_Fast_Spatial);
-		pullRotationSpring = new SpringAnimation(
-			button_load_stop, DynamicAnimation.ROTATION, 0f);
-		// Keep the zero-degree final position and copy Material 3 spatial
-		// spring parameters; replacing the force would leave its final position unset.
-		pullRotationSpring.getSpring()
-			.setDampingRatio(spatialSpring.getDampingRatio())
-			.setStiffness(spatialSpring.getStiffness());
-		pullRotationSpring.setStartVelocity(initialVelocity);
-		pullRotationSpring.setMinimumVisibleChange(DynamicAnimation.MIN_VISIBLE_CHANGE_ROTATION_DEGREES);
-		if (onFinished != null) {
-			pullRotationSpring.addEndListener(new DynamicAnimation.OnAnimationEndListener() {
-				@Override
-				public void onAnimationEnd(DynamicAnimation animation, boolean canceled, float value, float velocity) {
-					if (!canceled) onFinished.run();
-				}
-			});
-		}
-		pullRotationSpring.start();
-	}
-
 	private void setLoadStopIcon(boolean loading) {
 		if (button_load_stop == null) return;
-		// Loading/stop state changes are static; rotation is reserved for the
-		// explicit pull gesture and its Material 3 spatial-spring release.
-		if (pullRotationSpring != null && pullRotationSpring.isRunning()) {
-			pullRotationSpring.cancel();
-		}
-		button_load_stop.setRotation(0f);
 		button_load_stop.setImageResource(loading ? R.drawable.ms_stop : R.drawable.ms_refresh);
 		button_load_stop.setContentDescription(loading ? "Interromper carregamento" : "Atualizar página");
 	}
@@ -2165,11 +2112,22 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     setLoadStopIcon(true);
                 }
                 @Override public void onPageStopped(boolean success) {
+                    String uri = geckoEngine == null ? null : geckoEngine.getCurrentUri();
                     finishPageProgress();
                     setLoadStopIcon(false);
-                    String uri = geckoEngine.getCurrentUri();
                     vazio.setVisibility(uri == null || uri.isEmpty() || "about:blank".equals(uri) ? View.VISIBLE : View.GONE);
-                    if (!success) logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
+                    if (!success) {
+                        logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
+                        if (uri != null && uri.regionMatches(true, 0, "about:reader?", 0, 13)
+                            && readerOriginalUri != null && geckoEngine != null) {
+                            String original = readerOriginalUri;
+                            readerOriginalUri = null;
+                            readerMode = false;
+                            if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(1f);
+                            Toast.makeText(MainActivity.this, "Esta página não pôde ser convertida para o modo leitura", Toast.LENGTH_LONG).show();
+                            loadUrlWithPrivacyHeaders(original);
+                        }
+                    }
                 }
                 @Override public void onProgressChanged(int value) {
                     if (!pageLoading) beginPageProgress();
