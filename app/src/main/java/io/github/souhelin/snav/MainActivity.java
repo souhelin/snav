@@ -1651,6 +1651,35 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                                 catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show(); }
                             }
                         });
+                        item.setOnLongClickListener(new View.OnLongClickListener() {
+                            @Override public boolean onLongClick(View view) {
+                                new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Excluir download")
+                                    .setMessage("Deseja excluir este arquivo da pasta Downloads?")
+                                    .setNegativeButton("Cancelar", null)
+                                    .setPositiveButton("Excluir", new DialogInterface.OnClickListener() {
+                                        @Override public void onClick(DialogInterface dialog, int which) {
+                                            try {
+                                                int deleted = getContentResolver().delete(itemUri, null, null);
+                                                if (deleted > 0) {
+                                                    list.removeView(item);
+                                                    if (list.getChildCount() == 0) {
+                                                        TextView empty = new TextView(MainActivity.this);
+                                                        empty.setText("Nenhum download encontrado.");
+                                                        empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                                                        empty.setPadding(0, dp(18), 0, dp(18));
+                                                        list.addView(empty);
+                                                    }
+                                                    Toast.makeText(MainActivity.this, "Download excluído", Toast.LENGTH_SHORT).show();
+                                                } else Toast.makeText(MainActivity.this, "Não foi possível excluir o arquivo", Toast.LENGTH_LONG).show();
+                                            } catch (SecurityException error) {
+                                                Toast.makeText(MainActivity.this, "O Android não autorizou a exclusão deste arquivo", Toast.LENGTH_LONG).show();
+                                            }
+                                        }
+                                    }).show();
+                                return true;
+                            }
+                        });
                         list.addView(item, new LinearLayout.LayoutParams(-1, -2));
                     }
                 }
