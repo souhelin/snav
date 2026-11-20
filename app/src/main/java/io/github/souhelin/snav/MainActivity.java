@@ -1432,6 +1432,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                             if (geckoEngine != null) { loadUrlWithPrivacyHeaders(item.url); tela1.setVisibility(View.GONE); tela2.setVisibility(View.VISIBLE); tela3.setVisibility(View.GONE); }
                         }
                     });
+                    row.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override public boolean onLongClick(View view) {
+                            if (!showingHistory[0] && browserLibraryStore.removeBookmark(item.url)) {
+                                render[0].run();
+                                Toast.makeText(MainActivity.this, "Favorito removido", Toast.LENGTH_SHORT).show();
+                                return true;
+                            }
+                            return false;
+                        }
+                    });
                     entries.addView(row, new LinearLayout.LayoutParams(-1, -2));
                 }
             }
