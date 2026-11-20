@@ -2,6 +2,7 @@ package io.github.souhelin.snav;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -47,7 +48,9 @@ public final class BrowserLibraryStore {
 
     public synchronized boolean addBookmark(String title, String url) {
         String safeUrl = clean(url);
-        if (!safeUrl.startsWith("https://")) return false;
+        Uri parsed = Uri.parse(safeUrl);
+        if (!"https".equalsIgnoreCase(parsed.getScheme()) || parsed.getHost() == null
+            || parsed.getUserInfo() != null) return false;
         JSONArray values = read(BOOKMARKS);
         for (int i = 0; i < values.length(); i++) {
             JSONObject item = values.optJSONObject(i);
@@ -79,7 +82,9 @@ public final class BrowserLibraryStore {
 
     public synchronized void addVisit(String title, String url) {
         String safeUrl = clean(url);
-        if (!safeUrl.startsWith("https://")) return;
+        Uri parsed = Uri.parse(safeUrl);
+        if (!"https".equalsIgnoreCase(parsed.getScheme()) || parsed.getHost() == null
+            || parsed.getUserInfo() != null) return;
         JSONArray source = read(HISTORY), result = new JSONArray();
         for (int i = 0; i < source.length(); i++) {
             JSONObject item = source.optJSONObject(i);
