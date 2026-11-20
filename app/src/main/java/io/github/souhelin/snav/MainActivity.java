@@ -144,7 +144,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private float pullDistance;
 	private boolean pullTracking;
 	private boolean pullConsumed;
-	private boolean refreshInProgress;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	private TextView b1;
@@ -797,7 +796,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		pageLoading = false;
 		setLoadStopIcon(false);
-		refreshInProgress = false;
 		if (refreshIndicator != null) refreshIndicator.setVisibility(View.GONE);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
@@ -2165,7 +2163,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						pullTracking = false;
 						pullConsumed = false;
 						if (refresh && geckoEngine != null && geckoEngine.getCurrentUri() != null) {
-							refreshInProgress = true;
 							refreshIndicator.setIndeterminate(true);
 							refreshIndicator.setTranslationY(dp(24));
 							refreshIndicator.setVisibility(View.VISIBLE);
@@ -2197,6 +2194,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
+		if (readerMode) {
+			exitReaderMode();
+			return;
+		}
+		if (readerModePending) {
+			readerRequestId++;
+			readerModePending = false;
+			readerOriginalUri = null;
+			return;
+		}
 		if (geckoEngine == null) {
 			handleBackNavigationFallback();
 			return;
