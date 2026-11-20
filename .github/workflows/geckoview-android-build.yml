@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/geckoview-engine
+      - feature/md3-browser-management
   pull_request:
     branches:
       - main
