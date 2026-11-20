@@ -2842,20 +2842,24 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 @Override public void onExternalNavigationRequested(String uri) {
                     openExternalUri(uri);
                 }
-                @Override public void onNewTabRequested(String uri) {
-                    Uri requested = Uri.parse(uri);
-                    if (!"https".equalsIgnoreCase(requested.getScheme()) || requested.getHost() == null || requested.getUserInfo() != null) return;
-                    if (browserTabs.size() >= 12) {
-                        Toast.makeText(MainActivity.this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    createBrowserTab();
-                    if (browserTabs.isEmpty()) return;
-                    BrowserTab activeTab = browserTabs.get(activeBrowserTab);
-                    activeTab.url = uri;
-                    activeTab.title = "Nova guia";
-                    persistBrowserTabs();
-                    loadUrlWithPrivacyHeaders(uri);
+                @Override public void onNewTabRequested(final String uri) {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override public void run() {
+                            Uri requested = Uri.parse(uri);
+                            if (!"https".equalsIgnoreCase(requested.getScheme()) || requested.getHost() == null || requested.getUserInfo() != null) return;
+                            if (browserTabs.size() >= 12) {
+                                Toast.makeText(MainActivity.this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            createBrowserTab();
+                            if (browserTabs.isEmpty()) return;
+                            BrowserTab activeTab = browserTabs.get(activeBrowserTab);
+                            activeTab.url = uri;
+                            activeTab.title = "Nova guia";
+                            persistBrowserTabs();
+                            loadUrlWithPrivacyHeaders(uri);
+                        }
+                    });
                 }
                 @Override public void onExternalResponse(WebResponse response) {
                     handleGeckoDownload(response);
