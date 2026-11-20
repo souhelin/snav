@@ -31,6 +31,7 @@ public final class GeckoEngineController {
         default void onCanGoForwardChanged(boolean canGoForward) {}
         default void onInsecureNavigationBlocked(String uri, String sourceUri) {}
         default void onExternalNavigationRequested(String uri) {}
+        default void onNewTabRequested(String uri) {}
         default void onExternalResponse(WebResponse response) {}
         default void onFullScreenChanged(boolean fullScreen) {}
         default void onContentProcessCrashed() {}
@@ -157,11 +158,9 @@ public final class GeckoEngineController {
                 if ("https".equalsIgnoreCase(parsed.getScheme())
                     && parsed.getHost() != null && parsed.getUserInfo() == null) {
                     if (request.target == GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW) {
-                        if (request.hasUserGesture) {
-                            currentSession.load(new GeckoSession.Loader()
-                                .uri(uri)
-                                .flags(GeckoSession.LOAD_FLAGS_BYPASS_LOAD_URI_DELEGATE));
-                        }
+                        Listener callback = GeckoEngineController.this.listener;
+                        if (request.hasUserGesture && !closed && callback != null)
+                            callback.onNewTabRequested(uri);
                         return GeckoResult.deny();
                     }
                     return GeckoResult.allow();
