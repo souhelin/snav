@@ -2881,6 +2881,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             pendingSessionState = null;
         } else if (pendingRestoreUri != null && pendingRestoreUri.startsWith("https://")) {
             loadUrlWithPrivacyHeaders(pendingRestoreUri);
+        } else if (!browserTabs.isEmpty()) {
+            BrowserTab activeTab = browserTabs.get(activeBrowserTab);
+            if (activeTab.url != null && activeTab.url.startsWith("https://"))
+                loadUrlWithPrivacyHeaders(activeTab.url);
         }
         pendingRestoreUri = null;
         setupPullToRefresh();
