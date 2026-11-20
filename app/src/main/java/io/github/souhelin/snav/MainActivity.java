@@ -1677,52 +1677,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                             MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(idColumn));
                         String name = cursor.getString(nameColumn);
                         long size = cursor.getLong(sizeColumn);
-                        TextView item = new TextView(this);
-                        item.setText((name == null ? "Arquivo" : name) + "\n" + android.text.format.Formatter.formatShortFileSize(this, size));
-                        item.setTextColor(getResources().getColor(R.color.snav_on_surface));
-                        item.setTextSize(14);
-                        item.setPadding(dp(8), dp(14), dp(8), dp(14));
-                        item.setBackgroundResource(android.R.drawable.list_selector_background);
-                        item.setClickable(true);
-                        item.setOnClickListener(new View.OnClickListener() {
-                            @Override public void onClick(View view) {
-                                Intent open = new Intent(Intent.ACTION_VIEW);
-                                open.setDataAndType(itemUri, getContentResolver().getType(itemUri));
-                                open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                                try { startActivity(open); }
-                                catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show(); }
-                            }
-                        });
-                        item.setOnLongClickListener(new View.OnLongClickListener() {
-                            @Override public boolean onLongClick(View view) {
-                                new AlertDialog.Builder(MainActivity.this)
-                                    .setTitle("Excluir download")
-                                    .setMessage("Deseja excluir este arquivo da pasta Downloads?")
-                                    .setNegativeButton("Cancelar", null)
-                                    .setPositiveButton("Excluir", new DialogInterface.OnClickListener() {
-                                        @Override public void onClick(DialogInterface dialog, int which) {
-                                            try {
-                                                int deleted = getContentResolver().delete(itemUri, null, null);
-                                                if (deleted > 0) {
-                                                    list.removeView(item);
-                                                    if (list.getChildCount() == 0) {
-                                                        TextView empty = new TextView(MainActivity.this);
-                                                        empty.setText("Nenhum download encontrado.");
-                                                        empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
-                                                        empty.setPadding(0, dp(18), 0, dp(18));
-                                                        list.addView(empty);
-                                                    }
-                                                    Toast.makeText(MainActivity.this, "Download excluído", Toast.LENGTH_SHORT).show();
-                                                } else Toast.makeText(MainActivity.this, "Não foi possível excluir o arquivo", Toast.LENGTH_LONG).show();
-                                            } catch (SecurityException error) {
-                                                Toast.makeText(MainActivity.this, "O Android não autorizou a exclusão deste arquivo", Toast.LENGTH_LONG).show();
-                                            }
-                                        }
-                                    }).show();
-                                return true;
-                            }
-                        });
-                        list.addView(item, new LinearLayout.LayoutParams(-1, -2));
+                        addDownloadFileRow(list, itemUri, name, size);
                     }
                 }
             } catch (Exception error) {
@@ -1730,11 +1685,41 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             } finally {
                 if (cursor != null) cursor.close();
             }
+        } else if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            android.database.Cursor legacyCursor = null;
+            try {
+                Uri filesUri = MediaStore.Files.getContentUri("external");
+                String[] projection = { MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME,
+                    MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATA };
+                String selection = MediaStore.MediaColumns.DATA + " LIKE ?";
+                String[] selectionArgs = { "%" + java.io.File.separator + Environment.DIRECTORY_DOWNLOADS + java.io.File.separator + "%" };
+                legacyCursor = getContentResolver().query(filesUri, projection, selection, selectionArgs,
+                    MediaStore.MediaColumns.DATE_MODIFIED + " DESC");
+                if (legacyCursor != null) {
+                    int idColumn = legacyCursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID);
+                    int nameColumn = legacyCursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME);
+                    int sizeColumn = legacyCursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE);
+                    while (legacyCursor.moveToNext()) {
+                        Uri itemUri = ContentUris.withAppendedId(filesUri, legacyCursor.getLong(idColumn));
+                        addDownloadFileRow(list, itemUri, legacyCursor.getString(nameColumn), legacyCursor.getLong(sizeColumn));
+                    }
+                }
+            } catch (Exception error) {
+                logDiagnostic("Falha ao consultar downloads legados: " + error.getClass().getSimpleName());
+            } finally {
+                if (legacyCursor != null) legacyCursor.close();
+            }
         } else {
             TextView legacy = new TextView(this);
-            legacy.setText("A lista de downloads do sistema requer Android 10 ou superior. Os arquivos anteriores continuam disponíveis na pasta Downloads.");
+            legacy.setText("Permita o acesso aos arquivos para listar downloads neste Android.");
             legacy.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
             legacy.setPadding(0, dp(18), 0, dp(18));
+            legacy.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View view) {
+                    sheet.dismiss();
+                    requestPermissions(new String[] { android.Manifest.permission.WRITE_EXTERNAL_STORAGE }, 4105);
+                }
+            });
             list.addView(legacy);
         }
         if (list.getChildCount() == 0) {
@@ -1748,6 +1733,56 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         sheet.show();
         sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
         sheet.getBehavior().setSkipCollapsed(true);
+    }
+
+    private void addDownloadFileRow(final LinearLayout list, final Uri itemUri, String name, long size) {
+        final TextView item = new TextView(this);
+        item.setText((name == null ? "Arquivo" : name) + "\n"
+            + android.text.format.Formatter.formatShortFileSize(this, size));
+        item.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        item.setTextSize(14);
+        item.setPadding(dp(8), dp(14), dp(8), dp(14));
+        item.setBackgroundResource(android.R.drawable.list_selector_background);
+        item.setClickable(true);
+        item.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                Intent open = new Intent(Intent.ACTION_VIEW);
+                open.setDataAndType(itemUri, getContentResolver().getType(itemUri));
+                open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try { startActivity(open); }
+                catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show(); }
+            }
+        });
+        item.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override public boolean onLongClick(View view) {
+                new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Excluir download")
+                    .setMessage("Deseja excluir este arquivo da pasta Downloads?")
+                    .setNegativeButton("Cancelar", null)
+                    .setPositiveButton("Excluir", new DialogInterface.OnClickListener() {
+                        @Override public void onClick(DialogInterface dialog, int which) {
+                            try {
+                                int deleted = getContentResolver().delete(itemUri, null, null);
+                                if (deleted > 0) {
+                                    list.removeView(item);
+                                    if (list.getChildCount() == 0) {
+                                        TextView empty = new TextView(MainActivity.this);
+                                        empty.setText("Nenhum download encontrado.");
+                                        empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                                        empty.setPadding(0, dp(18), 0, dp(18));
+                                        list.addView(empty);
+                                    }
+                                    Toast.makeText(MainActivity.this, "Download excluído", Toast.LENGTH_SHORT).show();
+                                } else Toast.makeText(MainActivity.this, "Não foi possível excluir o arquivo", Toast.LENGTH_LONG).show();
+                            } catch (SecurityException error) {
+                                Toast.makeText(MainActivity.this, "O Android não autorizou a exclusão deste arquivo", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    }).show();
+                return true;
+            }
+        });
+        list.addView(item, new LinearLayout.LayoutParams(-1, -2));
     }
 
     private static final int REQUEST_IMPORT_BOOKMARKS = 6121;
@@ -1952,7 +1987,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					media.reject();
 				}
 			}
-		} else if (requestCode == 4104) {
+		} else if (requestCode == 4105) {
+            boolean granted = grantResults != null && grantResults.length > 0
+                && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
+            if (granted) showDownloadsBottomSheet();
+            else Toast.makeText(this, "Permissão negada. Não foi possível listar os downloads.", Toast.LENGTH_LONG).show();
+        } else if (requestCode == 4104) {
 			boolean granted = grantResults != null && grantResults.length > 0
 				&& grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
 			WebResponse response = pendingGeckoDownload;
