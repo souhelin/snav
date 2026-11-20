@@ -349,7 +349,34 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		
 
 		
-		tabCounterButton = new TextView(this); tabCounterButton.setText("1"); tabCounterButton.setTextSize(14); tabCounterButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD); tabCounterButton.setTextColor(getResources().getColor(R.color.snav_on_surface)); tabCounterButton.setGravity(Gravity.CENTER); tabCounterButton.setMinWidth(dp(40)); tabCounterButton.setMinHeight(dp(48)); tabCounterButton.setBackgroundResource(android.R.drawable.list_selector_background); tabCounterButton.setContentDescription("Gerenciar abas"); tabCounterButton.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showTabsBottomSheet(); } }); linear_b.addView(tabCounterButton, new LinearLayout.LayoutParams(dp(40), dp(48)));
+        TextView libraryButton = new TextView(this);
+        libraryButton.setText("▤");
+        libraryButton.setTextSize(23);
+        libraryButton.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        libraryButton.setGravity(Gravity.CENTER);
+        libraryButton.setMinWidth(dp(40));
+        libraryButton.setMinHeight(dp(48));
+        libraryButton.setBackgroundResource(android.R.drawable.list_selector_background);
+        libraryButton.setContentDescription("Abrir biblioteca: favoritos, histórico e downloads");
+        libraryButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showBrowserLibraryBottomSheet(false); }
+        });
+        linear_b.addView(libraryButton, new LinearLayout.LayoutParams(dp(40), dp(48)));
+
+        tabCounterButton = new TextView(this);
+        tabCounterButton.setText("1");
+        tabCounterButton.setTextSize(14);
+        tabCounterButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        tabCounterButton.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        tabCounterButton.setGravity(Gravity.CENTER);
+        tabCounterButton.setMinWidth(dp(40));
+        tabCounterButton.setMinHeight(dp(48));
+        tabCounterButton.setBackgroundResource(android.R.drawable.list_selector_background);
+        tabCounterButton.setContentDescription("Gerenciar abas");
+        tabCounterButton.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showTabsBottomSheet(); }
+        });
+        linear_b.addView(tabCounterButton, new LinearLayout.LayoutParams(dp(40), dp(48)));
 		button_site_info.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
