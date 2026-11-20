@@ -147,7 +147,7 @@ public final class BrowserLibraryStore {
         ).matcher(html);
         int imported = 0;
         while (matcher.find()) {
-            String url = matcher.group(1);
+            String url = android.text.Html.fromHtml(matcher.group(1)).toString().trim();
             String title = android.text.Html.fromHtml(matcher.group(2)).toString().trim();
             if (addBookmark(title, url)) imported++;
         }
