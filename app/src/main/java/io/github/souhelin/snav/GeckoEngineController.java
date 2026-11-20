@@ -297,10 +297,7 @@ public final class GeckoEngineController {
         if (!https && !blank && !reader) {
             throw new SecurityException("Only valid HTTPS pages and internal reader pages are allowed");
         }
-        // about:reader is an internal Gecko page. Do not attach site request
-        // headers to it; Gecko must fetch the original HTTPS document itself.
-        // DNT remains applied to direct top-level HTTPS navigations.
-        if (doNotTrack && !reader) {
+        if (doNotTrack) {
             Map<String, String> headers = new java.util.HashMap<>();
             headers.put("DNT", "1");
             session.load(new GeckoSession.Loader()
