@@ -2845,6 +2845,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 @Override public void onNewTabRequested(String uri) {
                     Uri requested = Uri.parse(uri);
                     if (!"https".equalsIgnoreCase(requested.getScheme()) || requested.getHost() == null || requested.getUserInfo() != null) return;
+                    if (browserTabs.size() >= 12) {
+                        Toast.makeText(MainActivity.this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
                     createBrowserTab();
                     if (browserTabs.isEmpty()) return;
                     BrowserTab activeTab = browserTabs.get(activeBrowserTab);
