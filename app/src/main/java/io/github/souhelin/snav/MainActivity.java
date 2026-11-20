@@ -257,6 +257,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						geckoEngine.stop();
 						finishPageProgress();
 					} else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
+						if (readerMode) exitReaderMode();
 						geckoEngine.reload();
 					} else {
 						openSearchScreen();
