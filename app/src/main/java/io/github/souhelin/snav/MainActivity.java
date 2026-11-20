@@ -1372,6 +1372,42 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 
+    private void restorePersistedBrowserTabs() {
+        if (!browserTabs.isEmpty() || Dados == null) return;
+        try {
+            JSONArray saved = new JSONArray(Dados.getString("browser_tabs_v1", "[]"));
+            for (int i = 0; i < saved.length() && i < 12; i++) {
+                JSONObject item = saved.optJSONObject(i);
+                if (item == null) continue;
+                String url = item.optString("url", "");
+                if (!url.isEmpty() && !url.equals("about:blank")
+                    && !url.startsWith("https://")) continue;
+                browserTabs.add(new BrowserTab(item.optString("title", "Nova guia"),
+                    url.isEmpty() ? null : url, null));
+            }
+            if (!browserTabs.isEmpty()) activeBrowserTab = Math.max(0,
+                Math.min(Dados.getInt("browser_active_tab_v1", 0), browserTabs.size() - 1));
+        } catch (JSONException error) {
+            logDiagnostic("Não foi possível restaurar as abas salvas");
+            browserTabs.clear();
+        }
+    }
+
+    private void persistBrowserTabs() {
+        if (Dados == null || browserTabs.isEmpty()) return;
+        JSONArray saved = new JSONArray();
+        for (BrowserTab tab : browserTabs) {
+            JSONObject item = new JSONObject();
+            try {
+                item.put("title", tab.title == null ? "Nova guia" : tab.title);
+                item.put("url", tab.url == null ? "" : tab.url);
+                saved.put(item);
+            } catch (JSONException ignored) {}
+        }
+        Dados.edit().putString("browser_tabs_v1", saved.toString())
+            .putInt("browser_active_tab_v1", activeBrowserTab).apply();
+    }
+
     private void updateTabCounter() { if (tabCounterButton != null) tabCounterButton.setText(String.valueOf(Math.max(1, browserTabs.size()))); }
 
     private void captureActiveTabState() {
@@ -1393,11 +1429,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         else geckoEngine.loadUri("about:blank");
         currentPageTitle = target.title; text_barra.setText(domainForAddressBar(target.url));
         vazio.setVisibility(target.url == null || target.url.isEmpty() || "about:blank".equals(target.url) ? View.VISIBLE : View.GONE);
-        updateTabCounter();
+        updateTabCounter(); persistBrowserTabs();
     }
 
     private void createBrowserTab() {
         captureActiveTabState();
+        if (browserTabs.size() >= 12) { Toast.makeText(this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show(); return; }
         browserTabs.add(new BrowserTab("Nova guia", null, null));
         int next = browserTabs.size() - 1;
         activeBrowserTab = Math.max(0, next - 1);
@@ -1422,7 +1459,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 currentPageTitle = selected.title;
             }
         }
-        updateTabCounter(); showTabsBottomSheet();
+        updateTabCounter(); persistBrowserTabs(); showTabsBottomSheet();
     }
 
     private void showTabsBottomSheet() {
@@ -2747,6 +2784,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
         addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
         javaScriptEnabled = !"desativado".equals(Dados.getString("java", "ativado"));
+        restorePersistedBrowserTabs();
         geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         geckoEngine = new GeckoEngineController(this, geckoView,
             new GeckoEngineController.Listener() {
@@ -2784,14 +2822,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         }
                     }
                     text_barra.setText(domainForAddressBar(uri));
-                    if (!browserTabs.isEmpty()) browserTabs.get(activeBrowserTab).url = uri;
+                    if (!browserTabs.isEmpty()) { browserTabs.get(activeBrowserTab).url = uri; persistBrowserTabs(); }
                     if (browserLibraryStore != null && uri != null && uri.startsWith("https://")) {
                         browserLibraryStore.addVisit(currentPageTitle, uri);
                     }
                 }
                 @Override public void onTitleChanged(String title) {
                     currentPageTitle = title;
-                    if (!browserTabs.isEmpty()) browserTabs.get(activeBrowserTab).title = title;
+                    if (!browserTabs.isEmpty()) { browserTabs.get(activeBrowserTab).title = title; persistBrowserTabs(); }
                     String activeUri = geckoEngine == null ? null : geckoEngine.getCurrentUri();
                     if (browserLibraryStore != null && activeUri != null && activeUri.startsWith("https://"))
                         browserLibraryStore.addVisit(title, activeUri);
@@ -2824,6 +2862,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             Dados.getBoolean("tracker_blocking", true));
         installGeckoPermissionDelegate();
         if (browserTabs.isEmpty()) browserTabs.add(new BrowserTab("Nova guia", pendingRestoreUri, null));
+        persistBrowserTabs();
         updateTabCounter();
         geckoEngine.getSession().setTranslationsSessionDelegate(
             new TranslationsController.SessionTranslation.Delegate() {
