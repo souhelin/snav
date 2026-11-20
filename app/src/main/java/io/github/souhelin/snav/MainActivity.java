@@ -151,6 +151,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	private Intent intent = new Intent();
 	private SharedPreferences Dados;
+	private BrowserLibraryStore browserLibraryStore;
 	private TimerTask time;
 	
 	@Override
@@ -262,6 +263,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		b1 = findViewById(R.id.b1);
 		b2 = findViewById(R.id.b2);
 		Dados = getSharedPreferences("Dados", Activity.MODE_PRIVATE);
+		browserLibraryStore = new BrowserLibraryStore(this);
 
 		checkbox_wallpaper.setChecked(Dados.getBoolean("wallpaper_enabled", true));
 		checkbox_wallpaper.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -1342,6 +1344,167 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		parent.addView(detail);
 	}
 
+    private void addLibraryAction(LinearLayout parent, String label, final Runnable action) {
+        TextView button = new TextView(this);
+        button.setText(label);
+        button.setTextColor(getResources().getColor(R.color.snav_primary));
+        button.setTextSize(15);
+        button.setGravity(Gravity.CENTER_VERTICAL);
+        button.setMinHeight(dp(52));
+        button.setPadding(dp(8), dp(8), dp(8), dp(8));
+        button.setBackgroundResource(android.R.drawable.list_selector_background);
+        button.setClickable(true);
+        button.setFocusable(true);
+        parent.addView(button, new LinearLayout.LayoutParams(-1, -2));
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) { action.run(); }
+        });
+    }
+
+    private void showBrowserLibraryBottomSheet(final boolean historyMode) {
+        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(18), dp(22), dp(24));
+        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
+        TextView heading = new TextView(this);
+        heading.setText("Biblioteca");
+        heading.setTextSize(21);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        root.addView(heading);
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        TextView favorites = new TextView(this);
+        favorites.setText("Favoritos");
+        TextView history = new TextView(this);
+        history.setText("Histórico");
+        for (TextView tab : new TextView[] { favorites, history }) {
+            tab.setTextSize(14);
+            tab.setTextColor(getResources().getColor(R.color.snav_primary));
+            tab.setGravity(Gravity.CENTER);
+            tab.setPadding(dp(12), dp(14), dp(12), dp(14));
+            actions.addView(tab, new LinearLayout.LayoutParams(0, dp(48), 1));
+        }
+        root.addView(actions);
+        final LinearLayout entries = new LinearLayout(this);
+        entries.setOrientation(LinearLayout.VERTICAL);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.addView(entries, new ScrollView.LayoutParams(-1, -2));
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        final Runnable[] render = new Runnable[1];
+        final boolean[] showingHistory = new boolean[] { historyMode };
+        render[0] = new Runnable() {
+            @Override public void run() {
+                entries.removeAllViews();
+                List<BrowserLibraryStore.Entry> data = showingHistory[0]
+                    ? browserLibraryStore.getHistory() : browserLibraryStore.getBookmarks();
+                if (data.isEmpty()) {
+                    TextView empty = new TextView(MainActivity.this);
+                    empty.setText(showingHistory[0] ? "Seu histórico está vazio." : "Nenhum favorito salvo.");
+                    empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                    empty.setPadding(0, dp(22), 0, dp(22));
+                    entries.addView(empty);
+                }
+                for (final BrowserLibraryStore.Entry item : data) {
+                    LinearLayout row = new LinearLayout(MainActivity.this);
+                    row.setOrientation(LinearLayout.VERTICAL);
+                    row.setPadding(dp(8), dp(12), dp(8), dp(12));
+                    TextView name = new TextView(MainActivity.this);
+                    name.setText(item.title);
+                    name.setTextColor(getResources().getColor(R.color.snav_on_surface));
+                    name.setTextSize(15);
+                    name.setMaxLines(1);
+                    TextView address = new TextView(MainActivity.this);
+                    address.setText(item.url);
+                    address.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                    address.setTextSize(12);
+                    address.setMaxLines(1);
+                    row.addView(name);
+                    row.addView(address);
+                    row.setBackgroundResource(android.R.drawable.list_selector_background);
+                    row.setClickable(true);
+                    row.setOnClickListener(new View.OnClickListener() {
+                        @Override public void onClick(View view) {
+                            sheet.dismiss();
+                            if (geckoEngine != null) { loadUrlWithPrivacyHeaders(item.url); tela1.setVisibility(View.GONE); tela2.setVisibility(View.VISIBLE); tela3.setVisibility(View.GONE); }
+                        }
+                    });
+                    entries.addView(row, new LinearLayout.LayoutParams(-1, -2));
+                }
+            }
+        };
+        favorites.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = false; render[0].run(); } });
+        history.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = true; render[0].run(); } });
+        addLibraryAction(root, "Exportar favoritos", new Runnable() {
+            @Override public void run() { exportBookmarks(); }
+        });
+        addLibraryAction(root, "Importar favoritos", new Runnable() {
+            @Override public void run() { importBookmarks(); }
+        });
+        addLibraryAction(root, "Limpar histórico", new Runnable() {
+            @Override public void run() {
+                browserLibraryStore.clearHistory();
+                showingHistory[0] = true;
+                render[0].run();
+                Toast.makeText(MainActivity.this, "Histórico apagado", Toast.LENGTH_SHORT).show();
+            }
+        });
+        render[0].run();
+        sheet.setContentView(root);
+        sheet.show();
+        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+        sheet.getBehavior().setSkipCollapsed(true);
+    }
+
+    private static final int REQUEST_IMPORT_BOOKMARKS = 6121;
+    private static final int REQUEST_EXPORT_BOOKMARKS = 6122;
+    private void importBookmarks() {
+        Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("text/html");
+        try { startActivityForResult(picker, REQUEST_IMPORT_BOOKMARKS); }
+        catch (ActivityNotFoundException error) { Toast.makeText(this, "Seletor de arquivos indisponível", Toast.LENGTH_LONG).show(); }
+    }
+
+    private void exportBookmarks() {
+        Intent picker = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("text/html");
+        picker.putExtra(Intent.EXTRA_TITLE, "snav-bookmarks.html");
+        try { startActivityForResult(picker, REQUEST_EXPORT_BOOKMARKS); }
+        catch (ActivityNotFoundException error) { Toast.makeText(this, "Seletor de arquivos indisponível", Toast.LENGTH_LONG).show(); }
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null || browserLibraryStore == null) return;
+        Uri uri = data.getData();
+        try {
+            if (requestCode == REQUEST_IMPORT_BOOKMARKS) {
+                StringBuilder html = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(getContentResolver().openInputStream(uri), "UTF-8"))) {
+                    String line;
+                    while ((line = reader.readLine()) != null && html.length() <= 2_000_000) html.append(line).append('\\n');
+                }
+                int count = browserLibraryStore.importBookmarks(html.toString());
+                Toast.makeText(this, count + " favoritos importados ou já existentes", Toast.LENGTH_LONG).show();
+            } else if (requestCode == REQUEST_EXPORT_BOOKMARKS) {
+                try (OutputStream output = getContentResolver().openOutputStream(uri)) {
+                    if (output == null) throw new IOException("Destino indisponível");
+                    output.write(browserLibraryStore.exportBookmarksHtml().getBytes("UTF-8"));
+                    output.flush();
+                }
+                Toast.makeText(this, "Favoritos exportados", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception error) {
+            logDiagnostic("Falha na importação/exportação de favoritos: " + error.getClass().getSimpleName());
+            Toast.makeText(this, "Não foi possível processar o arquivo", Toast.LENGTH_LONG).show();
+        }
+    }
+
 	private void showSiteInfoBottomSheet() {
 		final String currentUrl = geckoEngine == null ? null : geckoEngine.getCurrentUri();
 		final Uri pageUri = currentUrl == null ? null : Uri.parse(currentUrl);
@@ -1362,6 +1525,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		title.setPadding(0, 0, 0, siteInfoDp(18));
 		content.addView(title);
 		addSiteInfoRow(content, "ENDEREÇO COMPLETO", currentUrl == null ? "Nenhum endereço aberto" : currentUrl);
+        addLibraryAction(content, "Salvar nos favoritos", new Runnable() {
+            @Override public void run() {
+                if (browserLibraryStore != null && browserLibraryStore.addBookmark(currentPageTitle, currentUrl))
+                    Toast.makeText(MainActivity.this, "Adicionado aos favoritos", Toast.LENGTH_SHORT).show();
+                else Toast.makeText(MainActivity.this, "Não foi possível salvar este endereço", Toast.LENGTH_SHORT).show();
+            }
+        });
+        addLibraryAction(content, "Favoritos e histórico", new Runnable() {
+            @Override public void run() { sheet.dismiss(); showBrowserLibraryBottomSheet(false); }
+        });
 		addSiteInfoRow(content, "CONEXÃO", "https".equalsIgnoreCase(scheme) ? "HTTPS — conexão criptografada" : "about".equalsIgnoreCase(scheme) ? "Página interna do GeckoView" : "Não disponível");
 		addSiteInfoRow(content, "PROTEÇÃO", "Proteção contra rastreamento integrada ao GeckoView e isolamento dinâmico de cookies de terceiros (dFPI).");
 		addSiteInfoRow(content, "PERMISSÕES", "Câmera, microfone e localização exigem consentimento por origem HTTPS e autorização do Android quando aplicável.");
@@ -2358,6 +2531,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         }
                     }
                     text_barra.setText(domainForAddressBar(uri));
+                    if (browserLibraryStore != null && uri != null && uri.startsWith("https://")) {
+                        browserLibraryStore.addVisit(currentPageTitle, uri);
+                    }
                 }
                 @Override public void onTitleChanged(String title) {
                     currentPageTitle = title;
