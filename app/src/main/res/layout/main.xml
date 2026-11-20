@@ -209,12 +209,19 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <org.mozilla.geckoview.GeckoView
-                    android:id="@+id/geckoview"
+                <FrameLayout
+                    android:id="@+id/browser_content_container"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
-                    android:background="@color/snav_surface" />
+                    android:background="@color/snav_surface">
+
+                    <org.mozilla.geckoview.GeckoView
+                        android:id="@+id/geckoview"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@color/snav_surface" />
+                </FrameLayout>
             </LinearLayout>
         </LinearLayout>
 
