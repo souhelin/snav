@@ -1393,7 +1393,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
         scroll.addView(entries, new ScrollView.LayoutParams(-1, -2));
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(360)));
         final Runnable[] render = new Runnable[1];
         final boolean[] showingHistory = new boolean[] { historyMode };
         render[0] = new Runnable() {
@@ -2622,6 +2622,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 }
                 @Override public void onTitleChanged(String title) {
                     currentPageTitle = title;
+                    String activeUri = geckoEngine == null ? null : geckoEngine.getCurrentUri();
+                    if (browserLibraryStore != null && activeUri != null && activeUri.startsWith("https://"))
+                        browserLibraryStore.addVisit(title, activeUri);
                     // The address bar intentionally displays the domain, never the page title.
                 }
                 @Override public void onInsecureNavigationBlocked(String uri, String source) {
