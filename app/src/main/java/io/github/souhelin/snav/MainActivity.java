@@ -2842,6 +2842,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 @Override public void onExternalNavigationRequested(String uri) {
                     openExternalUri(uri);
                 }
+                @Override public void onNewTabRequested(String uri) {
+                    Uri requested = Uri.parse(uri);
+                    if (!"https".equalsIgnoreCase(requested.getScheme()) || requested.getHost() == null || requested.getUserInfo() != null) return;
+                    createBrowserTab();
+                    if (browserTabs.isEmpty()) return;
+                    BrowserTab activeTab = browserTabs.get(activeBrowserTab);
+                    activeTab.url = uri;
+                    activeTab.title = "Nova guia";
+                    persistBrowserTabs();
+                    loadUrlWithPrivacyHeaders(uri);
+                }
                 @Override public void onExternalResponse(WebResponse response) {
                     handleGeckoDownload(response);
                 }
