@@ -1460,6 +1460,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         });
     }
 
+    private String historyDateLabel(long timestamp) {
+        Calendar target = Calendar.getInstance(); target.setTimeInMillis(timestamp);
+        Calendar today = Calendar.getInstance();
+        if (target.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+            && target.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) return "Hoje";
+        today.add(Calendar.DAY_OF_YEAR, -1);
+        if (target.get(Calendar.YEAR) == today.get(Calendar.YEAR)
+            && target.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)) return "Ontem";
+        return new SimpleDateFormat("EEEE, dd 'de' MMMM", Locale.getDefault()).format(new Date(timestamp));
+    }
+
     private void showBrowserLibraryBottomSheet(final boolean historyMode) {
         final BottomSheetDialog sheet = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this);
@@ -1507,7 +1518,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     empty.setPadding(0, dp(22), 0, dp(22));
                     entries.addView(empty);
                 }
+                String lastHistoryGroup = null;
                 for (final BrowserLibraryStore.Entry item : data) {
+                    if (showingHistory[0]) {
+                        String group = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(new Date(item.visitedAt));
+                        if (!group.equals(lastHistoryGroup)) {
+                            TextView groupHeading = new TextView(MainActivity.this);
+                            groupHeading.setText(historyDateLabel(item.visitedAt));
+                            groupHeading.setTextColor(getResources().getColor(R.color.snav_primary));
+                            groupHeading.setTextSize(13);
+                            groupHeading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                            groupHeading.setPadding(dp(8), dp(16), dp(8), dp(6));
+                            entries.addView(groupHeading);
+                            lastHistoryGroup = group;
+                        }
+                    }
                     LinearLayout row = new LinearLayout(MainActivity.this);
                     row.setOrientation(LinearLayout.VERTICAL);
                     row.setPadding(dp(8), dp(12), dp(8), dp(12));
@@ -1533,9 +1558,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     });
                     row.setOnLongClickListener(new View.OnLongClickListener() {
                         @Override public boolean onLongClick(View view) {
-                            if (!showingHistory[0] && browserLibraryStore.removeBookmark(item.url)) {
+                            boolean removed = showingHistory[0] ? browserLibraryStore.removeHistory(item.url) : browserLibraryStore.removeBookmark(item.url);
+                            if (removed) {
                                 render[0].run();
-                                Toast.makeText(MainActivity.this, "Favorito removido", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this, showingHistory[0] ? "Registro removido" : "Favorito removido", Toast.LENGTH_SHORT).show();
                                 return true;
                             }
                             return false;
