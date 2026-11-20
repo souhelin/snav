@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - feature/geckoview-engine
+      - feature/md3-modal-translation-reader
 
 permissions:
   contents: read
