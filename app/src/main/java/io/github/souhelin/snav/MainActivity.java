@@ -152,6 +152,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private Intent intent = new Intent();
 	private SharedPreferences Dados;
 	private BrowserLibraryStore browserLibraryStore;
+	private final ArrayList<BrowserTab> browserTabs = new ArrayList<>();
+	private int activeBrowserTab = 0;
+	private TextView tabCounterButton;
+	private static final String STATE_BROWSER_TABS = "snav_browser_tabs";
+	private static final String STATE_ACTIVE_TAB = "snav_active_tab";
 	private TimerTask time;
 	
 	@Override
@@ -166,6 +171,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				pendingSessionState = (GeckoSession.SessionState) _savedInstanceState.getParcelable(STATE_GECKO_SESSION);
 			}
 			pendingRestoreUri = _savedInstanceState.getString(STATE_GECKO_URI);
+			ArrayList<Bundle> tabBundles = _savedInstanceState.getParcelableArrayList(STATE_BROWSER_TABS);
+			if (tabBundles != null) {
+				for (Bundle item : tabBundles) {
+					GeckoSession.SessionState state = Build.VERSION.SDK_INT >= 33 ? item.getParcelable("state", GeckoSession.SessionState.class) : (GeckoSession.SessionState) item.getParcelable("state");
+					browserTabs.add(new BrowserTab(item.getString("title"), item.getString("url"), state));
+				}
+				if (!browserTabs.isEmpty()) activeBrowserTab = Math.max(0, Math.min(_savedInstanceState.getInt(STATE_ACTIVE_TAB, 0), browserTabs.size() - 1));
+			}
 		}
 		startDiagnostics();
 		initialize(_savedInstanceState);
@@ -181,6 +194,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	 * is measured in the actually visible region. Older releases keep the
 	 * manifest's adjustResize behavior.
 	 */
+	private static final class BrowserTab {
+		String title; String url; GeckoSession.SessionState state;
+		BrowserTab(String title, String url, GeckoSession.SessionState state) { this.title = title; this.url = url; this.state = state; }
+	}
+
 	private void applyImeInsetsWorkaround() {
 		if (Build.VERSION.SDK_INT < 30) return;
 		final View content = findViewById(android.R.id.content);
@@ -331,6 +349,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		
 
 		
+		tabCounterButton = new TextView(this); tabCounterButton.setText("1"); tabCounterButton.setTextSize(14); tabCounterButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD); tabCounterButton.setTextColor(getResources().getColor(R.color.snav_on_surface)); tabCounterButton.setGravity(Gravity.CENTER); tabCounterButton.setMinWidth(dp(40)); tabCounterButton.setMinHeight(dp(48)); tabCounterButton.setBackgroundResource(android.R.drawable.list_selector_background); tabCounterButton.setContentDescription("Gerenciar abas"); tabCounterButton.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showTabsBottomSheet(); } }); linear_b.addView(tabCounterButton, new LinearLayout.LayoutParams(dp(40), dp(48)));
 		button_site_info.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
@@ -747,6 +766,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			if (state != null) outState.putParcelable(STATE_GECKO_SESSION, state);
 			String uri = geckoEngine.getCurrentUri();
 			if (uri != null) outState.putString(STATE_GECKO_URI, uri);
+			if (!browserTabs.isEmpty()) {
+				BrowserTab active = browserTabs.get(activeBrowserTab);
+				active.state = state == null ? geckoEngine.getSessionState() : new GeckoSession.SessionState(state);
+				active.url = uri; active.title = currentPageTitle;
+				ArrayList<Bundle> tabBundles = new ArrayList<>();
+				for (BrowserTab tab : browserTabs) { Bundle item = new Bundle(); item.putString("title", tab.title); item.putString("url", tab.url); if (tab.state != null) item.putParcelable("state", tab.state); tabBundles.add(item); }
+				outState.putParcelableArrayList(STATE_BROWSER_TABS, tabBundles); outState.putInt(STATE_ACTIVE_TAB, activeBrowserTab);
+			}
 		}
 		super.onSaveInstanceState(outState);
 	}
@@ -1343,6 +1370,78 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		detail.setPadding(0, siteInfoDp(3), 0, siteInfoDp(12));
 		parent.addView(detail);
 	}
+
+
+    private void updateTabCounter() { if (tabCounterButton != null) tabCounterButton.setText(String.valueOf(Math.max(1, browserTabs.size()))); }
+
+    private void captureActiveTabState() {
+        if (geckoEngine == null || browserTabs.isEmpty()) return;
+        geckoEngine.flushSessionState();
+        BrowserTab active = browserTabs.get(activeBrowserTab);
+        GeckoSession.SessionState state = geckoEngine.getSessionState();
+        if (state != null) active.state = new GeckoSession.SessionState(state);
+        active.url = geckoEngine.getCurrentUri(); active.title = currentPageTitle;
+    }
+
+    private void switchBrowserTab(int index) {
+        if (geckoEngine == null || index < 0 || index >= browserTabs.size() || index == activeBrowserTab) return;
+        captureActiveTabState(); activeBrowserTab = index;
+        BrowserTab target = browserTabs.get(index);
+        readerRequestId++; readerModePending = false; readerMode = false; readerOriginalUri = null;
+        if (target.state != null) geckoEngine.restoreState(target.state);
+        else if (target.url != null && target.url.startsWith("https://")) loadUrlWithPrivacyHeaders(target.url);
+        else geckoEngine.loadUri("about:blank");
+        currentPageTitle = target.title; text_barra.setText(domainForAddressBar(target.url));
+        vazio.setVisibility(target.url == null || target.url.isEmpty() || "about:blank".equals(target.url) ? View.VISIBLE : View.GONE);
+        updateTabCounter();
+    }
+
+    private void createBrowserTab() {
+        captureActiveTabState();
+        browserTabs.add(new BrowserTab("Nova guia", null, null));
+        int next = browserTabs.size() - 1;
+        activeBrowserTab = Math.max(0, next - 1);
+        switchBrowserTab(next);
+    }
+
+    private void closeBrowserTab(int index) {
+        if (browserTabs.size() <= 1) {
+            BrowserTab only = browserTabs.get(0); only.title = "Nova guia"; only.url = null; only.state = null;
+            currentPageTitle = null; activeBrowserTab = 0; if (geckoEngine != null) geckoEngine.loadUri("about:blank");
+        } else {
+            if (index == activeBrowserTab) captureActiveTabState();
+            browserTabs.remove(index);
+            if (index < activeBrowserTab) activeBrowserTab--; else if (index == activeBrowserTab) activeBrowserTab = Math.min(index, browserTabs.size() - 1);
+            BrowserTab selected = browserTabs.get(activeBrowserTab);
+            if (selected.state != null) geckoEngine.restoreState(selected.state);
+            else if (selected.url != null && selected.url.startsWith("https://")) loadUrlWithPrivacyHeaders(selected.url);
+            else geckoEngine.loadUri("about:blank");
+            currentPageTitle = selected.title;
+        }
+        updateTabCounter(); showTabsBottomSheet();
+    }
+
+    private void showTabsBottomSheet() {
+        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22), dp(18), dp(22), dp(24));
+        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this); root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
+        TextView heading = new TextView(this); heading.setText("Abas abertas · " + browserTabs.size()); heading.setTextSize(21); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextColor(getResources().getColor(R.color.snav_on_surface)); root.addView(heading);
+        addLibraryAction(root, "Nova aba", new Runnable() { @Override public void run() { sheet.dismiss(); createBrowserTab(); } });
+        ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); scroll.addView(list); root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(340)));
+        for (int i = 0; i < browserTabs.size(); i++) {
+            final int index = i; final BrowserTab tab = browserTabs.get(i);
+            LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
+            TextView label = new TextView(this); String name = tab.title == null || tab.title.trim().isEmpty() ? "Nova guia" : tab.title;
+            label.setText((i == activeBrowserTab ? "●  " : "") + name + "\n" + (tab.url == null ? "Página em branco" : domainForAddressBar(tab.url)));
+            label.setTextColor(getResources().getColor(R.color.snav_on_surface)); label.setTextSize(14); label.setPadding(dp(8), dp(14), dp(8), dp(14));
+            row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
+            TextView close = new TextView(this); close.setText("×"); close.setTextSize(24); close.setGravity(Gravity.CENTER); close.setTextColor(getResources().getColor(R.color.snav_on_surface_variant)); row.addView(close, new LinearLayout.LayoutParams(dp(48), dp(52)));
+            label.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sheet.dismiss(); switchBrowserTab(index); } });
+            close.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sheet.dismiss(); closeBrowserTab(index); } });
+            list.addView(row);
+        }
+        sheet.setContentView(root); sheet.show(); sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED); sheet.getBehavior().setSkipCollapsed(true);
+    }
 
     private void addLibraryAction(LinearLayout parent, String label, final Runnable action) {
         TextView button = new TextView(this);
@@ -2626,12 +2725,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         }
                     }
                     text_barra.setText(domainForAddressBar(uri));
+                    if (!browserTabs.isEmpty()) browserTabs.get(activeBrowserTab).url = uri;
                     if (browserLibraryStore != null && uri != null && uri.startsWith("https://")) {
                         browserLibraryStore.addVisit(currentPageTitle, uri);
                     }
                 }
                 @Override public void onTitleChanged(String title) {
                     currentPageTitle = title;
+                    if (!browserTabs.isEmpty()) browserTabs.get(activeBrowserTab).title = title;
                     String activeUri = geckoEngine == null ? null : geckoEngine.getCurrentUri();
                     if (browserLibraryStore != null && activeUri != null && activeUri.startsWith("https://"))
                         browserLibraryStore.addVisit(title, activeUri);
@@ -2663,6 +2764,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
         installGeckoPermissionDelegate();
+        if (browserTabs.isEmpty()) browserTabs.add(new BrowserTab("Nova guia", pendingRestoreUri, null));
+        updateTabCounter();
         geckoEngine.getSession().setTranslationsSessionDelegate(
             new TranslationsController.SessionTranslation.Delegate() {
                 @Override public void onTranslationStateChange(
