@@ -1409,14 +1409,18 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             BrowserTab only = browserTabs.get(0); only.title = "Nova guia"; only.url = null; only.state = null;
             currentPageTitle = null; activeBrowserTab = 0; if (geckoEngine != null) geckoEngine.loadUri("about:blank");
         } else {
-            if (index == activeBrowserTab) captureActiveTabState();
+            boolean closingActive = index == activeBrowserTab;
+            if (closingActive) captureActiveTabState();
             browserTabs.remove(index);
-            if (index < activeBrowserTab) activeBrowserTab--; else if (index == activeBrowserTab) activeBrowserTab = Math.min(index, browserTabs.size() - 1);
-            BrowserTab selected = browserTabs.get(activeBrowserTab);
-            if (selected.state != null) geckoEngine.restoreState(selected.state);
-            else if (selected.url != null && selected.url.startsWith("https://")) loadUrlWithPrivacyHeaders(selected.url);
-            else geckoEngine.loadUri("about:blank");
-            currentPageTitle = selected.title;
+            if (index < activeBrowserTab) activeBrowserTab--;
+            else if (closingActive) activeBrowserTab = Math.min(index, browserTabs.size() - 1);
+            if (closingActive) {
+                BrowserTab selected = browserTabs.get(activeBrowserTab);
+                if (selected.state != null) geckoEngine.restoreState(selected.state);
+                else if (selected.url != null && selected.url.startsWith("https://")) loadUrlWithPrivacyHeaders(selected.url);
+                else geckoEngine.loadUri("about:blank");
+                currentPageTitle = selected.title;
+            }
         }
         updateTabCounter(); showTabsBottomSheet();
     }
