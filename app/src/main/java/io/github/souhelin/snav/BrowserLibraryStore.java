@@ -135,10 +135,10 @@ public final class BrowserLibraryStore {
 
     public synchronized String exportBookmarksHtml() {
         StringBuilder html = new StringBuilder(
-            "<!DOCTYPE NETSCAPE-Bookmark-file-1>\\n<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\\n<TITLE>Snav Bookmarks</TITLE>\\n<H1>Bookmarks</H1>\\n<DL><p>\\n");
+            "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n<TITLE>Snav Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n");
         for (Entry entry : getBookmarks()) {
             html.append("<DT><A HREF=\"").append(escape(entry.url)).append("\">")
-                .append(escape(entry.title)).append("</A>\\n");
+                .append(escape(entry.title)).append("</A>\n");
         }
         return html.append("</DL><p>\n").toString();
     }
