@@ -100,7 +100,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private LinearLayout linear_barra_pesquisa;
 	private EditText edittext1;
 	private LinearLayout linear20;
-	private LinearLayout linear_tela2_base;
 	private LinearLayout linear_b;
 	private LinearLayout vazio;
 	private GeckoView geckoView;
@@ -227,7 +226,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_barra_pesquisa = findViewById(R.id.linear_barra_pesquisa);
 		edittext1 = findViewById(R.id.edittext1);
 		linear20 = findViewById(R.id.linear20);
-		linear_tela2_base = findViewById(R.id.linear_tela2_base);
 		linear_b = findViewById(R.id.linear_b);
 		vazio = findViewById(R.id.vazio);
 		geckoView = findViewById(R.id.geckoview);
