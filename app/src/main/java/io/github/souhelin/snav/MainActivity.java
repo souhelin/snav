@@ -909,13 +909,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			Toast.makeText(this, "Abra uma página HTTPS para traduzir", Toast.LENGTH_SHORT).show();
 			return;
 		}
-		final BottomSheetDialog sheet = new BottomSheetDialog(this);
+		final Dialog screen = new Dialog(this);
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(dp(24), dp(8), dp(24), dp(28));
 
-		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 		TextView title = new TextView(this);
 		title.setText("Traduzir página");
 		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
@@ -984,10 +982,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
 		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
-		sheet.setContentView(scroll);
-		sheet.show();
-		sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
-		sheet.getBehavior().setSkipCollapsed(true);
+		screen.setContentView(scroll);
+		showFullscreenDialog(screen);
 
 		final ArrayList<TranslationsController.Language> sourceLanguages = new ArrayList<>();
 		final ArrayList<TranslationsController.Language> targetLanguages = new ArrayList<>();
@@ -1001,7 +997,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						@Override public void accept(final TranslationsController.RuntimeTranslation.TranslationSupport support) {
 							runOnUiThread(new Runnable() {
 								@Override public void run() {
-									if (isFinishing() || isDestroyed() || !sheet.isShowing()) return;
+									if (isFinishing() || isDestroyed() || !screen.isShowing()) return;
 									if (support == null || support.fromLanguages == null || support.toLanguages == null
 										|| support.fromLanguages.isEmpty() || support.toLanguages.isEmpty()) {
 										status.setText("O mecanismo não disponibilizou idiomas para este dispositivo.");
@@ -1035,7 +1031,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						@Override public void accept(final Throwable error) {
 							runOnUiThread(new Runnable() {
 								@Override public void run() {
-									if (!isFinishing() && !isDestroyed() && sheet.isShowing()) status.setText("Não foi possível carregar os idiomas. Verifique a disponibilidade do mecanismo de tradução.");
+									if (!isFinishing() && !isDestroyed() && screen.isShowing()) status.setText("Não foi possível carregar os idiomas. Verifique a disponibilidade do mecanismo de tradução.");
 								}
 							});
 						}
@@ -1070,7 +1066,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 									runOnUiThread(new Runnable() {
 										@Override public void run() {
 											if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Tradução iniciada", Toast.LENGTH_SHORT).show();
-											sheet.dismiss();
+											screen.dismiss();
 										}
 									});
 								}
@@ -1101,7 +1097,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 							new GeckoResult.Consumer<Void>() {
 								@Override public void accept(Void ignored) {
 									runOnUiThread(new Runnable() {
-										@Override public void run() { sheet.dismiss(); }
+										@Override public void run() { screen.dismiss(); }
 									});
 								}
 							},
@@ -1125,13 +1121,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			Toast.makeText(this, "Abra uma página HTTPS para usar o modo leitura", Toast.LENGTH_SHORT).show();
 			return;
 		}
-		final BottomSheetDialog sheet = new BottomSheetDialog(this);
+		final Dialog screen = new Dialog(this);
 		LinearLayout content = new LinearLayout(this);
 		content.setOrientation(LinearLayout.VERTICAL);
 		content.setPadding(dp(24), dp(8), dp(24), dp(28));
 
-		BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 		TextView title = new TextView(this);
 		title.setText("Modo de leitura");
 		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
@@ -1160,15 +1154,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					readerModePending = true;
 					activateReaderMode(current);
 				}
-				sheet.dismiss();
+				screen.dismiss();
 			}
 		});
 		ScrollView scroll = new ScrollView(this);
 		scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
-		sheet.setContentView(scroll);
-		sheet.show();
-		sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
-		sheet.getBehavior().setSkipCollapsed(true);
+		screen.setContentView(scroll);
+		showFullscreenDialog(screen);
 	}
 
 	private void activateReaderMode(final String sourceUri) {
@@ -1467,6 +1459,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         updateTabCounter(); persistBrowserTabs(); showTabsBottomSheet();
     }
 
+
+	private void showFullscreenDialog(Dialog dialog) {
+		dialog.show();
+		Window window = dialog.getWindow();
+		if (window != null) {
+			window.setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.snav_surface)));
+			window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+		}
+	}
+
     private void showTabsBottomSheet() {
         final Dialog screen = new Dialog(this);
         LinearLayout root = new LinearLayout(this);
@@ -1693,12 +1695,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     }
 
     private void showDownloadsBottomSheet() {
-        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        final Dialog screen = new Dialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
         TextView heading = new TextView(this);
         heading.setText("Downloads");
         heading.setTextSize(21);
@@ -1769,7 +1769,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             legacy.setPadding(0, dp(18), 0, dp(18));
             legacy.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View view) {
-                    sheet.dismiss();
+                    screen.dismiss();
                     requestPermissions(new String[] { android.Manifest.permission.WRITE_EXTERNAL_STORAGE }, 4105);
                 }
             });
@@ -1782,10 +1782,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             empty.setPadding(0, dp(18), 0, dp(18));
             list.addView(empty);
         }
-        sheet.setContentView(root);
-        sheet.show();
-        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
-        sheet.getBehavior().setSkipCollapsed(true);
+        screen.setContentView(root);
+        showFullscreenDialog(screen);
     }
 
     private void addDownloadFileRow(final LinearLayout list, final Uri itemUri, String name, long size) {
