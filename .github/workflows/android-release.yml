@@ -8,6 +8,7 @@ on:
       - feature/md3-full-ui-redesign
       - feature/unsplash-wallpaper-pull-refresh
       - feature/geckoview-engine
+      - feature/md3-browser-management
 
 permissions:
   contents: read
