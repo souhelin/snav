@@ -1460,25 +1460,60 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     }
 
     private void showTabsBottomSheet() {
-        final BottomSheetDialog sheet = new BottomSheetDialog(this);
-        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this); root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
-        TextView heading = new TextView(this); heading.setText("Abas abertas · " + browserTabs.size()); heading.setTextSize(21); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextColor(getResources().getColor(R.color.snav_on_surface)); root.addView(heading);
-        addLibraryAction(root, "Nova aba", new Runnable() { @Override public void run() { sheet.dismiss(); createBrowserTab(); } });
-        ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); scroll.addView(list); root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(340)));
+        final Dialog screen = new Dialog(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(18), dp(22), dp(24));
+        root.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+        TextView heading = new TextView(this);
+        heading.setText("Abas abertas · " + browserTabs.size());
+        heading.setTextSize(21);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        root.addView(heading, new LinearLayout.LayoutParams(-1, dp(56)));
+        addLibraryAction(root, "Nova aba", new Runnable() {
+            @Override public void run() { screen.dismiss(); createBrowserTab(); }
+        });
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(list);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         for (int i = 0; i < browserTabs.size(); i++) {
-            final int index = i; final BrowserTab tab = browserTabs.get(i);
-            LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
-            TextView label = new TextView(this); String name = tab.title == null || tab.title.trim().isEmpty() ? "Nova guia" : tab.title;
-            label.setText((i == activeBrowserTab ? "●  " : "") + name + "\n" + (tab.url == null ? "Página em branco" : domainForAddressBar(tab.url)));
-            label.setTextColor(getResources().getColor(R.color.snav_on_surface)); label.setTextSize(14); label.setPadding(dp(8), dp(14), dp(8), dp(14));
+            final int index = i;
+            final BrowserTab tab = browserTabs.get(i);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            TextView label = new TextView(this);
+            String name = tab.title == null || tab.title.trim().isEmpty() ? "Nova guia" : tab.title;
+            label.setText((i == activeBrowserTab ? "●  " : "") + name + "\n"
+                + (tab.url == null ? "Página em branco" : domainForAddressBar(tab.url)));
+            label.setTextColor(getResources().getColor(R.color.snav_on_surface));
+            label.setTextSize(14);
+            label.setPadding(dp(8), dp(14), dp(8), dp(14));
             row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
-            TextView close = new TextView(this); close.setText("×"); close.setTextSize(24); close.setGravity(Gravity.CENTER); close.setTextColor(getResources().getColor(R.color.snav_on_surface_variant)); row.addView(close, new LinearLayout.LayoutParams(dp(48), dp(52)));
-            label.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sheet.dismiss(); switchBrowserTab(index); } });
-            close.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sheet.dismiss(); closeBrowserTab(index); } });
+            TextView close = new TextView(this);
+            close.setText("×");
+            close.setTextSize(24);
+            close.setGravity(Gravity.CENTER);
+            close.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            row.addView(close, new LinearLayout.LayoutParams(dp(48), dp(52)));
+            label.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View view) { screen.dismiss(); switchBrowserTab(index); }
+            });
+            close.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View view) { screen.dismiss(); closeBrowserTab(index); }
+            });
             list.addView(row);
         }
-        sheet.setContentView(root); sheet.show(); sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED); sheet.getBehavior().setSkipCollapsed(true);
+        screen.setContentView(root);
+        screen.show();
+        Window window = screen.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.snav_surface)));
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+        }
     }
 
     private void addLibraryAction(LinearLayout parent, String label, final Runnable action) {
@@ -1510,12 +1545,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     }
 
     private void showBrowserLibraryBottomSheet(final boolean historyMode) {
-        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        final Dialog screen = new Dialog(this);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
+        root.setBackgroundColor(getResources().getColor(R.color.snav_surface));
         TextView heading = new TextView(this);
         heading.setText("Biblioteca");
         heading.setTextSize(21);
@@ -1541,7 +1575,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
         scroll.addView(entries, new ScrollView.LayoutParams(-1, -2));
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(360)));
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         final Runnable[] render = new Runnable[1];
         final boolean[] showingHistory = new boolean[] { historyMode };
         render[0] = new Runnable() {
@@ -1590,7 +1624,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     row.setClickable(true);
                     row.setOnClickListener(new View.OnClickListener() {
                         @Override public void onClick(View view) {
-                            sheet.dismiss();
+                            screen.dismiss();
                             if (geckoEngine != null) { loadUrlWithPrivacyHeaders(item.url); tela1.setVisibility(View.GONE); tela2.setVisibility(View.VISIBLE); tela3.setVisibility(View.GONE); }
                         }
                     });
@@ -1612,7 +1646,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         favorites.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = false; render[0].run(); } });
         history.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = true; render[0].run(); } });
         addLibraryAction(root, "Gerenciador de downloads", new Runnable() {
-            @Override public void run() { sheet.dismiss(); showDownloadsBottomSheet(); }
+            @Override public void run() { screen.dismiss(); showDownloadsBottomSheet(); }
         });
         addLibraryAction(root, "Exportar favoritos", new Runnable() {
             @Override public void run() { exportBookmarks(); }
@@ -1629,10 +1663,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             }
         });
         render[0].run();
-        sheet.setContentView(root);
-        sheet.show();
-        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
-        sheet.getBehavior().setSkipCollapsed(true);
+        screen.setContentView(root);
+        screen.show();
+        Window window = screen.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.snav_surface)));
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
+        }
     }
 
     private void showDownloadsBottomSheet() {
