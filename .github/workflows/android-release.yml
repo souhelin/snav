@@ -86,15 +86,19 @@ jobs:
           echo "$(dirname "$APKSIGNER")" >> "$GITHUB_PATH"
           echo "Using apksigner at $APKSIGNER"
 
-      - name: Verify APK signature
+      - name: Verify APK signatures
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/app-release.apk"
-          if [ ! -s "$APK" ]; then
-            echo "::error::Release APK was not generated."
+          APK_DIR="app/build/outputs/apk/release"
+          mapfile -d '' APKS < <(find "$APK_DIR" -maxdepth 1 -type f -name '*.apk' -print0)
+          if [ "${#APKS[@]}" -eq 0 ]; then
+            echo "::error::No release APKs were generated in $APK_DIR."
             exit 1
           fi
-          apksigner verify --verbose --print-certs "$APK"
+          for APK in "${APKS[@]}"; do
+            echo "Verifying $APK"
+            apksigner verify --verbose --print-certs "$APK"
+          done
 
       - name: Upload signed release APK
         uses: actions/upload-artifact@v4
