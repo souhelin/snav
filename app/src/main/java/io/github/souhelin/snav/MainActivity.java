@@ -152,6 +152,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private final ArrayList<BrowserTab> browserTabs = new ArrayList<>();
 	private int activeBrowserTab = 0;
 	private TextView tabCounterButton;
+	private boolean menuOpenedFromBrowser;
 	private static final String STATE_BROWSER_TABS = "snav_browser_tabs";
 	private static final String STATE_ACTIVE_TAB = "snav_active_tab";
 	private TimerTask time;
@@ -297,6 +298,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			button_load_stop.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View view) {
+					tela3.setVisibility(View.GONE);
+					tela2.setVisibility(View.VISIBLE);
 					if (pageLoading && geckoEngine != null) {
 						geckoEngine.stop();
 						finishPageProgress();
@@ -344,6 +347,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (button_menu != null) {
 			button_menu.setOnClickListener(new View.OnClickListener() {
 				@Override public void onClick(View view) {
+					if (tela3.getVisibility() == View.VISIBLE) {
+						closeMenuScreen();
+						return;
+					}
+					menuOpenedFromBrowser = tela2.getVisibility() == View.VISIBLE;
 					tela1.setVisibility(View.GONE);
 					tela2.setVisibility(View.GONE);
 					tela3.setVisibility(View.VISIBLE);
@@ -1472,7 +1480,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
         root.addView(heading, new LinearLayout.LayoutParams(-1, dp(56)));
         addLibraryAction(root, "Nova aba", new Runnable() {
-            @Override public void run() { screen.dismiss(); createBrowserTab(); }
+            @Override public void run() {
+                screen.dismiss();
+                tela1.setVisibility(View.GONE);
+                tela2.setVisibility(View.VISIBLE);
+                tela3.setVisibility(View.GONE);
+                createBrowserTab();
+            }
         });
         ScrollView scroll = new ScrollView(this);
         LinearLayout list = new LinearLayout(this);
@@ -1500,7 +1514,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             close.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
             row.addView(close, new LinearLayout.LayoutParams(dp(48), dp(52)));
             label.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View view) { screen.dismiss(); switchBrowserTab(index); }
+                @Override public void onClick(View view) {
+                    screen.dismiss();
+                    tela1.setVisibility(View.GONE);
+                    tela2.setVisibility(View.VISIBLE);
+                    tela3.setVisibility(View.GONE);
+                    switchBrowserTab(index);
+                }
             });
             close.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View view) { screen.dismiss(); closeBrowserTab(index); }
@@ -2762,6 +2782,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
+		if (tela3 != null && tela3.getVisibility() == View.VISIBLE) {
+			closeMenuScreen();
+			return;
+		}
 		if (readerMode) {
 			exitReaderMode();
 			return;
@@ -2785,6 +2809,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			new GeckoResult.Consumer<Throwable>() {
 				@Override public void accept(Throwable error) { handleBackNavigationFallback(); }
 			});
+	}
+
+	private void closeMenuScreen() {
+		if (tela3 != null) tela3.setVisibility(View.GONE);
+		if (menuOpenedFromBrowser) {
+			if (tela2 != null) tela2.setVisibility(View.VISIBLE);
+			if (tela1 != null) tela1.setVisibility(View.GONE);
+		} else {
+			if (tela1 != null) tela1.setVisibility(View.VISIBLE);
+			if (tela2 != null) tela2.setVisibility(View.GONE);
+		}
 	}
 
 	private void handleBackNavigationFallback() {
