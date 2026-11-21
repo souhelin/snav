@@ -93,8 +93,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private final java.util.concurrent.ExecutorService downloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
 	
 	private LinearLayout linear1;
-	private LinearLayout linear_c;
-	private LinearLayout linear82;
 	private LinearLayout tela1;
 	private LinearLayout tela2;
 	private LinearLayout tela3;
@@ -110,6 +108,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private CircularProgressIndicator refreshIndicator;
 	private TextView text_barra;
 	private ImageButton button_site_info;
+	private ImageButton button_menu;
 	private ProgressBar prog;
 	private TextView text1;
 	private TextView text2;
@@ -146,8 +145,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private boolean pullConsumed;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
-	private TextView b1;
-	private TextView b2;
 	
 	private Intent intent = new Intent();
 	private SharedPreferences Dados;
@@ -223,8 +220,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	private void initialize(Bundle _savedInstanceState) {
 		linear1 = findViewById(R.id.linear1);
-		linear_c = findViewById(R.id.linear_c);
-		linear82 = findViewById(R.id.linear82);
 		tela1 = findViewById(R.id.tela1);
 		tela2 = findViewById(R.id.tela2);
 		tela3 = findViewById(R.id.tela3);
@@ -249,6 +244,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		text_barra = findViewById(R.id.text_barra);
 		button_site_info = findViewById(R.id.button_site_info);
+		button_menu = findViewById(R.id.button_menu);
 		prog = findViewById(R.id.prog);
 		text1 = findViewById(R.id.text1);
 		text2 = findViewById(R.id.text2);
@@ -278,8 +274,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		button_load_stop = findViewById(R.id.button_load_stop);
 		checkbox_javascript2 = findViewById(R.id.checkbox_javascript2);
 		text5 = findViewById(R.id.text5);
-		b1 = findViewById(R.id.b1);
-		b2 = findViewById(R.id.b2);
 		Dados = getSharedPreferences("Dados", Activity.MODE_PRIVATE);
 		browserLibraryStore = new BrowserLibraryStore(this);
 
@@ -346,37 +340,28 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				openSearchScreen();
 			}
 		});
+
+		if (button_menu != null) {
+			button_menu.setOnClickListener(new View.OnClickListener() {
+				@Override public void onClick(View view) {
+					tela1.setVisibility(View.GONE);
+					tela2.setVisibility(View.GONE);
+					tela3.setVisibility(View.VISIBLE);
+				}
+			});
+		}
+
+		LinearLayout menuTabs = findViewById(R.id.linear_menu_tabs);
+		if (menuTabs != null) menuTabs.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) { showTabsBottomSheet(); }
+		});
+		LinearLayout menuLibrary = findViewById(R.id.linear_menu_library);
+		if (menuLibrary != null) menuLibrary.setOnClickListener(new View.OnClickListener() {
+			@Override public void onClick(View view) { showBrowserLibraryBottomSheet(false); }
+		});
 		
 
 		
-        TextView libraryButton = new TextView(this);
-        libraryButton.setText("▤");
-        libraryButton.setTextSize(23);
-        libraryButton.setTextColor(getResources().getColor(R.color.snav_on_surface));
-        libraryButton.setGravity(Gravity.CENTER);
-        libraryButton.setMinWidth(dp(40));
-        libraryButton.setMinHeight(dp(48));
-        libraryButton.setBackgroundResource(android.R.drawable.list_selector_background);
-        libraryButton.setContentDescription("Abrir biblioteca: favoritos, histórico e downloads");
-        libraryButton.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { showBrowserLibraryBottomSheet(false); }
-        });
-        linear_b.addView(libraryButton, new LinearLayout.LayoutParams(dp(40), dp(48)));
-
-        tabCounterButton = new TextView(this);
-        tabCounterButton.setText("1");
-        tabCounterButton.setTextSize(14);
-        tabCounterButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        tabCounterButton.setTextColor(getResources().getColor(R.color.snav_on_surface));
-        tabCounterButton.setGravity(Gravity.CENTER);
-        tabCounterButton.setMinWidth(dp(40));
-        tabCounterButton.setMinHeight(dp(48));
-        tabCounterButton.setBackgroundResource(android.R.drawable.list_selector_background);
-        tabCounterButton.setContentDescription("Gerenciar abas");
-        tabCounterButton.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { showTabsBottomSheet(); }
-        });
-        linear_b.addView(tabCounterButton, new LinearLayout.LayoutParams(dp(40), dp(48)));
 		button_site_info.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
@@ -458,23 +443,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
-		b1.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				tela1.setVisibility(View.GONE);
-				tela2.setVisibility(View.VISIBLE);
-				tela3.setVisibility(View.GONE);
-			}
-		});
-		
-		b2.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				tela1.setVisibility(View.GONE);
-				tela2.setVisibility(View.GONE);
-				tela3.setVisibility(View.VISIBLE);
-			}
-		});
+
 	}
 	
 
@@ -2827,9 +2796,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		//checkbox
 		checkbox_javascript2.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
 		checkbox_brilho.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
-		//linear_c
-		b1.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
-		b2.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
 	}
 	
 	
