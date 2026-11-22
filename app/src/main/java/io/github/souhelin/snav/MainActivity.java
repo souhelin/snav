@@ -294,17 +294,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (button_load_stop != null) {
 			button_load_stop.setOnClickListener(new View.OnClickListener() {
 				@Override
-				public void onClick(View view) {
-					if (pageLoading && geckoEngine != null) {
-						geckoEngine.stop();
-						finishPageProgress();
-					} else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
-						if (readerMode) exitReaderMode();
-						geckoEngine.reload();
-					} else {
-						openSearchScreen();
-					}
-				}
+				public void onClick(View view) { performLoadStop(); }
 			});
 		}
 
@@ -341,11 +331,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		if (button_menu != null) {
 			button_menu.setOnClickListener(new View.OnClickListener() {
-				@Override public void onClick(View view) {
-					tela1.setVisibility(View.GONE);
-					tela2.setVisibility(View.GONE);
-					tela3.setVisibility(View.VISIBLE);
-				}
+				@Override public void onClick(View view) { showMenuBottomSheet(); }
 			});
 		}
 
@@ -1455,6 +1441,79 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             }
         }
         updateTabCounter(); persistBrowserTabs(); showTabsBottomSheet();
+    }
+
+    private void performLoadStop() {
+        if (pageLoading && geckoEngine != null) {
+            geckoEngine.stop();
+            finishPageProgress();
+        } else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
+            if (readerMode) exitReaderMode();
+            geckoEngine.reload();
+        } else {
+            openSearchScreen();
+        }
+    }
+
+    private void showMenuBottomSheet() {
+        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(18), dp(22), dp(24));
+        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
+        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
+        TextView heading = new TextView(this);
+        heading.setText("Menu");
+        heading.setTextSize(21);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        root.addView(heading);
+        addMenuSheetRow(root, R.drawable.ms_tab, "Gerenciar abas", new Runnable() {
+            @Override public void run() { sheet.dismiss(); showTabsBottomSheet(); }
+        });
+        addMenuSheetRow(root, R.drawable.ms_menu_book, "Biblioteca", new Runnable() {
+            @Override public void run() { sheet.dismiss(); showBrowserLibraryBottomSheet(false); }
+        });
+        addMenuSheetRow(root, R.drawable.ms_refresh, "Carregar / interromper", new Runnable() {
+            @Override public void run() { sheet.dismiss(); performLoadStop(); }
+        });
+        addMenuSheetRow(root, R.drawable.ms_build, "Ferramentas", new Runnable() {
+            @Override public void run() {
+                sheet.dismiss();
+                tela1.setVisibility(View.GONE);
+                tela2.setVisibility(View.GONE);
+                tela3.setVisibility(View.VISIBLE);
+            }
+        });
+        sheet.setContentView(root);
+        sheet.show();
+        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+        sheet.getBehavior().setSkipCollapsed(true);
+    }
+
+    private void addMenuSheetRow(LinearLayout parent, int iconRes, String label, final Runnable action) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(8), 0, dp(8), 0);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(iconRes);
+        icon.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface_variant)));
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(24), dp(24));
+        iconParams.marginEnd = dp(16);
+        row.addView(icon, iconParams);
+        TextView text = new TextView(this);
+        text.setText(label);
+        text.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        text.setTextSize(14);
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
+        row.setBackgroundResource(android.R.drawable.list_selector_background);
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) { action.run(); }
+        });
+        parent.addView(row, new LinearLayout.LayoutParams(-1, dp(56)));
     }
 
     private void showTabsBottomSheet() {
