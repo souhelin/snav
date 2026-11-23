@@ -74,7 +74,9 @@ public class RefreshGeckoIntegrationTest {
             assertTrue("A superfície Gecko não foi medida", width > 0 && height > 0);
         }
 
-        void drag(float dxDp, float dyDp) {
+        void drag(float dxDp, float dyDp) { drag(dxDp, dyDp, 150); }
+
+        void drag(float dxDp, float dyDp, long holdMillis) {
             AtomicBoolean focused = new AtomicBoolean();
             long deadline = SystemClock.uptimeMillis() + 10000;
             do {
@@ -85,15 +87,17 @@ public class RefreshGeckoIntegrationTest {
             assertTrue("A janela do navegador não recebeu foco para o gesto", focused.get());
             float x = location[0] + width * 0.5f;
             float y = location[1] + Math.max(40 * density, height * 0.25f);
+            int before = refreshes.get();
             long down = SystemClock.uptimeMillis();
             send(down, down, MotionEvent.ACTION_DOWN, x, y);
-            SystemClock.sleep(150); // Gecko's asynchronous hit-test response
+            SystemClock.sleep(holdMillis); // allow Gecko's asynchronous hit-test response
             for (int i = 1; i <= 12; i++) {
                 float fraction = i / 12f;
                 send(down, SystemClock.uptimeMillis(), MotionEvent.ACTION_MOVE,
                     x + dxDp * density * fraction, y + dyDp * density * fraction);
                 SystemClock.sleep(16);
             }
+            assertEquals("A atualização só deve começar após soltar", before, refreshes.get());
             send(down, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP,
                 x + dxDp * density, y + dyDp * density);
             SystemClock.sleep(1500);
@@ -130,7 +134,7 @@ public class RefreshGeckoIntegrationTest {
 
     @Test public void shortPageCanRefreshAtTop() throws Exception {
         try (Harness h = new Harness(page(false))) {
-            h.drag(0, 160); assertEquals("Decisão Gecko: " + h.browser.lastGeckoDecision, 1, h.refreshes.get());
+            h.drag(0, 160); assertEquals(1, h.refreshes.get());
         }
     }
 
@@ -141,6 +145,20 @@ public class RefreshGeckoIntegrationTest {
             while (h.scroll.get() == 0 && SystemClock.uptimeMillis() < until) SystemClock.sleep(50);
             assertTrue("A página deveria ter rolado", h.scroll.get() > 0);
             h.drag(0, 160); assertEquals(0, h.refreshes.get());
+        }
+    }
+
+
+    @Test public void shortPageHonorsTouchActionNone() throws Exception {
+        String html = page(false).replace("body{margin:0}", "body{margin:0;touch-action:none}");
+        try (Harness h = new Harness(html)) {
+            h.drag(0, 160); assertEquals(0, h.refreshes.get());
+        }
+    }
+
+    @Test public void longPressDoesNotRefreshShortPage() throws Exception {
+        try (Harness h = new Harness(page(false))) {
+            h.drag(0, 160, 700); assertEquals(0, h.refreshes.get());
         }
     }
 

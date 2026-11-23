@@ -25,7 +25,6 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
     private float downX, downY, sentDistance;
     private boolean waitingForGecko, movedBeforeDecision, refreshEligible, blocked;
     private String gesturePage, refreshConfirmedPage;
-    String lastGeckoDecision = "sem resultado";
     private Supplier<String> eligiblePage = () -> null;
 
     public RefreshAwareGeckoView(Context context, AttributeSet attrs) {
@@ -60,9 +59,6 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                 super.onTouchEventForDetailResult(event).accept(detail -> {
                     if (serial != gestureSerial) return;
                     waitingForGecko = false;
-                    lastGeckoDecision = detail == null ? "null" : "result=" + detail.handledResult()
-                        + " scroll=" + detail.scrollableDirections() + " overscroll=" + detail.overscrollDirections()
-                        + " late=" + movedBeforeDecision;
                     refreshEligible = !movedBeforeDecision && permitsRefresh(detail);
                     if (refreshEligible) startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);
                 }, error -> {
@@ -107,9 +103,12 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
     }
 
     static boolean permitsRefresh(PanZoomController.InputResultDetail detail) {
-        // Gecko documents the direction flags as meaningful only for HANDLED.
-        // UNHANDLED may represent a website gesture or text selection.
-        return detail != null && detail.handledResult() == PanZoomController.INPUT_RESULT_HANDLED
+        // Mozilla's InputResultDetail.canOverscrollTop also accepts UNHANDLED
+        // when Gecko reports vertical overscroll. Short, non-scrollable pages
+        // commonly produce that result. Website-handled and ignored events
+        // remain ineligible; long presses and multi-touch are separately rejected.
+        return detail != null && (detail.handledResult() == PanZoomController.INPUT_RESULT_HANDLED
+                || detail.handledResult() == PanZoomController.INPUT_RESULT_UNHANDLED)
             && (detail.scrollableDirections() & PanZoomController.SCROLLABLE_FLAG_TOP) == 0
             && (detail.overscrollDirections() & PanZoomController.OVERSCROLL_FLAG_VERTICAL) != 0;
     }

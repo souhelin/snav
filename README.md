@@ -11,7 +11,7 @@ O navegador usa o GeckoView, componente da Mozilla para exibir conteúdo da web.
 - Pesquise ou abra endereços pela tela de pesquisa.
 - Use as abas, os favoritos, o histórico e os downloads pelo menu. As abas compartilham uma sessão Gecko; isso limita o isolamento e a integração com extensões.
 - A tela inicial mostra até quatro atalhos fixados e quatro páginas recentes. Os atalhos têm opções de edição e gerenciamento.
-- Arraste a página para baixo a partir do topo para atualizá-la. O gesto depende da resposta do Gecko e pode ser rejeitado para evitar atualizações acidentais. Em testes, a atualização por arrasto não funcionou em uma página curta sem rolagem; use a opção de recarregar do menu nesse caso. Consulte [a documentação de atualização por arrasto](docs/PULL_TO_REFRESH.md).
+- Arraste a página para baixo a partir do topo para atualizá-la. O gesto depende da resposta do Gecko e pode ser rejeitado para evitar atualizações acidentais. Consulte [a documentação de atualização por arrasto](docs/PULL_TO_REFRESH.md).
 - Acesse informações do site, modo de leitura e tradução quando disponíveis. O funcionamento depende da página e dos serviços envolvidos.
 
 ## Extensões
