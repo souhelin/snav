@@ -16,6 +16,7 @@ import java.net.URLEncoder;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Exercises the real Compose/AndroidView/Gecko nested-scroll path on an emulator. */
 @RunWith(AndroidJUnit4.class)
@@ -74,6 +75,14 @@ public class RefreshGeckoIntegrationTest {
         }
 
         void drag(float dxDp, float dyDp) {
+            AtomicBoolean focused = new AtomicBoolean();
+            long deadline = SystemClock.uptimeMillis() + 10000;
+            do {
+                scenario.onActivity(activity -> focused.set(activity.hasWindowFocus()));
+                if (focused.get()) break;
+                SystemClock.sleep(100);
+            } while (SystemClock.uptimeMillis() < deadline);
+            assertTrue("A janela do navegador não recebeu foco para o gesto", focused.get());
             float x = location[0] + width * 0.5f;
             float y = location[1] + Math.max(40 * density, height * 0.25f);
             long down = SystemClock.uptimeMillis();
