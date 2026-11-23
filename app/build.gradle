@@ -153,6 +153,46 @@ tasks.register("generateLauncherIcons") {
             javax.imageio.ImageIO.write(foreground, "png", new File(mipmapDir, "ic_launcher_foreground.png"))
         }
 
+        // The themed launcher icon uses only the alpha silhouette of the
+        // original dark S, not the pale circular background. Keep its size and
+        // placement consistent with the existing adaptive foreground.
+        def silhouette = new java.awt.image.BufferedImage(cropSize, cropSize, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        for (int y = 0; y < cropSize; y++) {
+            for (int x = 0; x < cropSize; x++) {
+                int pixel = crop.getRGB(x, y)
+                int sourceAlpha = (pixel >>> 24) & 0xff
+                int red = (pixel >>> 16) & 0xff
+                int green = (pixel >>> 8) & 0xff
+                int blue = pixel & 0xff
+                int luminance = (red * 2126 + green * 7152 + blue * 722) / 10000
+                int coverage = Math.max(0, Math.min(255, (185 - luminance) * 255 / 75))
+                int alpha = (sourceAlpha * coverage + 127) / 255
+                silhouette.setRGB(x, y, (alpha << 24) | 0x00ffffff)
+            }
+        }
+        int monochromeSize = 432 // 108 dp at xxxhdpi
+        int monochromeArtworkSize = 240 // existing 60 dp foreground placement
+        def monochrome = new java.awt.image.BufferedImage(monochromeSize, monochromeSize, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def monochromeGraphics = monochrome.createGraphics()
+        monochromeGraphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+        monochromeGraphics.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+        int monochromeOffset = (monochromeSize - monochromeArtworkSize) / 2
+        monochromeGraphics.drawImage(silhouette, monochromeOffset, monochromeOffset, monochromeArtworkSize, monochromeArtworkSize, null)
+        monochromeGraphics.dispose()
+        def monochromeDir = new File(resRoot, "drawable-nodpi")
+        monochromeDir.mkdirs()
+        javax.imageio.ImageIO.write(monochrome, "png", new File(monochromeDir, "ic_launcher_monochrome.png"))
+
+        def themedAdaptiveDir = new File(resRoot, "mipmap-anydpi-v33")
+        themedAdaptiveDir.mkdirs()
+        new File(themedAdaptiveDir, "ic_launcher.xml").text = """<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
+</adaptive-icon>
+"""
+
         def adaptiveDir = new File(resRoot, "mipmap-anydpi-v26")
         adaptiveDir.mkdirs()
         new File(adaptiveDir, "ic_launcher.xml").text = """<?xml version="1.0" encoding="utf-8"?>

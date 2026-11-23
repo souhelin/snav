@@ -6,6 +6,10 @@ O Snav Browser é um navegador para Android. O projeto prioriza uma interface si
 
 O navegador usa o GeckoView, componente da Mozilla para exibir conteúdo da web. Esta documentação descreve o código do repositório; ela não garante que todos os recursos estejam disponíveis em uma versão distribuída do aplicativo.
 
+## Ícone do aplicativo
+
+No Android 13 ou posterior, o ícone pode acompanhar as cores do tema do dispositivo quando a opção de ícones temáticos está ativada e o launcher oferece suporte. Caso contrário, o Snav usa o ícone colorido. Consulte [os detalhes do ícone temático](docs/THEMED_APP_ICON.md).
+
 ## Navegação
 
 - Pesquise ou abra endereços pela tela de pesquisa.
