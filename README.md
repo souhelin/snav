@@ -10,6 +10,15 @@ O navegador usa o GeckoView, componente da Mozilla para exibir conteúdo da web.
 
 No Android 13 ou posterior, o ícone pode acompanhar as cores do tema do dispositivo quando a opção de ícones temáticos está ativada e o launcher oferece suporte. Caso contrário, o Snav usa o ícone colorido. Consulte [os detalhes do ícone temático](docs/THEMED_APP_ICON.md).
 
+## Aparência e feedback
+
+O Snav acompanha o modo claro ou escuro do dispositivo. Em dispositivos
+compatíveis, **Cores dinâmicas** usa a paleta do sistema; a preferência pode
+ser desativada para usar as cores do Snav. Em versões sem suporte, a paleta do
+aplicativo é usada automaticamente. Mensagens breves usam Snackbar, incluindo
+uma opção de desfazer ao desafixar uma página. Veja
+[cores e mensagens](docs/MATERIAL_COLOR_E_SNACKBAR.md).
+
 ## Navegação
 
 - Pesquise ou abra endereços pela tela de pesquisa.
