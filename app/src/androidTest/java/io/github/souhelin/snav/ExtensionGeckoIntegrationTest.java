@@ -122,7 +122,10 @@ public class ExtensionGeckoIntegrationTest {
         try {
             await(() -> controller.install(Uri.fromFile(signed).toString(), WebExtensionController.INSTALLATION_METHOD_FROM_FILE));
             fail("A instalação recusada não deveria ser concluída");
-        } catch (Exception expected) { assertTrue("O Gecko deveria solicitar consentimento", prompts.get() > 0); }
+        } catch (Exception expected) {
+            assertTrue("O Gecko deveria solicitar consentimento", prompts.get() > 0);
+            assertInstallError(expected, WebExtension.InstallException.ErrorCodes.ERROR_USER_CANCELED);
+        }
         assertNull(findFixture());
 
         decide(true);
@@ -148,6 +151,14 @@ public class ExtensionGeckoIntegrationTest {
         try {
             await(() -> controller.install(Uri.fromFile(unsigned).toString(), WebExtensionController.INSTALLATION_METHOD_FROM_FILE));
             fail("O Gecko não deveria instalar um pacote sem assinatura");
-        } catch (Exception expected) { assertNull(findFixture(UNSIGNED_ID)); }
+        } catch (Exception expected) {
+            assertInstallError(expected, WebExtension.InstallException.ErrorCodes.ERROR_SIGNEDSTATE_REQUIRED);
+            assertNull(findFixture(UNSIGNED_ID));
+        }
+    }
+
+    private static void assertInstallError(Exception error, int expectedCode) {
+        assertTrue("O Gecko deve informar o motivo da falha", error.getCause() instanceof WebExtension.InstallException);
+        assertEquals(expectedCode, ((WebExtension.InstallException) error.getCause()).code);
     }
 }
