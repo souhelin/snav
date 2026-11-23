@@ -165,6 +165,7 @@ dependencies {
     implementation 'org.mozilla.geckoview:geckoview:160.0.20261116130455'
     implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test:runner:1.6.2'
 }

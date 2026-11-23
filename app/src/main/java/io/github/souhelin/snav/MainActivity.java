@@ -34,6 +34,8 @@ import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.PageExtractionController;
 import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.WebResponse;
+import org.mozilla.geckoview.WebRequest;
+import org.mozilla.geckoview.GeckoWebExecutor;
 import android.widget.*;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -114,24 +116,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private ScrollView vscroll1;
 	private LinearLayout linear33;
 	private LinearLayout linear_tela3_base;
-	private LinearLayout linearmenu2;
+
 	private LinearLayout linear_escurecer;
 	private LinearLayout linear_JavaScript;
 	private LinearLayout linear_limpar_dados2;
-	private HorizontalScrollView hscroll1;
-	private LinearLayout linear25;
-	private LinearLayout linear_copiar_URL;
-	private LinearLayout linear_tradutor_google;
-	private LinearLayout linear_modo_leitura;
-	private LinearLayout linear_abrir_no_navegador;
-	private ImageView imageview57;
-	private TextView text14;
-	private ImageView imageview63;
-	private TextView text19;
-	private ImageView imageview92;
-	private TextView text7;
-	private ImageView imageview58;
-	private TextView text15;
+
 	private MaterialSwitch checkbox_brilho;
 	private MaterialSwitch checkbox_wallpaper;
     private LinearLayout homeShortcuts;
@@ -146,15 +135,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private final Set<String> faviconAttempted = new HashSet<>();
 	private UnsplashWallpaperManager wallpaperManager;
 	private UnsplashWallpaperManager.Callback wallpaperCallback;
-	private float pullStartY;
-	private float pullStartX;
-	private float pullDistance;
-	private boolean pullTracking;
-	private boolean pullConsumed;
+    private String pullPageUrl;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	
-	private Intent intent = new Intent();
 	private SharedPreferences Dados;
 	private BrowserLibraryStore browserLibraryStore;
 	private final ArrayList<BrowserTab> browserTabs = new ArrayList<>();
@@ -258,24 +242,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		vscroll1 = findViewById(R.id.vscroll1);
 		linear33 = findViewById(R.id.linear33);
 		linear_tela3_base = findViewById(R.id.linear_tela3_base);
-		linearmenu2 = findViewById(R.id.linearmenu2);
+
 		linear_escurecer = findViewById(R.id.linear_escurecer);
 		linear_JavaScript = findViewById(R.id.linear_JavaScript);
 		linear_limpar_dados2 = findViewById(R.id.linear_limpar_dados2);
-		hscroll1 = findViewById(R.id.hscroll1);
-		linear25 = findViewById(R.id.linear25);
-		linear_copiar_URL = findViewById(R.id.linear_copiar_URL);
-		linear_tradutor_google = findViewById(R.id.linear_tradutor_google);
-		linear_modo_leitura = findViewById(R.id.linear_modo_leitura);
-		linear_abrir_no_navegador = findViewById(R.id.linear_abrir_no_navegador);
-		imageview57 = findViewById(R.id.imageview57);
-		text14 = findViewById(R.id.text14);
-		imageview63 = findViewById(R.id.imageview63);
-		text19 = findViewById(R.id.text19);
-		imageview92 = findViewById(R.id.imageview92);
-		text7 = findViewById(R.id.text7);
-		imageview58 = findViewById(R.id.imageview58);
-		text15 = findViewById(R.id.text15);
+
 		checkbox_brilho = findViewById(R.id.checkbox_brilho);
 		checkbox_wallpaper = findViewById(R.id.checkbox_wallpaper);
 		homeShortcuts = findViewById(R.id.home_shortcuts);
@@ -342,6 +313,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				@Override public void onClick(View view) { showMenuBottomSheet(); }
 			});
 		}
+        findViewById(R.id.button_home_menu).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) { showMenuBottomSheet(); }
+        });
 
 
 		button_site_info.setOnClickListener(new View.OnClickListener() {
@@ -370,31 +344,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 		
-		linear_copiar_URL.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				SketchwareUtil.showMessage(getApplicationContext(), "Link copiado");
-				((ClipboardManager) getSystemService(getApplicationContext().CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("clipboard", (geckoEngine == null ? null : geckoEngine.getCurrentUri())));
-			}
-		});
-		
-		linear_tradutor_google.setOnClickListener(new View.OnClickListener() {
-			@Override public void onClick(View view) { showTranslationBottomSheet(); }
-		});
-		
-		linear_modo_leitura.setOnClickListener(new View.OnClickListener() {
-			@Override public void onClick(View view) { showReaderOptionsBottomSheet(); }
-		});
-		
-		linear_abrir_no_navegador.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View _view) {
-				intent.setAction(Intent.ACTION_VIEW);
-				intent.setData(Uri.parse(geckoEngine.getCurrentUri()));
-				startActivity(intent);
-			}
-		});
-		
+
 		checkbox_brilho.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
 			@Override
 			public void onCheckedChanged(CompoundButton _param1, boolean _param2) {
@@ -1309,7 +1259,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		geckoView.setVisibility(View.GONE);
 		readerModePending = false;
 		readerMode = true;
-		if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(0.65f);
 	}
 
 	private void exitReaderMode() {
@@ -1322,7 +1271,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		readerModePending = false;
 		readerOriginalUri = null;
 		readerRequestId++;
-		if (linear_modo_leitura != null) linear_modo_leitura.setAlpha(1f);
 	}
 
 	private int siteInfoDp(float value) {
@@ -1350,9 +1298,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         tela1.setVisibility(screen == 1 ? View.VISIBLE : View.GONE);
         tela2.setVisibility(screen == 2 ? View.VISIBLE : View.GONE);
         tela3.setVisibility(screen == 3 ? View.VISIBLE : View.GONE);
-        linear_b.setVisibility(screen == 3 ? View.GONE : View.VISIBLE);
+        linear_b.setVisibility(screen == 2 ? View.VISIBLE : View.GONE);
         updateTopBar();
-        if (screen == 3) updateToolActions();
         if (screen != 1 && edittext1 != null) {
             edittext1.clearFocus();
             android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -1373,24 +1320,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
     private void updateTopBar() {
         if (linear_b == null || tela1 == null || text_barra == null || button_site_info == null) return;
-        boolean home = tela1.getVisibility() == View.VISIBLE;
         boolean browser = tela2.getVisibility() == View.VISIBLE;
-        linear_b.setBackgroundColor(home ? Color.TRANSPARENT : getResources().getColor(R.color.snav_surface));
-        linear_b.setGravity(home ? Gravity.END | Gravity.CENTER_VERTICAL : Gravity.CENTER_VERTICAL);
         linear_b.setClickable(browser);
         text_barra.setVisibility(browser ? View.VISIBLE : View.GONE);
         button_site_info.setVisibility(browser && hasUsablePage() ? View.VISIBLE : View.GONE);
-    }
-
-    private void updateToolActions() {
-        boolean enabled = toolsOpenedFromBrowser && hasUsablePage();
-        View[] pageTools = { linear_copiar_URL, linear_tradutor_google,
-            linear_modo_leitura, linear_abrir_no_navegador };
-        for (View tool : pageTools) {
-            if (tool == null) continue;
-            tool.setEnabled(enabled);
-            tool.setAlpha(enabled ? 1f : 0.38f);
-        }
     }
 
     private void returnFromTools() {
@@ -1427,10 +1360,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private void refreshHomeShortcuts() {
         if (homeShortcuts == null || browserLibraryStore == null) return;
         homeShortcuts.removeAllViews();
+        boolean visible = Dados.getBoolean("home_shortcuts_visible", true);
+        ((View) homeShortcuts.getParent()).setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (!visible) return;
         List<BrowserLibraryStore.Entry> pinned = browserLibraryStore.getPinned();
         List<BrowserLibraryStore.Entry> recent = browserLibraryStore.getHistory();
-        if (!pinned.isEmpty()) addShortcutSection("Fixados", pinned, true);
-        else {
+        if (Dados.getBoolean("home_show_pinned", true) && !pinned.isEmpty()) addShortcutSection("Fixados", pinned, true);
+        else if (Dados.getBoolean("home_show_pinned", true)) {
             TextView hint = new TextView(this);
             hint.setText("Para fixar até 4 páginas, use o menu ou mantenha um recente pressionado");
             hint.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
@@ -1438,7 +1374,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             hint.setGravity(Gravity.CENTER);
             homeShortcuts.addView(hint);
         }
-        if (!recent.isEmpty()) addShortcutSection("Recentes", recent, false);
+        if (Dados.getBoolean("home_show_recent", true) && !recent.isEmpty()) addShortcutSection("Recentes", recent, false);
     }
 
     private void addShortcutSection(String title, List<BrowserLibraryStore.Entry> entries, final boolean pinned) {
@@ -1473,7 +1409,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             icon.setPadding(0, 0, 0, 0);
             icon.setCornerRadius(dp(28));
             icon.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_switch_primary_container)));
-            icon.setContentDescription("Abrir " + name + ". Toque e segure para " + (pinned ? "desafixar" : "fixar"));
+            icon.setContentDescription("Abrir " + name + ". Toque e segure para ver opções");
             iconContainer.addView(icon, new FrameLayout.LayoutParams(-1, -1));
             ImageView image = new ImageView(this);
             image.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -1504,13 +1440,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             };
             View.OnLongClickListener manage = new View.OnLongClickListener() {
                 @Override public boolean onLongClick(View view) {
-                    if (pinned) {
-                        browserLibraryStore.unpin(entry.url);
-                        Toast.makeText(MainActivity.this, "Página desafixada", Toast.LENGTH_SHORT).show();
-                    } else if (browserLibraryStore.pin(entry.title, entry.url)) {
-                        Toast.makeText(MainActivity.this, "Página fixada", Toast.LENGTH_SHORT).show();
-                    } else Toast.makeText(MainActivity.this, "Fixe até 4 páginas", Toast.LENGTH_SHORT).show();
-                    refreshHomeShortcuts();
+                    showShortcutMenu(entry, pinned);
                     return true;
                 }
             };
@@ -1520,6 +1450,168 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             item.setOnLongClickListener(manage);
             row.addView(item, new LinearLayout.LayoutParams(0, -2, 1));
         }
+    }
+
+    private void showShortcutMenu(final BrowserLibraryStore.Entry entry, final boolean pinned) {
+        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(8), dp(22), dp(24));
+        root.addView(new BottomSheetDragHandleView(this), new LinearLayout.LayoutParams(-1, dp(42)));
+        addMenuSheetRow(root, R.drawable.ms_add_box, "Adicionar site", true, new Runnable() {
+            @Override public void run() { sheet.dismiss(); showShortcutEditor(null); }
+        });
+        if (entry != null) {
+            addMenuSheetRow(root, R.drawable.ms_tab_duplicate, "Abrir em nova aba", true, new Runnable() {
+                @Override public void run() { sheet.dismiss(); createBrowserTab(entry.url); }
+            });
+            addMenuSheetRow(root, R.drawable.ms_tab_unselected, "Abrir em aba privada", false, new Runnable() {
+                @Override public void run() { }
+            });
+            addMenuSheetRow(root, R.drawable.ms_download, "Baixar link", true, new Runnable() {
+                @Override public void run() { sheet.dismiss(); downloadShortcut(entry.url); }
+            });
+            if (pinned) {
+                addMenuSheetRow(root, R.drawable.ms_edit_square, "Editar página fixada", true, new Runnable() {
+                    @Override public void run() { sheet.dismiss(); showShortcutEditor(entry); }
+                });
+                addMenuSheetRow(root, R.drawable.ms_keep_off, "Desafixar página", true, new Runnable() {
+                    @Override public void run() {
+                        sheet.dismiss(); browserLibraryStore.unpin(entry.url); refreshHomeShortcuts();
+                        Toast.makeText(MainActivity.this, "Página desafixada", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                addMenuSheetRow(root, R.drawable.ms_keep, "Fixar página", true, new Runnable() {
+                    @Override public void run() {
+                        sheet.dismiss();
+                        boolean saved = browserLibraryStore.pin(entry.title, entry.url);
+                        Toast.makeText(MainActivity.this, saved ? "Página fixada" : "Fixe até 4 páginas", Toast.LENGTH_SHORT).show();
+                        refreshHomeShortcuts();
+                    }
+                });
+                addMenuSheetRow(root, R.drawable.ms_history, "Remover dos recentes", true, new Runnable() {
+                    @Override public void run() {
+                        sheet.dismiss(); browserLibraryStore.removeHistory(entry.url); refreshHomeShortcuts();
+                        Toast.makeText(MainActivity.this, "Página removida dos recentes", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        }
+        View divider = new View(this);
+        divider.setBackgroundColor(getResources().getColor(R.color.snav_outline));
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(-1, dp(1));
+        dividerParams.topMargin = dp(8); dividerParams.bottomMargin = dp(8);
+        root.addView(divider, dividerParams);
+        addShortcutVisibilitySwitch(root, "Mostrar recentes", "home_show_recent");
+        addShortcutVisibilitySwitch(root, "Mostrar fixados", "home_show_pinned");
+        final boolean visible = Dados.getBoolean("home_shortcuts_visible", true);
+        addMenuSheetRow(root, visible ? R.drawable.ms_visibility_off : R.drawable.ms_visibility,
+            visible ? "Ocultar atalhos" : "Mostrar atalhos", true, new Runnable() {
+                @Override public void run() {
+                    Dados.edit().putBoolean("home_shortcuts_visible", !visible).apply();
+                    sheet.dismiss(); refreshHomeShortcuts();
+                }
+            });
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(root, new ScrollView.LayoutParams(-1, -2));
+        sheet.setContentView(scroll); sheet.show();
+        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
+        sheet.getBehavior().setSkipCollapsed(true);
+    }
+
+    private void addShortcutVisibilitySwitch(LinearLayout parent, String label, final String key) {
+        MaterialSwitch toggle = new MaterialSwitch(this);
+        toggle.setText(label);
+        toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        toggle.setTextSize(14);
+        toggle.setPadding(dp(12), 0, dp(12), 0);
+        toggle.setChecked(Dados.getBoolean(key, true));
+        toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton button, boolean checked) {
+                Dados.edit().putBoolean(key, checked).apply();
+                refreshHomeShortcuts();
+            }
+        });
+        parent.addView(toggle, new LinearLayout.LayoutParams(-1, dp(56)));
+    }
+
+    private void showShortcutEditor(final BrowserLibraryStore.Entry entry) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(8), dp(24), 0);
+        final TextInputLayout nameLayout = new TextInputLayout(this);
+        nameLayout.setHint("Nome");
+        final EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setFilters(new android.text.InputFilter[] { new android.text.InputFilter.LengthFilter(512) });
+        if (entry != null) name.setText(entry.title);
+        nameLayout.addView(name, new LinearLayout.LayoutParams(-1, -2));
+        content.addView(nameLayout, new LinearLayout.LayoutParams(-1, -2));
+        final TextInputLayout urlLayout = new TextInputLayout(this);
+        urlLayout.setHint("Endereço HTTPS");
+        final EditText url = new EditText(this);
+        url.setSingleLine(true);
+        url.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        url.setFilters(new android.text.InputFilter[] { new android.text.InputFilter.LengthFilter(8192) });
+        if (entry != null) url.setText(entry.url);
+        urlLayout.addView(url, new LinearLayout.LayoutParams(-1, -2));
+        content.addView(urlLayout, new LinearLayout.LayoutParams(-1, -2));
+        final androidx.appcompat.app.AlertDialog dialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(entry == null ? "Adicionar site" : "Editar página fixada")
+            .setView(content).setNegativeButton("Cancelar", null).setPositiveButton("Salvar", null).create();
+        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override public void onShow(DialogInterface ignored) {
+                dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View view) {
+                        String value = url.getText().toString().trim();
+                        if (!value.contains("://") && isDomainOrIp(value)) value = "https://" + value;
+                        if (value.matches(".*\\s+.*") || !isSecureOrigin(value)) {
+                            urlLayout.setError("Insira um endereço HTTPS válido"); return;
+                        }
+                        urlLayout.setError(null);
+                        boolean saved = entry == null ? browserLibraryStore.pin(name.getText().toString(), value)
+                            : browserLibraryStore.updatePinned(entry.url, name.getText().toString(), value);
+                        if (!saved) {
+                            urlLayout.setError(entry == null ? "Limite de 4 páginas ou endereço inválido" : "Endereço inválido ou já fixado");
+                            return;
+                        }
+                        Dados.edit().putBoolean("home_shortcuts_visible", true).putBoolean("home_show_pinned", true).apply();
+                        dialog.dismiss(); refreshHomeShortcuts();
+                        Toast.makeText(MainActivity.this, entry == null ? "Página fixada" : "Página atualizada", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        });
+        dialog.show();
+    }
+
+    private void downloadShortcut(final String url) {
+        if (!isSecureOrigin(url)) return;
+        showSnavDecisionSheet("Baixar link?", "O site receberá uma solicitação para baixar este endereço",
+            "Continuar", "Cancelar", new Runnable() {
+                @Override public void run() {
+                    try {
+                        WebRequest.Builder builder = new WebRequest.Builder(url);
+                        if (Dados.getBoolean("do_not_track", false)) builder.header("DNT", "1");
+                        new GeckoWebExecutor(GeckoEngineController.getRuntime())
+                            .fetch(builder.build(), GeckoWebExecutor.FETCH_FLAGS_NO_REDIRECTS).accept(
+                                new GeckoResult.Consumer<WebResponse>() {
+                                    @Override public void accept(WebResponse response) {
+                                        if (isFinishing() || isDestroyed()) { closeResponseBody(response); return; }
+                                        handleGeckoDownload(response);
+                                    }
+                                }, new GeckoResult.Consumer<Throwable>() {
+                                    @Override public void accept(Throwable error) {
+                                        if (!isFinishing() && !isDestroyed())
+                                            Toast.makeText(MainActivity.this, "Não foi possível baixar o link", Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                    } catch (IllegalArgumentException | IllegalStateException error) {
+                        Toast.makeText(MainActivity.this, "Não foi possível baixar o link", Toast.LENGTH_LONG).show();
+                    }
+                }
+            }, null);
     }
 
     // Request only the visited origin's conventional icon, without cookies or redirects.
@@ -1767,6 +1859,35 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 else Toast.makeText(MainActivity.this, "Não foi possível salvar nos favoritos", Toast.LENGTH_SHORT).show();
             }
         });
+        addMenuSheetRow(root, R.drawable.ms_content_copy, "Copiar link", pageAvailable, new Runnable() {
+            @Override public void run() {
+                sheet.dismiss();
+                if (!hasPageForActions() || !currentUrl.equals(geckoEngine.getCurrentUri())) return;
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Link", currentUrl));
+                    Toast.makeText(MainActivity.this, "Link copiado", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        addMenuSheetRow(root, R.drawable.ms_translate, "Traduzir página", pageAvailable, new Runnable() {
+            @Override public void run() { sheet.dismiss(); if (hasPageForActions()) showTranslationBottomSheet(); }
+        });
+        addMenuSheetRow(root, R.drawable.ms_text_snippet, "Modo de leitura", pageAvailable, new Runnable() {
+            @Override public void run() { sheet.dismiss(); if (hasPageForActions()) showReaderOptionsBottomSheet(); }
+        });
+        addMenuSheetRow(root, R.drawable.ms_open_in_browser, "Abrir em outro navegador", pageAvailable, new Runnable() {
+            @Override public void run() {
+                sheet.dismiss();
+                if (!hasPageForActions() || !currentUrl.equals(geckoEngine.getCurrentUri())) return;
+                Intent external = new Intent(Intent.ACTION_VIEW, Uri.parse(currentUrl));
+                try { startActivity(external); }
+                catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum navegador disponível", Toast.LENGTH_SHORT).show(); }
+            }
+        });
+        addMenuSheetRow(root, R.drawable.ms_add_box, "Configurar atalhos", true, new Runnable() {
+            @Override public void run() { sheet.dismiss(); showShortcutMenu(null, false); }
+        });
         addMenuSheetRow(root, R.drawable.ms_build, "Ferramentas", true, new Runnable() {
             @Override public void run() {
                 sheet.dismiss();
@@ -1798,7 +1919,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
         row.setEnabled(enabled);
         row.setAlpha(enabled ? 1f : 0.38f);
-        if (!enabled) row.setContentDescription(label + ". Abra uma página para usar esta ação");
+        if (!enabled) row.setContentDescription(label + (label.contains("privada") ? ". Indisponível" : ". Abra uma página para usar esta ação"));
         row.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View view) { action.run(); }
         });
@@ -2771,7 +2892,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     browserLibraryStore.clearHistory();
                     refreshHomeShortcuts();
                     updateTopBar();
-                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
 					if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
 				}
 			},
@@ -2993,75 +3113,50 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		@Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
 	}
 
-	private void setupPullToRefresh() {
-		if (geckoView == null || refreshIndicator == null) return;
-		geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-		final int touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
-		final float refreshThreshold = getDip(96);
-		geckoView.setOnTouchListener(new View.OnTouchListener() {
-			@Override public boolean onTouch(View view, MotionEvent event) {
-				int action = event.getActionMasked();
-				switch (action) {
-					case MotionEvent.ACTION_DOWN:
-						pullStartY = event.getY();
-						pullStartX = event.getX();
-						pullDistance = 0f;
-						pullTracking = geckoScrollY <= 0 && !pageLoading;
-						pullConsumed = false;
-						refreshIndicator.setVisibility(View.GONE);
-						return false;
-
-					case MotionEvent.ACTION_MOVE:
-						if (!pullTracking || pageLoading || geckoScrollY > 0) return false;
-						float dx = event.getX() - pullStartX;
-						float dy = event.getY() - pullStartY;
-						pullDistance = dy;
-						if (dy <= 0f) {
-							refreshIndicator.setVisibility(View.GONE);
-							return false;
-						}
-					if (Math.abs(dx) > touchSlop && Math.abs(dx) > dy * 0.8f) {
-						pullTracking = false;
-						pullConsumed = false;
-						refreshIndicator.setVisibility(View.GONE);
-						return false;
-					}
-					if (dy < touchSlop || dy < Math.abs(dx) * 1.25f) return false;
-					pullConsumed = true;
-					refreshIndicator.setVisibility(View.VISIBLE);
-					refreshIndicator.setIndeterminate(false);
-					refreshIndicator.setProgressCompat(Math.min(100, Math.round((dy / refreshThreshold) * 100f)), false);
-					refreshIndicator.setTranslationY(Math.max(dp(8), Math.min(dp(72), dy * 0.45f)));
-					return true;
-
-					case MotionEvent.ACTION_POINTER_DOWN:
-						pullTracking = false;
-						pullConsumed = false;
-						refreshIndicator.setVisibility(View.GONE);
-						return false;
-
-					case MotionEvent.ACTION_UP:
-					case MotionEvent.ACTION_CANCEL:
-						boolean refresh = action == MotionEvent.ACTION_UP
-							&& pullTracking && pullConsumed && !pageLoading
-							&& geckoScrollY <= 0 && pullDistance >= refreshThreshold;
-						boolean consumed = pullConsumed;
-						pullTracking = false;
-						pullConsumed = false;
-						if (refresh && geckoEngine != null && geckoEngine.getCurrentUri() != null) {
-							refreshIndicator.setIndeterminate(true);
-							refreshIndicator.setTranslationY(dp(24));
-							refreshIndicator.setVisibility(View.VISIBLE);
-							geckoEngine.reload();
-							return true;
-						}
-					refreshIndicator.setVisibility(View.GONE);
-					return consumed;
-				}
-				return false;
-			}
-		});
-	}
+    // Interim View-based recognition: observe without consuming GeckoView events.
+    // GeckoView does not currently dispatch Compose nested scroll; see docs/PULL_TO_REFRESH.md.
+    private void setupPullToRefresh() {
+        if (geckoView == null || refreshIndicator == null) return;
+        final float threshold = dp(110);
+        final PullGestureTracker gesture = new PullGestureTracker(threshold,
+            ViewConfiguration.get(this).getScaledTouchSlop(), ViewConfiguration.getLongPressTimeout());
+        geckoView.setOnTouchListener(new View.OnTouchListener() {
+            @Override public boolean onTouch(View view, MotionEvent event) {
+                int action = event.getActionMasked();
+                if (action == MotionEvent.ACTION_DOWN) {
+                    pullPageUrl = geckoEngine == null ? null : geckoEngine.getCurrentUri();
+                    boolean eligible = geckoScrollY <= 0 && !readerMode && hasPageForActions();
+                    gesture.begin(event.getX(), event.getY(), event.getEventTime(), eligible);
+                    refreshIndicator.setVisibility(View.GONE);
+                } else if (action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_CANCEL) {
+                    gesture.cancel();
+                    refreshIndicator.setVisibility(View.GONE);
+                } else if (action == MotionEvent.ACTION_MOVE) {
+                    boolean eligible = geckoScrollY <= 0 && !readerMode && hasPageForActions()
+                        && pullPageUrl != null && pullPageUrl.equals(geckoEngine.getCurrentUri());
+                    float distance = gesture.move(event.getX(), event.getY(), event.getEventTime(), event.getPointerCount(), eligible);
+                    if (distance > 0) {
+                        refreshIndicator.setIndeterminate(false);
+                        refreshIndicator.setProgressCompat(Math.min(100, Math.round(distance * 100f / threshold)), false);
+                        refreshIndicator.setTranslationY(Math.min(dp(72), distance * 0.45f));
+                        refreshIndicator.setVisibility(View.VISIBLE);
+                    } else refreshIndicator.setVisibility(View.GONE);
+                } else if (action == MotionEvent.ACTION_UP) {
+                    boolean eligible = geckoScrollY <= 0 && !readerMode && hasPageForActions()
+                        && pullPageUrl != null && pullPageUrl.equals(geckoEngine.getCurrentUri());
+                    if (gesture.release(event.getX(), event.getY(), event.getEventTime(), eligible)) {
+                        beginPageProgress(); // block repeated refreshes before Gecko's start callback
+                        refreshIndicator.setIndeterminate(true);
+                        refreshIndicator.setTranslationY(dp(24));
+                        refreshIndicator.setVisibility(View.VISIBLE);
+                        geckoEngine.reload();
+                    } else refreshIndicator.setVisibility(View.GONE);
+                    pullPageUrl = null;
+                }
+                return false; // do not steal the gesture from the page
+            }
+        });
+    }
 
 
 
@@ -3138,10 +3233,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		text1.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
 		text2.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
 		text5.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
-		text7.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
-		text14.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
-		text15.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
-		text19.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
+
+
 		//checkbox
 		checkbox_javascript2.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
 		checkbox_brilho.setTypeface(Typeface.createFromAsset(getAssets(),"fonts/open_regular.ttf"), 0);
@@ -3154,8 +3247,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		
 		// vscroll1
 		vscroll1.setVerticalScrollBarEnabled(false); vscroll1.setHorizontalScrollBarEnabled(false);
-		// hscroll1
-		hscroll1.setVerticalScrollBarEnabled(false); hscroll1.setHorizontalScrollBarEnabled(false);
 	}
 	
 	
@@ -3180,14 +3271,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     failedPageUrl = null;
                     if (pageErrorView != null) pageErrorView.setVisibility(View.GONE);
                     updateTopBar();
-                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                 }
                 @Override public void onPageStopped(boolean success) {
                     loadingPageUrl = null;
                     finishPageProgress();
                     stoppedByUser = false;
                     updateTopBar();
-                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                     // A stop can belong to an interrupted load; it must not decide
                     // whether the current tab is empty or replace its content.
                 }
@@ -3198,7 +3287,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     vazio.setVisibility(View.GONE);
                     if (pageErrorView != null) pageErrorView.setVisibility(View.VISIBLE);
                     updateTopBar();
-                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                 }
                 @Override public void onProgressChanged(int value) {
                     if (!pageLoading) beginPageProgress();
@@ -3222,7 +3310,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     }
                     text_barra.setText(domainForAddressBar(uri));
                     updateTopBar();
-                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                     if (!browserTabs.isEmpty()) { browserTabs.get(activeBrowserTab).url = uri; persistBrowserTabs(); }
                     if (browserLibraryStore != null && uri != null && uri.startsWith("https://")) {
                         currentPageTitle = null;

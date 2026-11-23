@@ -1,6 +1,8 @@
 package io.github.souhelin.snav;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -29,11 +31,13 @@ public class BrowserLibraryStoreTest {
                 return super.getSharedPreferences(name + "_instrumentation_test", mode);
             }
         };
+        isolatedContext.getSharedPreferences("snav_browser_library_v1", Context.MODE_PRIVATE).edit().clear().commit();
         store = new BrowserLibraryStore(isolatedContext);
-        store.clearHistory();
     }
 
-    @After public void tearDown() { store.clearHistory(); }
+    @After public void tearDown() {
+        isolatedContext.getSharedPreferences("snav_browser_library_v1", Context.MODE_PRIVATE).edit().clear().commit();
+    }
 
     @Test public void visitsRemainInNewestFirstOrderAcrossStoreInstances() {
         for (int i = 1; i <= 5; i++) store.addVisit("Página " + i, "https://example.com/" + i);
@@ -56,4 +60,18 @@ public class BrowserLibraryStoreTest {
         assertEquals("https://example.com/a", history.get(0).url);
         assertEquals("https://example.com/b", history.get(1).url);
     }
+    @Test public void editingPinnedShortcutPreservesOrderAndRejectsDuplicates() {
+        assertTrue(store.pin("Primeiro", "https://example.com/a"));
+        assertTrue(store.pin("Segundo", "https://example.com/b"));
+        assertFalse(store.updatePinned("https://example.com/a", "Duplicado", "https://example.com/b"));
+        assertTrue(store.updatePinned("https://example.com/a", "Atualizado", "https://example.com/c"));
+        List<BrowserLibraryStore.Entry> pinned = store.getPinned();
+        assertEquals(2, pinned.size());
+        assertEquals("Atualizado", pinned.get(0).title);
+        assertEquals("https://example.com/c", pinned.get(0).url);
+        assertEquals("https://example.com/b", pinned.get(1).url);
+        store.unpin("https://example.com/c");
+        store.unpin("https://example.com/b");
+    }
+
 }

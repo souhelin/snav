@@ -72,96 +72,111 @@
             android:paddingEnd="24dp"
             android:background="@color/snav_background">
 
-            <ScrollView
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:fillViewport="true"
-                android:scrollbars="none">
-                <LinearLayout
+                android:layout_height="match_parent">
+                <ScrollView
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center">
-                    <Space
-                        android:layout_width="1dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/text_icon"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/app_name"
-                        android:textColor="#FAFAFA"
-                        android:textSize="38sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="-0.03"
-                        android:fontFamily="sans" />
-
+                    android:layout_height="match_parent"
+                    android:fillViewport="true"
+                    android:scrollbars="none">
                     <LinearLayout
-                        android:id="@+id/linear_barra_pesquisa"
-                        android:layout_width="match_parent"
-                        android:layout_height="58dp"
-                        android:layout_marginTop="30dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:paddingStart="18dp"
-                        android:paddingEnd="8dp"
-                        android:background="@drawable/snav_search_ripple"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <EditText
-                            android:id="@+id/edittext1"
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:background="@android:color/transparent"
-                            android:singleLine="true"
-                            android:imeOptions="actionSearch"
-                            android:inputType="textUri"
-                            android:padding="0dp"
-                            android:hint="Pesquisar ou inserir endereço"
-                            android:textColor="@color/snav_on_surface"
-                            android:textColorHint="@color/snav_on_surface_variant"
-                            android:textSize="16sp"
-                            android:selectAllOnFocus="true" />
-
-                        <ImageView
-                            android:id="@+id/image_search_action"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:padding="12dp"
-                            android:background="?android:attr/selectableItemBackgroundBorderless"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:src="@drawable/ms_search"
-                            android:contentDescription="Pesquisar"
-                            android:tint="@color/snav_accent" />
-                    </LinearLayout>
-
-                    <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        app:cardBackgroundColor="@color/snav_surface"
-                        app:cardCornerRadius="20dp"
-                        app:cardElevation="0dp"
-                        app:strokeWidth="0dp">
+                        android:orientation="vertical"
+                        android:gravity="center">
+                        <Space
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/text_icon"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/app_name"
+                            android:textColor="#FAFAFA"
+                            android:textSize="38sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="-0.03"
+                            android:fontFamily="sans" />
+
                         <LinearLayout
-                            android:id="@+id/home_shortcuts"
+                            android:id="@+id/linear_barra_pesquisa"
+                            android:layout_width="match_parent"
+                            android:layout_height="58dp"
+                            android:layout_marginTop="30dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingStart="18dp"
+                            android:paddingEnd="8dp"
+                            android:background="@drawable/snav_search_ripple"
+                            android:clickable="true"
+                            android:focusable="true">
+
+                            <EditText
+                                android:id="@+id/edittext1"
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_weight="1"
+                                android:background="@android:color/transparent"
+                                android:singleLine="true"
+                                android:imeOptions="actionSearch"
+                                android:inputType="textUri"
+                                android:padding="0dp"
+                                android:hint="Pesquisar ou inserir endereço"
+                                android:textColor="@color/snav_on_surface"
+                                android:textColorHint="@color/snav_on_surface_variant"
+                                android:textSize="16sp"
+                                android:selectAllOnFocus="true" />
+
+                            <ImageView
+                                android:id="@+id/image_search_action"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:padding="12dp"
+                                android:background="?android:attr/selectableItemBackgroundBorderless"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:src="@drawable/ms_search"
+                                android:contentDescription="Pesquisar"
+                                android:tint="@color/snav_accent" />
+                        </LinearLayout>
+
+                        <com.google.android.material.card.MaterialCardView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:padding="12dp"
-                            android:orientation="vertical" />
-                    </com.google.android.material.card.MaterialCardView>
+                            android:layout_marginTop="16dp"
+                            app:cardBackgroundColor="@color/snav_surface"
+                            app:cardCornerRadius="20dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+                            <LinearLayout
+                                android:id="@+id/home_shortcuts"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:padding="12dp"
+                                android:orientation="vertical" />
+                        </com.google.android.material.card.MaterialCardView>
 
-                    <Space
-                        android:layout_width="1dp"
-                        android:layout_height="0dp"
-                        android:layout_weight="1.2" />
-                </LinearLayout>
-            </ScrollView>
+                        <Space
+                            android:layout_width="1dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1.2" />
+                    </LinearLayout>
+                </ScrollView>
+                <ImageButton
+                    android:id="@+id/button_home_menu"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="top|end"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Abrir menu"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ms_more_vert"
+                    android:tint="@color/snav_on_surface_variant" />
+            </FrameLayout>
         </LinearLayout>
 
         <!-- Browser -->
@@ -296,155 +311,6 @@
                             android:textSize="24sp"
                             android:textStyle="bold" />
                     </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/linearmenu2"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <HorizontalScrollView
-                            android:id="@+id/hscroll1"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:scrollbars="none"
-                            android:clipToPadding="false"
-                            android:clipChildren="false"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp">
-
-                            <LinearLayout
-                                android:id="@+id/linear25"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:orientation="horizontal"
-                                android:clipChildren="false"
-                                android:clipToPadding="false"
-                                android:paddingStart="0dp"
-                                android:paddingEnd="0dp"
-                                android:paddingTop="2dp"
-                                android:paddingBottom="18dp">
-
-                                <LinearLayout
-                                    android:id="@+id/linear_copiar_URL"
-                                    android:layout_width="72dp"
-                                    android:layout_height="92dp"
-                                    android:layout_marginEnd="8dp"
-                                    android:gravity="center"
-                                    android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_ripple"
-                                    android:clickable="true"
-                                    android:focusable="true">
-                                    <ImageView
-                                        android:id="@+id/imageview57"
-                                        android:layout_width="28dp"
-                                        android:layout_height="28dp"
-                                        android:src="@drawable/ms_content_copy"
-                                        android:tint="@color/snav_on_surface_variant"
-                                        android:contentDescription="Copiar link"
-                                        android:scaleType="fitCenter" />
-                                    <TextView
-                                        android:id="@+id/text14"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="8dp"
-                                        android:text="Copiar link"
-                                        android:textColor="@color/snav_on_surface"
-                                        android:textSize="12sp" />
-                                </LinearLayout>
-
-                                <LinearLayout
-                                    android:id="@+id/linear_tradutor_google"
-                                    android:layout_width="72dp"
-                                    android:layout_height="92dp"
-                                    android:layout_marginEnd="8dp"
-                                    android:gravity="center"
-                                    android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_ripple"
-                                    android:clickable="true"
-                                    android:focusable="true">
-                                    <ImageView
-                                        android:id="@+id/imageview63"
-                                        android:layout_width="28dp"
-                                        android:layout_height="28dp"
-                                        android:src="@drawable/ms_translate"
-                                        android:tint="@color/snav_on_surface_variant"
-                                        android:contentDescription="Traduzir página"
-                                        android:scaleType="fitCenter" />
-                                    <TextView
-                                        android:id="@+id/text19"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="8dp"
-                                        android:text="Traduzir"
-                                        android:textColor="@color/snav_on_surface"
-                                        android:textSize="12sp" />
-                                </LinearLayout>
-
-                                <LinearLayout
-                                    android:id="@+id/linear_modo_leitura"
-                                    android:layout_width="72dp"
-                                    android:layout_height="92dp"
-                                    android:layout_marginEnd="8dp"
-                                    android:gravity="center"
-                                    android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_ripple"
-                                    android:clickable="true"
-                                    android:focusable="true">
-                                    <ImageView
-                                        android:id="@+id/imageview92"
-                                        android:layout_width="28dp"
-                                        android:layout_height="28dp"
-                                        android:src="@drawable/ms_text_snippet"
-                                        android:tint="@color/snav_on_surface_variant"
-                                        android:contentDescription="Modo de leitura"
-                                        android:scaleType="fitCenter" />
-                                    <TextView
-                                        android:id="@+id/text7"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="8dp"
-                                        android:text="Leitura"
-                                        android:textColor="@color/snav_on_surface"
-                                        android:textSize="12sp" />
-                                </LinearLayout>
-
-                                <LinearLayout
-                                    android:id="@+id/linear_abrir_no_navegador"
-                                    android:layout_width="72dp"
-                                    android:layout_height="92dp"
-                                    android:gravity="center"
-                                    android:orientation="vertical"
-                                    android:background="@drawable/snav_tool_ripple"
-                                    android:clickable="true"
-                                    android:focusable="true">
-                                    <ImageView
-                                        android:id="@+id/imageview58"
-                                        android:layout_width="28dp"
-                                        android:layout_height="28dp"
-                                        android:src="@drawable/ms_open_in_browser"
-                                        android:tint="@color/snav_on_surface_variant"
-                                        android:contentDescription="Abrir em outro navegador"
-                                        android:scaleType="fitCenter" />
-                                    <TextView
-                                        android:id="@+id/text15"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:layout_marginTop="8dp"
-                                        android:text="Abrir"
-                                        android:textColor="@color/snav_on_surface"
-                                        android:textSize="12sp" />
-                                </LinearLayout>
-                            </LinearLayout>
-                        </HorizontalScrollView>
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="8dp"
-                        android:background="@color/snav_outline" />
 
                     <TextView
                         android:layout_width="wrap_content"

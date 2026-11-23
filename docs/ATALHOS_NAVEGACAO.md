@@ -42,3 +42,13 @@ disponível ou não for decodificável, é usado o símbolo oficial Material Sym
 - Abrir uma página HTTPS e confirmar que o endereço e o ícone de informações
   aparecem na tela 2. Salvar nos favoritos pelo menu e verificar na biblioteca;
   a tela de informações não deve exibir as ações de favoritos ou histórico.
+
+## Menu dos atalhos
+
+Mantenha pressionada uma página fixada ou recente para abrir suas opções. É
+possível adicionar um site HTTPS, abrir em outra aba, baixar o link, editar ou
+remover um fixado, e controlar as seções da tela inicial. A opção de aba privada
+está desativada porque o Snav ainda não oferece navegação privada. Para recuperar
+atalhos ocultos ou configurar seções vazias, abra o menu de três pontos e toque
+em **Configurar atalhos**. O download de um link não segue redirecionamentos e
+pode não funcionar em sites que os exigem.
