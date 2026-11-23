@@ -11,7 +11,7 @@ O navegador usa o GeckoView, componente da Mozilla para exibir conteúdo da web.
 - Pesquise ou abra endereços pela tela de pesquisa.
 - Use as abas, os favoritos, o histórico e os downloads pelo menu. As abas compartilham uma sessão Gecko; isso limita o isolamento e a integração com extensões.
 - A tela inicial mostra até quatro atalhos fixados e quatro páginas recentes. Os atalhos têm opções de edição e gerenciamento.
-- Arraste a página para baixo a partir do topo para atualizá-la. O gesto depende da resposta do Gecko e pode ser rejeitado para evitar atualizações acidentais. Consulte [a documentação de atualização por arrasto](docs/PULL_TO_REFRESH.md).
+- Arraste a página para baixo a partir do topo para atualizá-la. O gesto depende da resposta do Gecko e pode ser rejeitado para evitar atualizações acidentais. Em testes, a atualização por arrasto não funcionou em uma página curta sem rolagem; use a opção de recarregar do menu nesse caso. Consulte [a documentação de atualização por arrasto](docs/PULL_TO_REFRESH.md).
 - Acesse informações do site, modo de leitura e tradução quando disponíveis. O funcionamento depende da página e dos serviços envolvidos.
 
 ## Extensões
@@ -53,7 +53,7 @@ Para executar os testes instrumentados em um emulador x86_64 conectado, use:
 gradle -PsnavEmulatorTest=true :app:connectedDebugAndroidTest
 ```
 
-A propriedade de teste seleciona x86_64 para o emulador; as compilações normais mantêm as ABIs de distribuição. O workflow [Android PR verification](.github/workflows/android-pr-verify.yml) executa build, testes unitários e testes em emulador. Testes em emulador não substituem a validação em dispositivos físicos.
+A propriedade de teste seleciona x86_64 para o emulador; as compilações normais mantêm as ABIs de distribuição. Execute os testes instrumentados em uma instalação isolada: os testes de extensões instalam e removem pacotes de teste. O workflow [Android PR verification](.github/workflows/android-pr-verify.yml) executa build, testes unitários e testes em emulador. Testes em emulador não substituem a validação em dispositivos físicos.
 
 Para gerar uma release assinada, configure `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD` no ambiente e execute `gradle :app:assembleRelease`. Sem todas as variáveis, o projeto pode gerar uma release não assinada para validar o build. Não compartilhe chaves ou senhas. O [workflow de release](.github/workflows/android-release.yml) descreve a configuração de CI, quando disponível.
 

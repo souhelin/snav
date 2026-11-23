@@ -22,8 +22,8 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
     private final int touchSlop;
     private final int[] consumed = new int[2];
     private long gestureSerial;
-    private float downX, downY, decisionX, decisionY, sentDistance;
-    private boolean waitingForGecko, movedBeforeDecision, refreshEligible, blocked, retryAfterUnhandled;
+    private float downX, downY, sentDistance;
+    private boolean waitingForGecko, movedBeforeDecision, refreshEligible, blocked;
     private String gesturePage, refreshConfirmedPage;
     private Supplier<String> eligiblePage = () -> null;
 
@@ -50,8 +50,8 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 final long serial = ++gestureSerial;
-                downX = decisionX = event.getX(); downY = decisionY = event.getY();
-                waitingForGecko = true; movedBeforeDecision = false; retryAfterUnhandled = false;
+                downX = event.getX(); downY = event.getY();
+                waitingForGecko = true; movedBeforeDecision = false;
                 refreshEligible = false; blocked = false; refreshConfirmedPage = null; sentDistance = 0;
                 gesturePage = eligiblePage.get();
                 gesture.begin(downX, downY, event.getEventTime(), gesturePage != null);
@@ -60,42 +60,14 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                     if (serial != gestureSerial) return;
                     waitingForGecko = false;
                     refreshEligible = !movedBeforeDecision && permitsRefresh(detail);
-                    // Short documents can return UNHANDLED for DOWN. Query the
-                    // first MOVE rather than treating its undefined direction flags
-                    // as approval. The MOVE must itself be browser-handled.
-                    retryAfterUnhandled = !movedBeforeDecision && detail != null
-                        && detail.handledResult() == PanZoomController.INPUT_RESULT_UNHANDLED;
                     if (refreshEligible) startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);
                 }, error -> {
                     if (serial == gestureSerial) { waitingForGecko = false; refreshEligible = false; }
                 });
                 return true;
             case MotionEvent.ACTION_MOVE:
-                if (retryAfterUnhandled && !blocked && !waitingForGecko) {
-                    retryAfterUnhandled = false;
-                    waitingForGecko = true;
-                    movedBeforeDecision = false;
-                    decisionX = event.getX(); decisionY = event.getY();
-                    final float moveX = decisionX, moveY = decisionY;
-                    final long moveTime = event.getEventTime(), moveSerial = gestureSerial;
-                    final int pointers = event.getPointerCount();
-                    // The detailed API dispatches the MOVE itself; do not send
-                    // the same MotionEvent again through onTouchEvent.
-                    super.onTouchEventForDetailResult(event).accept(detail -> {
-                        if (moveSerial != gestureSerial) return;
-                        waitingForGecko = false;
-                        refreshEligible = !movedBeforeDecision && permitsRefresh(detail) && sameEligiblePage();
-                        if (refreshEligible) {
-                            startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);
-                            updateNestedPull(gesture.move(moveX, moveY, moveTime, pointers, true));
-                        }
-                    }, error -> {
-                        if (moveSerial == gestureSerial) { waitingForGecko = false; refreshEligible = false; }
-                    });
-                    return true;
-                }
                 if (waitingForGecko) {
-                    if (Math.abs(event.getX() - decisionX) > touchSlop || Math.abs(event.getY() - decisionY) > touchSlop)
+                    if (Math.abs(event.getX() - downX) > touchSlop || Math.abs(event.getY() - downY) > touchSlop)
                         movedBeforeDecision = true;
                 } else if (!blocked) {
                     float distance = gesture.move(event.getX(), event.getY(), event.getEventTime(),
