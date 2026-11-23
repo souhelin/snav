@@ -134,7 +134,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private TextView text15;
 	private MaterialSwitch checkbox_brilho;
 	private MaterialSwitch checkbox_wallpaper;
-	private ImageButton button_load_stop;
+    private LinearLayout homeShortcuts;
+    private View pageErrorView;
+    private boolean stoppedByUser;
+    private boolean toolsOpenedFromBrowser;
+    private final java.util.concurrent.ExecutorService faviconExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
+    private final android.util.LruCache<String, Bitmap> faviconCache = new android.util.LruCache<>(24);
+    private final Set<String> faviconRequests = new HashSet<>();
+    private final Set<String> faviconAttempted = new HashSet<>();
 	private UnsplashWallpaperManager wallpaperManager;
 	private UnsplashWallpaperManager.Callback wallpaperCallback;
 	private float pullStartY;
@@ -269,7 +276,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		text15 = findViewById(R.id.text15);
 		checkbox_brilho = findViewById(R.id.checkbox_brilho);
 		checkbox_wallpaper = findViewById(R.id.checkbox_wallpaper);
-		button_load_stop = findViewById(R.id.button_load_stop);
+		homeShortcuts = findViewById(R.id.home_shortcuts);
 		checkbox_javascript2 = findViewById(R.id.checkbox_javascript2);
 		text5 = findViewById(R.id.text5);
 		Dados = getSharedPreferences("Dados", Activity.MODE_PRIVATE);
@@ -291,14 +298,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		// setChecked() runs before the listener is registered, so explicitly
 		// apply the persisted/default enabled state on the first Activity render.
 		if (checkbox_wallpaper.isChecked()) setupUnsplashWallpaper();
-		if (button_load_stop != null) {
-			button_load_stop.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View view) { performLoadStop(); }
-			});
-		}
+        findViewById(R.id.button_tools_back).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) { returnFromTools(); }
+        });
+        setupPageErrorView();
+        refreshHomeShortcuts();
 
-		
+
 		linear_barra_pesquisa.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) { openSearchScreen(); }
 		});
@@ -335,17 +341,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			});
 		}
 
-		LinearLayout menuTabs = findViewById(R.id.linear_menu_tabs);
-		if (menuTabs != null) menuTabs.setOnClickListener(new View.OnClickListener() {
-			@Override public void onClick(View view) { showTabsBottomSheet(); }
-		});
-		LinearLayout menuLibrary = findViewById(R.id.linear_menu_library);
-		if (menuLibrary != null) menuLibrary.setOnClickListener(new View.OnClickListener() {
-			@Override public void onClick(View view) { showBrowserLibraryBottomSheet(false); }
-		});
-		
 
-		
 		button_site_info.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
@@ -444,12 +440,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		if (destination.regionMatches(true, 0, "http://", 0, 7)) {
 			showInsecureConnectionDialog(destination);
+            return true;
 		} else {
 			loadUrlWithPrivacyHeaders(destination);
 		}
-		tela1.setVisibility(View.GONE);
-		tela2.setVisibility(View.VISIBLE);
-		tela3.setVisibility(View.GONE);
+        showScreen(2);
 		vazio.setVisibility(View.GONE);
 
 		edittext1.setText("");
@@ -465,9 +460,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 	private void openSearchScreen() {
-		if (tela1 != null) tela1.setVisibility(View.VISIBLE);
-		if (tela2 != null) tela2.setVisibility(View.GONE);
-		if (tela3 != null) tela3.setVisibility(View.GONE);
+        showScreen(1);
 		if (edittext1 == null) return;
 
 		edittext1.setShowSoftInputOnFocus(true);
@@ -794,6 +787,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		pendingAndroidPermissions = null;
 		if (downloadExecutor != null) downloadExecutor.shutdown();
 		if (translationThread != null) translationThread.quitSafely();
+        faviconExecutor.shutdownNow();
 		GeckoEngineController engineToClose = geckoEngine;
 		geckoEngine = null;
 		if (engineToClose != null) engineToClose.close();
@@ -807,7 +801,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	private void beginPageProgress() {
 		pageLoading = true;
-		setLoadStopIcon(true);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
 		}
@@ -835,7 +828,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			return;
 		}
 		pageLoading = false;
-		setLoadStopIcon(false);
 		if (refreshIndicator != null) refreshIndicator.setVisibility(View.GONE);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
@@ -1352,6 +1344,227 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	}
 
 
+    private void showScreen(int screen) {
+        tela1.setVisibility(screen == 1 ? View.VISIBLE : View.GONE);
+        tela2.setVisibility(screen == 2 ? View.VISIBLE : View.GONE);
+        tela3.setVisibility(screen == 3 ? View.VISIBLE : View.GONE);
+        linear_b.setVisibility(screen == 3 ? View.GONE : View.VISIBLE);
+        if (screen != 1 && edittext1 != null) {
+            edittext1.clearFocus();
+            android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (keyboard != null) keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
+        }
+        if (screen == 1) refreshHomeShortcuts();
+    }
+
+    private void returnFromTools() {
+        showScreen(toolsOpenedFromBrowser ? 2 : 1);
+    }
+
+    private void setupPageErrorView() {
+        LinearLayout error = new LinearLayout(this);
+        error.setOrientation(LinearLayout.VERTICAL);
+        error.setGravity(Gravity.CENTER);
+        error.setPadding(dp(24), dp(24), dp(24), dp(24));
+        error.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+        TextView message = new TextView(this);
+        message.setText("Não foi possível carregar esta página. Verifique sua conexão e tente novamente.");
+        message.setGravity(Gravity.CENTER);
+        message.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        message.setTextSize(16);
+        error.addView(message);
+        MaterialButton retry = new MaterialButton(this);
+        retry.setText("Tentar novamente");
+        retry.setAllCaps(false);
+        retry.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                pageErrorView.setVisibility(View.GONE);
+                if (geckoEngine != null) geckoEngine.reload();
+            }
+        });
+        error.addView(retry);
+        error.setVisibility(View.GONE);
+        browserContentContainer.addView(error, new FrameLayout.LayoutParams(-1, -1));
+        pageErrorView = error;
+    }
+
+    private void refreshHomeShortcuts() {
+        if (homeShortcuts == null || browserLibraryStore == null) return;
+        homeShortcuts.removeAllViews();
+        List<BrowserLibraryStore.Entry> pinned = browserLibraryStore.getPinned();
+        List<BrowserLibraryStore.Entry> recent = browserLibraryStore.getHistory();
+        if (!pinned.isEmpty()) addShortcutSection("Fixados", pinned, true);
+        else {
+            TextView hint = new TextView(this);
+            hint.setText("Fixe até 4 páginas pelo menu ou mantendo um recente pressionado.");
+            hint.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            hint.setTextSize(12);
+            hint.setGravity(Gravity.CENTER);
+            homeShortcuts.addView(hint);
+        }
+        if (!recent.isEmpty()) addShortcutSection("Recentes", recent, false);
+    }
+
+    private void addShortcutSection(String title, List<BrowserLibraryStore.Entry> entries, final boolean pinned) {
+        TextView heading = new TextView(this);
+        heading.setText(title);
+        heading.setTextSize(14);
+        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        homeShortcuts.addView(heading);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        homeShortcuts.addView(row, new LinearLayout.LayoutParams(-1, -2));
+        for (int i = 0; i < 4; i++) {
+            if (i >= entries.size()) {
+                row.addView(new Space(this), new LinearLayout.LayoutParams(0, 1, 1));
+                continue;
+            }
+            final BrowserLibraryStore.Entry entry = entries.get(i);
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
+            item.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            item.setPadding(dp(2), dp(4), dp(2), dp(4));
+            String name = entry.title == null || entry.title.trim().isEmpty() || entry.title.equals(entry.url)
+                ? domainForAddressBar(entry.url) : entry.title;
+            MaterialButton icon = new MaterialButton(this);
+            icon.setAllCaps(false);
+            icon.setText(name.substring(0, 1).toUpperCase(java.util.Locale.getDefault()));
+            icon.setTextSize(20);
+            icon.setInsetTop(0);
+            icon.setInsetBottom(0);
+            icon.setMinWidth(0);
+            icon.setMinimumWidth(0);
+            icon.setPadding(0, 0, 0, 0);
+            icon.setCornerRadius(dp(28));
+            icon.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_switch_primary_container)));
+            icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
+            icon.setContentDescription("Abrir " + name + ". Toque e segure para " + (pinned ? "desafixar" : "fixar") + ".");
+            item.addView(icon, new LinearLayout.LayoutParams(dp(56), dp(56)));
+            bindFavicon(icon, entry.url);
+            TextView label = new TextView(this);
+            label.setText(name);
+            label.setTextSize(12);
+            label.setTextColor(getResources().getColor(R.color.snav_on_surface));
+            label.setGravity(Gravity.CENTER);
+            label.setMaxLines(1);
+            label.setEllipsize(TextUtils.TruncateAt.END);
+            item.addView(label, new LinearLayout.LayoutParams(-1, dp(22)));
+            View.OnClickListener open = new View.OnClickListener() {
+                @Override public void onClick(View view) {
+                    if (readerMode) exitReaderMode();
+                    loadUrlWithPrivacyHeaders(entry.url);
+                    vazio.setVisibility(View.GONE);
+                    showScreen(2);
+                    edittext1.clearFocus();
+                    android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    if (keyboard != null) keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
+                }
+            };
+            View.OnLongClickListener manage = new View.OnLongClickListener() {
+                @Override public boolean onLongClick(View view) {
+                    if (pinned) {
+                        browserLibraryStore.unpin(entry.url);
+                        Toast.makeText(MainActivity.this, "Página desafixada", Toast.LENGTH_SHORT).show();
+                    } else if (browserLibraryStore.pin(entry.title, entry.url)) {
+                        Toast.makeText(MainActivity.this, "Página fixada", Toast.LENGTH_SHORT).show();
+                    } else Toast.makeText(MainActivity.this, "Você pode fixar até 4 páginas", Toast.LENGTH_SHORT).show();
+                    refreshHomeShortcuts();
+                    return true;
+                }
+            };
+            icon.setOnClickListener(open);
+            icon.setOnLongClickListener(manage);
+            item.setOnClickListener(open);
+            item.setOnLongClickListener(manage);
+            row.addView(item, new LinearLayout.LayoutParams(0, -2, 1));
+        }
+    }
+
+    // Request only the visited origin's conventional icon, without cookies or redirects.
+    // A letter remains visible when a site has no decodable icon.
+    private void bindFavicon(final MaterialButton button, String pageUrl) {
+        if (!isSecureOrigin(pageUrl)) return;
+        Uri page = Uri.parse(pageUrl);
+        final String iconUrl = new Uri.Builder().scheme("https").encodedAuthority(page.getEncodedAuthority()).path("/favicon.ico").build().toString();
+        Bitmap cached = faviconCache.get(iconUrl);
+        if (cached != null) { setShortcutIcon(button, cached); return; }
+        if (faviconRequests.contains(iconUrl) || faviconAttempted.contains(iconUrl) || faviconExecutor.isShutdown()) return;
+        faviconRequests.add(iconUrl);
+        faviconExecutor.execute(new Runnable() {
+            @Override public void run() {
+                Bitmap result = null;
+                java.net.HttpURLConnection connection = null;
+                try {
+                    connection = (java.net.HttpURLConnection) new java.net.URL(iconUrl).openConnection();
+                    connection.setInstanceFollowRedirects(false);
+                    connection.setConnectTimeout(3000);
+                    connection.setReadTimeout(3000);
+                    connection.setUseCaches(false);
+                    connection.setRequestProperty("Cookie", "");
+                    if (Dados.getBoolean("do_not_track", false)) connection.setRequestProperty("DNT", "1");
+                    if (connection.getResponseCode() == 200 && connection.getContentLength() <= 262144) {
+                        try (InputStream input = connection.getInputStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                            byte[] buffer = new byte[4096]; int count, total = 0;
+                            while ((count = input.read(buffer)) != -1 && (total += count) <= 262144) output.write(buffer, 0, count);
+                            if (total <= 262144) {
+                                byte[] bytes = extractFaviconImage(output.toByteArray());
+                                BitmapFactory.Options bounds = new BitmapFactory.Options(); bounds.inJustDecodeBounds = true;
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+                                if (bounds.outWidth > 0 && bounds.outHeight > 0 && bounds.outWidth <= 1024 && bounds.outHeight <= 1024) {
+                                    BitmapFactory.Options options = new BitmapFactory.Options();
+                                    options.inSampleSize = Math.max(1, Math.max(bounds.outWidth, bounds.outHeight) / 64);
+                                    result = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+                                }
+                            }
+                        }
+                    }
+                } catch (IOException | RuntimeException ignored) {
+                } finally { if (connection != null) connection.disconnect(); }
+                final Bitmap icon = result;
+                runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        faviconRequests.remove(iconUrl);
+                        faviconAttempted.add(iconUrl);
+                        if (isFinishing() || isDestroyed()) return;
+                        if (icon != null) { faviconCache.put(iconUrl, icon); refreshHomeShortcuts(); }
+                    }
+                });
+            }
+        });
+    }
+
+    private byte[] extractFaviconImage(byte[] bytes) {
+        // Android may not decode ICO containers; use an embedded PNG when present.
+        if (bytes.length < 6 || bytes[0] != 0 || bytes[1] != 0 || bytes[2] != 1 || bytes[3] != 0) return bytes;
+        int count = (bytes[4] & 255) | ((bytes[5] & 255) << 8);
+        for (int i = 0; i < count && 6 + i * 16 + 16 <= bytes.length; i++) {
+            int entry = 6 + i * 16;
+            long size = littleEndianInt(bytes, entry + 8);
+            long offset = littleEndianInt(bytes, entry + 12);
+            if (size >= 8 && offset >= 0 && offset + size <= bytes.length
+                && (bytes[(int) offset] & 255) == 0x89 && bytes[(int) offset + 1] == 'P'
+                && bytes[(int) offset + 2] == 'N' && bytes[(int) offset + 3] == 'G') {
+                return Arrays.copyOfRange(bytes, (int) offset, (int) (offset + size));
+            }
+        }
+        return bytes;
+    }
+
+    private long littleEndianInt(byte[] data, int offset) {
+        return (data[offset] & 255L) | ((data[offset + 1] & 255L) << 8)
+            | ((data[offset + 2] & 255L) << 16) | ((data[offset + 3] & 255L) << 24);
+    }
+
+    private void setShortcutIcon(MaterialButton button, Bitmap bitmap) {
+        button.setText("");
+        button.setIcon(new BitmapDrawable(getResources(), bitmap));
+        button.setIconTint(null);
+        button.setIconSize(dp(32));
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setGravity(Gravity.CENTER);
+    }
+
     private void restorePersistedBrowserTabs() {
         if (!browserTabs.isEmpty() || Dados == null) return;
         try {
@@ -1400,7 +1613,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     }
 
     private void switchBrowserTab(int index) {
-        if (geckoEngine == null || index < 0 || index >= browserTabs.size() || index == activeBrowserTab) return;
+        if (geckoEngine == null || index < 0 || index >= browserTabs.size()) return;
+        if (index == activeBrowserTab) { showScreen(browserTabs.get(index).url == null ? 1 : 2); return; }
         captureActiveTabState(); activeBrowserTab = index;
         BrowserTab target = browserTabs.get(index);
         readerRequestId++; readerModePending = false; readerMode = false; readerOriginalUri = null;
@@ -1410,6 +1624,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         currentPageTitle = target.title; text_barra.setText(domainForAddressBar(target.url));
         vazio.setVisibility(target.url == null || target.url.isEmpty() || "about:blank".equals(target.url) ? View.VISIBLE : View.GONE);
         updateTabCounter(); persistBrowserTabs();
+        showScreen(target.url == null || "about:blank".equals(target.url) ? 1 : 2);
     }
 
     private void createBrowserTab() {
@@ -1445,6 +1660,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
     private void performLoadStop() {
         if (pageLoading && geckoEngine != null) {
+            stoppedByUser = true;
             geckoEngine.stop();
             finishPageProgress();
         } else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
@@ -1477,12 +1693,30 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         addMenuSheetRow(root, R.drawable.ms_refresh, "Carregar / interromper", new Runnable() {
             @Override public void run() { sheet.dismiss(); performLoadStop(); }
         });
+        final String currentUrl = geckoEngine == null ? null : geckoEngine.getCurrentUri();
+        if (isSecureOrigin(currentUrl)) {
+            boolean pinned = false;
+            for (BrowserLibraryStore.Entry entry : browserLibraryStore.getPinned()) {
+                if (entry.url.equals(currentUrl)) pinned = true;
+            }
+            final boolean alreadyPinned = pinned;
+            addMenuSheetRow(root, R.drawable.icon_add_round, pinned ? "Desafixar da tela inicial" : "Fixar na tela inicial", new Runnable() {
+                @Override public void run() {
+                    sheet.dismiss();
+                    if (alreadyPinned) browserLibraryStore.unpin(currentUrl);
+                    else if (!browserLibraryStore.pin(currentPageTitle, currentUrl)) {
+                        Toast.makeText(MainActivity.this, "Você pode fixar até 4 páginas", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    refreshHomeShortcuts();
+                }
+            });
+        }
         addMenuSheetRow(root, R.drawable.ms_build, "Ferramentas", new Runnable() {
             @Override public void run() {
                 sheet.dismiss();
-                tela1.setVisibility(View.GONE);
-                tela2.setVisibility(View.GONE);
-                tela3.setVisibility(View.VISIBLE);
+                toolsOpenedFromBrowser = tela2.getVisibility() == View.VISIBLE;
+                showScreen(3);
             }
         });
         sheet.setContentView(root);
@@ -1492,24 +1726,19 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     }
 
     private void addMenuSheetRow(LinearLayout parent, int iconRes, String label, final Runnable action) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(8), 0, dp(8), 0);
-        ImageView icon = new ImageView(this);
-        icon.setImageResource(iconRes);
-        icon.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface_variant)));
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(24), dp(24));
-        iconParams.setMarginEnd(dp(16));
-        row.addView(icon, iconParams);
-        TextView text = new TextView(this);
-        text.setText(label);
-        text.setTextColor(getResources().getColor(R.color.snav_on_surface));
-        text.setTextSize(14);
-        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
-        row.setBackgroundResource(android.R.drawable.list_selector_background);
-        row.setClickable(true);
-        row.setFocusable(true);
+        MaterialButton row = new MaterialButton(this, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        row.setAllCaps(false);
+        row.setText(label);
+        row.setTextSize(14);
+        row.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        row.setIconResource(iconRes);
+        row.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface_variant)));
+        row.setIconGravity(MaterialButton.ICON_GRAVITY_START);
+        row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        row.setStrokeWidth(0);
+        row.setCornerRadius(dp(16));
+        row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
         row.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View view) { action.run(); }
         });
@@ -1648,7 +1877,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     row.setOnClickListener(new View.OnClickListener() {
                         @Override public void onClick(View view) {
                             sheet.dismiss();
-                            if (geckoEngine != null) { loadUrlWithPrivacyHeaders(item.url); tela1.setVisibility(View.GONE); tela2.setVisibility(View.VISIBLE); tela3.setVisibility(View.GONE); }
+                            if (geckoEngine != null) { loadUrlWithPrivacyHeaders(item.url); showScreen(2); vazio.setVisibility(View.GONE); }
                         }
                     });
                     row.setOnLongClickListener(new View.OnLongClickListener() {
@@ -1680,6 +1909,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         addLibraryAction(root, "Limpar histórico", new Runnable() {
             @Override public void run() {
                 browserLibraryStore.clearHistory();
+                refreshHomeShortcuts();
                 showingHistory[0] = true;
                 render[0].run();
                 Toast.makeText(MainActivity.this, "Histórico apagado", Toast.LENGTH_SHORT).show();
@@ -2263,7 +2493,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		showSnavDecisionSheet("HTTP bloqueado",
 			"O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS?",
 			"Tentar HTTPS", "Cancelar", new Runnable() {
-				@Override public void run() { loadUrlWithPrivacyHeaders(secureUrl); }
+				@Override public void run() { loadUrlWithPrivacyHeaders(secureUrl); showScreen(2); vazio.setVisibility(View.GONE); }
 			}, null);
 	}
 
@@ -2474,6 +2704,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		geckoEngine.clearBrowsingData().accept(
 			new GeckoResult.Consumer<Void>() {
 				@Override public void accept(Void ignored) {
+                    browserLibraryStore.clearHistory();
+                    refreshHomeShortcuts();
 					if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
 				}
 			},
@@ -2765,11 +2997,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 	}
 
-	private void setLoadStopIcon(boolean loading) {
-		if (button_load_stop == null) return;
-		button_load_stop.setImageResource(loading ? R.drawable.ms_stop : R.drawable.ms_refresh);
-		button_load_stop.setContentDescription(loading ? "Interromper carregamento" : "Atualizar página");
-	}
 
 
 	private void initializeLogic() {
@@ -2782,6 +3009,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
+        if (tela3.getVisibility() == View.VISIBLE) {
+            returnFromTools();
+            return;
+        }
 		if (readerMode) {
 			exitReaderMode();
 			return;
@@ -2812,9 +3043,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			geckoEngine.goBack();
 			return;
 		}
-		tela1.setVisibility(View.VISIBLE);
-		tela2.setVisibility(View.GONE);
-		tela3.setVisibility(View.GONE);
+        showScreen(1);
 		toque++;
 		if (toque == 1) {
 			time = new TimerTask() {
@@ -2883,14 +3112,20 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     logDiagnostic("Navegação Gecko iniciada: " + safeHostForDiagnostics(uri));
                     beginPageProgress();
                     vazio.setVisibility(View.GONE);
-                    setLoadStopIcon(true);
+                    stoppedByUser = false;
+                    if (pageErrorView != null) pageErrorView.setVisibility(View.GONE);
                 }
                 @Override public void onPageStopped(boolean success) {
                     String uri = geckoEngine == null ? null : geckoEngine.getCurrentUri();
                     finishPageProgress();
-                    setLoadStopIcon(false);
+
                     vazio.setVisibility(uri == null || uri.isEmpty() || "about:blank".equals(uri) ? View.VISIBLE : View.GONE);
-                    if (!success) logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
+                    if (success && pageErrorView != null) pageErrorView.setVisibility(View.GONE);
+                    if (!success && !stoppedByUser && isSecureOrigin(uri)) {
+                        logDiagnostic("Falha de carregamento Gecko: " + safeHostForDiagnostics(uri));
+                        if (pageErrorView != null) pageErrorView.setVisibility(View.VISIBLE);
+                    }
+                    stoppedByUser = false;
                 }
                 @Override public void onProgressChanged(int value) {
                     if (!pageLoading) beginPageProgress();
@@ -2915,15 +3150,19 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     text_barra.setText(domainForAddressBar(uri));
                     if (!browserTabs.isEmpty()) { browserTabs.get(activeBrowserTab).url = uri; persistBrowserTabs(); }
                     if (browserLibraryStore != null && uri != null && uri.startsWith("https://")) {
-                        browserLibraryStore.addVisit(currentPageTitle, uri);
+                        currentPageTitle = null;
+                        browserLibraryStore.addVisit(null, uri);
+                        refreshHomeShortcuts();
                     }
                 }
                 @Override public void onTitleChanged(String title) {
                     currentPageTitle = title;
                     if (!browserTabs.isEmpty()) { browserTabs.get(activeBrowserTab).title = title; persistBrowserTabs(); }
                     String activeUri = geckoEngine == null ? null : geckoEngine.getCurrentUri();
-                    if (browserLibraryStore != null && activeUri != null && activeUri.startsWith("https://"))
+                    if (browserLibraryStore != null && activeUri != null && activeUri.startsWith("https://")) {
                         browserLibraryStore.addVisit(title, activeUri);
+                        refreshHomeShortcuts();
+                    }
                     // The address bar intentionally displays the domain, never the page title.
                 }
                 @Override public void onInsecureNavigationBlocked(String uri, String source) {
@@ -2948,6 +3187,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                             activeTab.title = "Nova guia";
                             persistBrowserTabs();
                             loadUrlWithPrivacyHeaders(uri);
+                            vazio.setVisibility(View.GONE);
+                            showScreen(2);
                         }
                     });
                 }
@@ -2963,7 +3204,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     logDiagnostic("Processo de conteúdo Gecko encerrou inesperadamente");
                     if (geckoEngine != null && geckoEngine.getCurrentUri() != null && geckoEngine.getCurrentUri().startsWith("https://")) geckoEngine.reload();
                     finishPageProgress();
-                    setLoadStopIcon(false);
+
                     Toast.makeText(MainActivity.this, "A página encontrou um problema. Tente recarregar.", Toast.LENGTH_LONG).show();
                 }
                 @Override public void onScrollChanged(int scrollY) { geckoScrollY = Math.max(0, scrollY); }
@@ -3066,4 +3307,4 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	public int getDisplayHeightPixels() {
 		return getResources().getDisplayMetrics().heightPixels;
 	}
-}
+}

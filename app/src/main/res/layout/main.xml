@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -71,68 +72,96 @@
             android:paddingEnd="24dp"
             android:background="@color/snav_background">
 
-            <Space
-                android:layout_width="1dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
-            <TextView
-                android:id="@+id/text_icon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textColor="#FAFAFA"
-                android:textSize="38sp"
-                android:textStyle="bold"
-                android:letterSpacing="-0.03"
-                android:fontFamily="sans" />
-
-            <LinearLayout
-                android:id="@+id/linear_barra_pesquisa"
+            <ScrollView
                 android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:layout_marginTop="30dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingStart="18dp"
-                android:paddingEnd="8dp"
-                android:background="@drawable/snav_search_ripple"
-                android:clickable="true"
-                android:focusable="true">
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:scrollbars="none">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center">
+                    <Space
+                        android:layout_width="1dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
 
-                <EditText
-                    android:id="@+id/edittext1"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:background="@android:color/transparent"
-                    android:singleLine="true"
-                    android:imeOptions="actionSearch"
-                    android:inputType="textUri"
-                    android:padding="0dp"
-                    android:hint="Pesquisar ou inserir endereço"
-                    android:textColor="@color/snav_on_surface"
-                    android:textColorHint="@color/snav_on_surface_variant"
-                    android:textSize="16sp"
-                    android:selectAllOnFocus="true" />
+                    <TextView
+                        android:id="@+id/text_icon"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/app_name"
+                        android:textColor="#FAFAFA"
+                        android:textSize="38sp"
+                        android:textStyle="bold"
+                        android:letterSpacing="-0.03"
+                        android:fontFamily="sans" />
 
-                <ImageView
-                    android:id="@+id/image_search_action"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:padding="12dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:src="@drawable/ms_search"
-                    android:contentDescription="Pesquisar"
-                    android:tint="@color/snav_accent" />
-            </LinearLayout>
+                    <LinearLayout
+                        android:id="@+id/linear_barra_pesquisa"
+                        android:layout_width="match_parent"
+                        android:layout_height="58dp"
+                        android:layout_marginTop="30dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="8dp"
+                        android:background="@drawable/snav_search_ripple"
+                        android:clickable="true"
+                        android:focusable="true">
 
-            <Space
-                android:layout_width="1dp"
-                android:layout_height="0dp"
-                android:layout_weight="1.2" />
+                        <EditText
+                            android:id="@+id/edittext1"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:background="@android:color/transparent"
+                            android:singleLine="true"
+                            android:imeOptions="actionSearch"
+                            android:inputType="textUri"
+                            android:padding="0dp"
+                            android:hint="Pesquisar ou inserir endereço"
+                            android:textColor="@color/snav_on_surface"
+                            android:textColorHint="@color/snav_on_surface_variant"
+                            android:textSize="16sp"
+                            android:selectAllOnFocus="true" />
+
+                        <ImageView
+                            android:id="@+id/image_search_action"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:padding="12dp"
+                            android:background="?android:attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:src="@drawable/ms_search"
+                            android:contentDescription="Pesquisar"
+                            android:tint="@color/snav_accent" />
+                    </LinearLayout>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        app:cardBackgroundColor="@color/snav_surface"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="0dp"
+                        app:strokeWidth="0dp">
+                        <LinearLayout
+                            android:id="@+id/home_shortcuts"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="12dp"
+                            android:orientation="vertical" />
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Space
+                        android:layout_width="1dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1.2" />
+                </LinearLayout>
+            </ScrollView>
         </LinearLayout>
 
         <!-- Browser -->
@@ -168,38 +197,6 @@
                     android:layout_height="1dp"
                     android:background="@color/snav_outline" />
 
-                <LinearLayout
-                    android:id="@+id/vazio"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="28dp"
-                    android:background="@color/snav_surface">
-
-                    <TextView
-                        android:id="@+id/text1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Nenhuma página aberta"
-                        android:textColor="@color/snav_on_surface"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/text2"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:padding="8dp"
-                        android:text="Toque para voltar à pesquisa"
-                        android:textColor="@color/snav_on_surface_variant"
-                        android:textSize="14sp" />
-                </LinearLayout>
-
                 <FrameLayout
                     android:id="@+id/browser_content_container"
                     android:layout_width="match_parent"
@@ -212,6 +209,39 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@color/snav_surface" />
+
+                    <LinearLayout
+                        android:id="@+id/vazio"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="28dp"
+                        android:background="@color/snav_surface">
+
+                        <TextView
+                            android:id="@+id/text1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Nenhuma página aberta"
+                            android:textColor="@color/snav_on_surface"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/text2"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:padding="8dp"
+                            android:text="Toque para voltar à pesquisa"
+                            android:textColor="@color/snav_on_surface_variant"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
                 </FrameLayout>
             </LinearLayout>
         </LinearLayout>
@@ -248,9 +278,19 @@
                         android:orientation="horizontal"
                         android:paddingBottom="18dp">
 
+                        <ImageButton
+                            android:id="@+id/button_tools_back"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:background="?android:attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Voltar"
+                            android:padding="12dp"
+                            android:src="@android:drawable/ic_media_previous"
+                            android:tint="@color/snav_on_surface_variant" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_gravity="center_vertical"
                             android:text="Ferramentas"
                             android:textColor="@color/snav_on_surface"
                             android:textSize="24sp"
@@ -397,94 +437,6 @@
                                 </LinearLayout>
                             </LinearLayout>
                         </HorizontalScrollView>
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/linear_menu_tabs"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:gravity="center_vertical"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true">
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginEnd="16dp"
-                            android:src="@drawable/ms_tab"
-                            android:tint="@color/snav_on_surface_variant"
-                            android:contentDescription="Abas" />
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:gravity="center_vertical"
-                            android:text="Gerenciar abas"
-                            android:textColor="@color/snav_on_surface"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/linear_menu_library"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:gravity="center_vertical"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp"
-                        android:background="?android:attr/selectableItemBackground"
-                        android:clickable="true"
-                        android:focusable="true">
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginEnd="16dp"
-                            android:src="@drawable/ms_menu_book"
-                            android:tint="@color/snav_on_surface_variant"
-                            android:contentDescription="Biblioteca" />
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:gravity="center_vertical"
-                            android:text="Biblioteca"
-                            android:textColor="@color/snav_on_surface"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/linear_menu_load_stop"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:gravity="center_vertical"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp">
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:layout_marginEnd="16dp"
-                            android:src="@drawable/ms_refresh"
-                            android:tint="@color/snav_on_surface_variant"
-                            android:contentDescription="Carregar ou interromper" />
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:gravity="center_vertical"
-                            android:text="Carregar / interromper"
-                            android:textColor="@color/snav_on_surface"
-                            android:textSize="14sp" />
-                        <ImageButton
-                            android:id="@+id/button_load_stop"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
-                            android:background="?android:attr/selectableItemBackgroundBorderless"
-                            android:contentDescription="Atualizar página"
-                            android:padding="12dp"
-                            android:scaleType="fitCenter"
-                            android:src="@drawable/ms_refresh"
-                            android:tint="@color/snav_primary" />
                     </LinearLayout>
 
                     <View

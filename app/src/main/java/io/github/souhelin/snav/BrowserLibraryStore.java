@@ -15,6 +15,8 @@ public final class BrowserLibraryStore {
     private static final String PREFS = "snav_browser_library_v1";
     private static final String BOOKMARKS = "bookmarks";
     private static final String HISTORY = "history";
+    private static final String PINNED = "pinned";
+    private static final int MAX_PINNED = 4;
     private static final int MAX_HISTORY = 1000;
     private static final int MAX_BOOKMARKS = 1000;
     private static final int MAX_URL_LENGTH = 8192;
@@ -138,6 +140,45 @@ public final class BrowserLibraryStore {
     }
 
     public synchronized void clearHistory() { write(HISTORY, new JSONArray()); }
+
+    public synchronized List<Entry> getPinned() { return entries(PINNED, "createdAt"); }
+
+    public synchronized boolean pin(String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
+        JSONArray values = read(PINNED);
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item != null && safeUrl.equals(item.optString("url"))) return true;
+        }
+        if (values.length() >= MAX_PINNED) return false;
+        try {
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            JSONObject item = new JSONObject();
+            item.put("title", safeTitle.isEmpty() ? parsed.getHost() : safeTitle);
+            item.put("url", safeUrl);
+            item.put("createdAt", System.currentTimeMillis());
+            values.put(item);
+            write(PINNED, values);
+            return true;
+        } catch (JSONException ignored) { return false; }
+    }
+
+    public synchronized boolean unpin(String url) {
+        JSONArray values = read(PINNED), result = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(url).equals(item.optString("url"))) removed = true;
+            else result.put(item);
+        }
+        if (removed) write(PINNED, result);
+        return removed;
+    }
 
     /** Validates and replaces bookmarks from a Netscape bookmark HTML import. */
     public synchronized int importBookmarks(String html) {
