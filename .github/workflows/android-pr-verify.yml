@@ -34,7 +34,7 @@ jobs:
           result=$?
           tail -100 "$RUNNER_TEMP/gradle-check.log"
           if [ "$result" -ne 0 ]; then
-            message=$(tail -60 "$RUNNER_TEMP/gradle-check.log" | sed 's/%/%25/g;s//%0D/g' | tr '\n' '|' | cut -c1-12000)
+            message=$(tail -60 "$RUNNER_TEMP/gradle-check.log" | sed 's/%/%25/g' | tr '\n' '|' | cut -c1-12000)
             echo "::error::$message"
           fi
           exit "$result"
