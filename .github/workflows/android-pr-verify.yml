@@ -26,4 +26,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
-      - run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+      - name: Build and run unit tests
+        shell: bash
+        run: |
+          set +e
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug > "$RUNNER_TEMP/gradle-check.log" 2>&1
+          result=$?
+          tail -100 "$RUNNER_TEMP/gradle-check.log"
+          if [ "$result" -ne 0 ]; then
+            message=$(tail -60 "$RUNNER_TEMP/gradle-check.log" | sed 's/%/%25/g;s//%0D/g' | tr '\n' '|' | cut -c1-12000)
+            echo "::error::$message"
+          fi
+          exit "$result"

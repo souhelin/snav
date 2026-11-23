@@ -1744,6 +1744,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         if (geckoEngine == null || index < 0 || index >= browserTabs.size()) return;
         if (index == activeBrowserTab) { showScreen(browserTabs.get(index).url == null ? 1 : 2); return; }
         captureActiveTabState(); activeBrowserTab = index;
+        if (extensionManager != null) extensionManager.onPageChanged();
         BrowserTab target = browserTabs.get(index);
         exitReaderMode();
         if (pageErrorView != null) pageErrorView.setVisibility(View.GONE);
@@ -3279,6 +3280,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     }
                 }
                 @Override public void onLocationChanged(String uri) {
+                    if (extensionManager != null) extensionManager.onPageChanged();
                     if (uri != null && readerOriginalUri != null && !uri.equals(readerOriginalUri)) {
                         if (readerModePending) {
                             readerRequestId++;
@@ -3345,7 +3347,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             },
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
-        extensionManager = new ExtensionManager(this, GeckoEngineController.getRuntime());
+        extensionManager = new ExtensionManager(this, GeckoEngineController.getRuntime(),
+            geckoEngine.getSession(), url -> createBrowserTab(url));
         installGeckoPermissionDelegate();
         if (browserTabs.isEmpty()) browserTabs.add(new BrowserTab("Nova aba", pendingRestoreUri, null));
         persistBrowserTabs();

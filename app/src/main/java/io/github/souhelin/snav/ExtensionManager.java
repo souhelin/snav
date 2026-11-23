@@ -14,6 +14,8 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.mozilla.geckoview.AllowOrDeny;
 import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.geckoview.GeckoRuntime;
+import org.mozilla.geckoview.GeckoSession;
+import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.WebExtension;
 import org.mozilla.geckoview.WebExtensionController;
 import java.io.File;
@@ -22,17 +24,35 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.URL;
+import java.net.URI;
+import java.security.MessageDigest;
+import java.util.Locale;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.function.Consumer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.net.ssl.HttpsURLConnection;
 
 /** Runtime-level extension management. Gecko remains the source of truth. */
-final class ExtensionManager implements WebExtensionController.PromptDelegate {
+final class ExtensionManager implements WebExtensionController.PromptDelegate, WebExtension.ActionDelegate {
     static final int REQUEST_XPI = 6123;
     private final WeakReference<Activity> activity;
     private final WebExtensionController controller;
+    private final GeckoRuntime runtime;
+    private final GeckoSession browserSession;
+    private final Consumer<String> openPage;
+    private final Map<String, WebExtension> registered = new LinkedHashMap<>();
+    private final Map<String, WebExtension.Action> browserActions = new LinkedHashMap<>();
+    private final Map<String, WebExtension.Action> browserOverrides = new LinkedHashMap<>();
+    private final Map<String, WebExtension.Action> pageActions = new LinkedHashMap<>();
+    private final Map<String, WebExtension.Action> pageOverrides = new LinkedHashMap<>();
+    private com.google.android.material.bottomsheet.BottomSheetDialog popupDialog;
+    private String popupId;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Runnable> pendingDenials = new ArrayList<>();
@@ -40,21 +60,36 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
     private boolean active;
     private boolean installing;
 
-    ExtensionManager(Activity owner, GeckoRuntime runtime) {
+    ExtensionManager(Activity owner, GeckoRuntime runtime, GeckoSession browserSession, Consumer<String> openPage) {
         activity = new WeakReference<>(owner);
+        this.runtime = runtime;
+        this.browserSession = browserSession;
+        this.openPage = openPage;
         controller = runtime.getWebExtensionController();
         controller.setPromptDelegate(this);
+        controller.list().accept(extensions -> {
+            if (!closed) for (WebExtension extension : extensions) attachExtension(extension);
+        }, error -> android.util.Log.w("SnavExtensions", "Não foi possível carregar delegates de extensões", error));
     }
 
     void setActive(boolean value) {
         active = value;
-        if (!value) denyPending();
+        if (!value) {
+            denyPending();
+            if (popupDialog != null) popupDialog.dismiss();
+        }
     }
 
     void close() {
         closed = true;
         active = false;
         denyPending();
+        if (popupDialog != null) popupDialog.dismiss();
+        for (WebExtension ext : registered.values()) {
+            browserSession.getWebExtensionController().setActionDelegate(ext, null);
+            ext.setActionDelegate(null);
+        }
+        registered.clear();
         if (controller.getPromptDelegate() == this) controller.setPromptDelegate(null);
         worker.shutdown();
         activity.clear();
@@ -73,14 +108,16 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
     void show() {
         final Activity a = owner();
         if (a == null) return;
-        final String[] options = {"Instaladas", "Instalar de um link HTTPS", "Instalar arquivo XPI", "Sobre a compatibilidade"};
+        final String[] options = {"Instaladas", "Ações das extensões", "Catálogo Mozilla", "Instalar de um link HTTPS", "Instalar arquivo XPI", "Sobre a compatibilidade"};
         new MaterialAlertDialogBuilder(a).setTitle("Extensões")
             .setItems(options, (dialog, which) -> {
                 if (which == 0) list();
-                else if (which == 1) askUrl();
-                else if (which == 2) pickFile();
+                else if (which == 1) showActions();
+                else if (which == 2) askCatalog();
+                else if (which == 3) askUrl();
+                else if (which == 4) pickFile();
                 else new MaterialAlertDialogBuilder(a).setTitle("Compatibilidade")
-                    .setMessage("O GeckoView aceita extensões assinadas pela Mozilla. Algumas funções de extensões ainda não estão disponíveis no Snav, incluindo botões e janelas de extensão. A instalação não garante que a extensão funcione.")
+                    .setMessage("O GeckoView aceita extensões assinadas pela Mozilla. Algumas funções de extensões, incluindo a integração completa de abas e menus de contexto, ainda não estão disponíveis no Snav. A instalação não garante que a extensão funcione.")
                     .setPositiveButton("Entendi", null).show();
             }).setNegativeButton("Fechar", null).show();
     }
@@ -134,7 +171,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
         box.setPadding(dp(a, 24), 0, dp(a, 24), 0);
         box.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         AlertDialog dialog = new MaterialAlertDialogBuilder(a).setTitle("Instalar de um link")
-            .setMessage("Use um link HTTPS direto para um arquivo XPI assinado. Redirecionamentos não são aceitos.")
+            .setMessage("Use um link HTTPS para um arquivo XPI assinado. O servidor pode redirecionar para outros endereços HTTPS.")
             .setView(box).setNegativeButton("Cancelar", null).setPositiveButton("Continuar", null).create();
         dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
             String address = input.getText().toString().trim();
@@ -145,14 +182,14 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
             }
             dialog.dismiss();
             new MaterialAlertDialogBuilder(a).setTitle("Baixar extensão?")
-                .setMessage("O servidor " + uri.getHost() + " receberá uma solicitação. Você verá as permissões antes de instalar.")
-                .setNegativeButton("Cancelar", null).setPositiveButton("Baixar", (d, w) -> download(address))
+                .setMessage("O servidor " + uri.getHost() + " e possíveis destinos HTTPS de redirecionamento receberão solicitações. Você verá as permissões antes de instalar.")
+                .setNegativeButton("Cancelar", null).setPositiveButton("Baixar", (d, w) -> download(address, null))
                 .show();
         }));
         dialog.show();
     }
 
-    private void download(final String address) {
+    private void download(final String address, final String expectedHash) {
         final Activity a = owner();
         if (a == null || installing) return;
         installing = true;
@@ -162,21 +199,139 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
             File staged = null;
             HttpsURLConnection connection = null;
             try {
-                connection = (HttpsURLConnection) new URL(address).openConnection();
-                connection.setInstanceFollowRedirects(false);
-                connection.setConnectTimeout(15000);
-                connection.setReadTimeout(30000);
-                int status = connection.getResponseCode();
-                if (status != 200 || connection.getContentLengthLong() > ExtensionPackageValidator.MAX_ARCHIVE_BYTES)
-                    throw new IOException("Resposta inválida ou arquivo muito grande");
-                try (InputStream in = connection.getInputStream()) { staged = stage(in, cacheDir); }
+                URI target = ExtensionDownloadPolicy.parse(address);
+                int redirects = 0;
+                while (true) {
+                    connection = (HttpsURLConnection) target.toURL().openConnection();
+                    connection.setInstanceFollowRedirects(false);
+                    connection.setConnectTimeout(15000);
+                    connection.setReadTimeout(30000);
+                    int status = connection.getResponseCode();
+                    if (status >= 300 && status <= 399) {
+                        String location = connection.getHeaderField("Location");
+                        connection.disconnect(); connection = null;
+                        if (++redirects > 5) throw new IOException("Redirecionamentos demais");
+                        target = ExtensionDownloadPolicy.redirect(target, location);
+                        continue;
+                    }
+                    if (status != 200 || connection.getContentLengthLong() > ExtensionPackageValidator.MAX_ARCHIVE_BYTES)
+                        throw new IOException("Resposta inválida ou arquivo muito grande");
+                    try (InputStream in = connection.getInputStream()) { staged = stage(in, cacheDir); }
+                    break;
+                }
+                if (expectedHash != null && !expectedHash.equalsIgnoreCase(sha256(staged)))
+                    throw new IOException("A integridade do arquivo não corresponde ao catálogo");
+                final String origin = "HTTPS: " + target.getHost();
                 final File result = staged;
-                main.post(() -> installStaged(result, WebExtensionController.INSTALLATION_METHOD_MANAGER, "HTTPS: " + Uri.parse(address).getHost()));
+                main.post(() -> installStaged(result, WebExtensionController.INSTALLATION_METHOD_MANAGER, origin));
             } catch (Exception error) {
                 if (staged != null) staged.delete();
-                main.post(() -> failed("Não foi possível baixar ou validar a extensão. Use um link direto HTTPS."));
+                main.post(() -> failed("Não foi possível baixar ou validar a extensão."));
             } finally { if (connection != null) connection.disconnect(); }
         });
+    }
+
+    private static String sha256(File file) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] buffer = new byte[8192];
+        try (InputStream input = new java.io.FileInputStream(file)) {
+            int read;
+            while ((read = input.read(buffer)) != -1) digest.update(buffer, 0, read);
+        }
+        StringBuilder value = new StringBuilder(64);
+        for (byte b : digest.digest()) value.append(String.format(Locale.ROOT, "%02x", b & 0xff));
+        return value.toString();
+    }
+
+    private static final class CatalogEntry {
+        final String name, summary, version, url, hash;
+        CatalogEntry(String name, String summary, String version, String url, String hash) {
+            this.name = name; this.summary = summary; this.version = version; this.url = url; this.hash = hash;
+        }
+    }
+
+    private void askCatalog() {
+        Activity a = owner();
+        if (a == null) return;
+        EditText search = new EditText(a);
+        search.setSingleLine(true); search.setHint("Nome da extensão (opcional)");
+        search.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(100)});
+        LinearLayout box = new LinearLayout(a);
+        box.setPadding(dp(a, 24), 0, dp(a, 24), 0);
+        box.addView(search, new LinearLayout.LayoutParams(-1, -2));
+        new MaterialAlertDialogBuilder(a).setTitle("Catálogo Mozilla")
+            .setMessage("O termo pesquisado será enviado à Mozilla. O catálogo indica compatibilidade com Android, mas não garante que todas as funções funcionem no Snav.")
+            .setView(box).setNegativeButton("Cancelar", null).setPositiveButton("Pesquisar", (d, w) ->
+                loadCatalog(search.getText().toString().trim())).show();
+    }
+
+    private static String localized(JSONObject object, String fallback) {
+        if (object == null) return fallback;
+        String text = object.optString("pt-BR", "");
+        if (text.isEmpty()) text = object.optString("en-US", "");
+        if (text.isEmpty()) {
+            java.util.Iterator<String> keys = object.keys();
+            if (keys.hasNext()) text = object.optString(keys.next(), "");
+        }
+        return text.isEmpty() ? fallback : text;
+    }
+
+    private void loadCatalog(final String query) {
+        if (owner() == null) return;
+        notifyUser("Consultando catálogo…");
+        worker.execute(() -> {
+            HttpsURLConnection connection = null;
+            try {
+                String address = "https://addons.mozilla.org/api/v5/addons/search/?app=android&appversion=160.0&type=extension&promoted=recommended&page_size=10&lang=pt-BR&q="
+                    + java.net.URLEncoder.encode(query, "UTF-8");
+                connection = (HttpsURLConnection) new URL(address).openConnection();
+                connection.setInstanceFollowRedirects(false); connection.setConnectTimeout(15000); connection.setReadTimeout(30000);
+                if (connection.getResponseCode() != 200) throw new IOException("Catálogo indisponível");
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                try (InputStream input = connection.getInputStream()) {
+                    byte[] buffer = new byte[8192]; int count, total = 0;
+                    while ((count = input.read(buffer)) != -1) {
+                        total += count;
+                        if (total > 4 * 1024 * 1024) throw new IOException("Resposta muito grande");
+                        bytes.write(buffer, 0, count);
+                    }
+                }
+                JSONArray results = new JSONObject(bytes.toString("UTF-8")).getJSONArray("results");
+                List<CatalogEntry> entries = new ArrayList<>();
+                for (int i = 0; i < results.length(); i++) {
+                    JSONObject item = results.optJSONObject(i);
+                    if (item == null) continue;
+                    JSONObject version = item.optJSONObject("current_version");
+                    JSONObject file = version == null ? null : version.optJSONObject("file");
+                    if (file == null) continue;
+                    String url = file.optString("url", ""), hash = file.optString("hash", "");
+                    if (!hash.matches("(?i)sha256:[0-9a-f]{64}")) continue;
+                    try { ExtensionDownloadPolicy.parse(url); } catch (Exception invalid) { continue; }
+                    entries.add(new CatalogEntry(localized(item.optJSONObject("name"), "Extensão"),
+                        localized(item.optJSONObject("summary"), "Sem descrição"), version.optString("version", ""),
+                        url, hash.substring(7)));
+                }
+                main.post(() -> showCatalog(entries));
+            } catch (Exception error) {
+                main.post(() -> notifyUser("Não foi possível consultar o catálogo"));
+            } finally { if (connection != null) connection.disconnect(); }
+        });
+    }
+
+    private void showCatalog(List<CatalogEntry> entries) {
+        Activity a = owner(); if (a == null) return;
+        if (entries.isEmpty()) {
+            new MaterialAlertDialogBuilder(a).setTitle("Catálogo Mozilla").setMessage("Nenhuma extensão recomendada encontrada")
+                .setPositiveButton("Fechar", null).show(); return;
+        }
+        String[] names = new String[entries.size()];
+        for (int i = 0; i < names.length; i++) names[i] = entries.get(i).name + " · " + entries.get(i).version;
+        new MaterialAlertDialogBuilder(a).setTitle("Catálogo Mozilla").setItems(names, (dialog, selected) -> {
+            CatalogEntry item = entries.get(selected);
+            new MaterialAlertDialogBuilder(a).setTitle(item.name).setMessage(item.summary
+                + "\n\nVersão " + item.version + "\nO download pode usar redirecionamentos HTTPS. A compatibilidade com o Snav não é garantida.")
+                .setNegativeButton("Cancelar", null).setPositiveButton("Baixar", (d, w) -> download(item.url, item.hash)).show();
+        }).setNegativeButton("Fechar", null).show();
     }
 
     private static File stage(InputStream input, File directory) throws IOException {
@@ -205,6 +360,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
             controller.install(Uri.fromFile(file).toString(), method).accept(
                 extension -> {
                     file.delete(); installing = false;
+                    if (!closed) attachExtension(extension);
                     Activity a = activity.get();
                     if (a != null) a.getSharedPreferences("snav_extension_origins", Activity.MODE_PRIVATE)
                         .edit().putString(extension.id, origin).apply();
@@ -225,6 +381,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
         notifyUser("Carregando extensões…");
         controller.list().accept(extensions -> {
             if (owner() == null) return;
+            for (WebExtension extension : extensions) attachExtension(extension);
             if (extensions.isEmpty()) {
                 new MaterialAlertDialogBuilder(a).setTitle("Extensões instaladas").setMessage("Nenhuma extensão instalada")
                     .setPositiveButton("Fechar", null).show(); return;
@@ -259,7 +416,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
         appendPermissions(info, "Dados opcionais concedidos", meta.grantedOptionalDataCollectionPermissions);
         info.append("\n\nAlgumas APIs e ações da extensão podem não estar disponíveis no Snav.");
         final String[] options = {meta.enabled ? "Desativar" : "Ativar", "Verificar atualização", "Revogar permissões opcionais", "Desinstalar"};
-        new MaterialAlertDialogBuilder(a).setTitle(name(extension)).setMessage(info.toString())
+        AlertDialog detailsDialog = new MaterialAlertDialogBuilder(a).setTitle(name(extension)).setMessage(info.toString())
             .setPositiveButton("Ações", (dialog, which) -> new MaterialAlertDialogBuilder(a).setTitle(name(extension))
                 .setItems(options, (d, selected) -> {
                     if (selected == 0) toggle(extension);
@@ -267,14 +424,132 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
                     else if (selected == 2) revoke(extension);
                     else uninstall(extension);
                 }).setNegativeButton("Cancelar", null).show())
-            .setNegativeButton("Voltar", (dialog, which) -> list()).show();
+            .setNegativeButton("Voltar", (dialog, which) -> list()).create();
+        detailsDialog.show();
+        meta.icon.getBitmap(dp(a, 40)).accept(bitmap -> {
+            if (bitmap != null && detailsDialog.isShowing() && owner() != null)
+                detailsDialog.setIcon(new android.graphics.drawable.BitmapDrawable(a.getResources(), bitmap));
+        }, error -> android.util.Log.w("SnavExtensions", "Ícone da extensão indisponível", error));
+    }
+
+    private void attachExtension(WebExtension extension) {
+        if (closed || extension == null) return;
+        registered.put(extension.id, extension);
+        if (!extension.metaData.enabled) {
+            browserSession.getWebExtensionController().setActionDelegate(extension, null);
+            extension.setActionDelegate(null);
+            removeActions(extension.id); return;
+        }
+        extension.setActionDelegate(this);
+        browserSession.getWebExtensionController().setActionDelegate(extension, this);
+    }
+
+    private void removeActions(String id) {
+        WebExtension old = registered.remove(id);
+        if (old != null) {
+            browserSession.getWebExtensionController().setActionDelegate(old, null);
+            old.setActionDelegate(null);
+        }
+        browserActions.remove(id); browserOverrides.remove(id);
+        pageActions.remove(id); pageOverrides.remove(id);
+    }
+
+    @Override public void onBrowserAction(WebExtension extension, GeckoSession session, WebExtension.Action action) {
+        if (!closed) (session == null ? browserActions : browserOverrides).put(extension.id, action);
+    }
+
+    @Override public void onPageAction(WebExtension extension, GeckoSession session, WebExtension.Action action) {
+        if (!closed) (session == null ? pageActions : pageOverrides).put(extension.id, action);
+    }
+
+    private static WebExtension.Action resolved(WebExtension.Action base, WebExtension.Action override) {
+        return override == null ? base : base == null ? override : override.withDefault(base);
+    }
+
+    void onPageChanged() {
+        browserOverrides.clear(); pageOverrides.clear();
+        if (popupDialog != null) popupDialog.dismiss();
+    }
+
+    void showActions() {
+        Activity a = owner(); if (a == null) return;
+        List<WebExtension.Action> actions = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (Map.Entry<String, WebExtension> entry : registered.entrySet()) {
+            String id = entry.getKey();
+            WebExtension.Action browser = resolved(browserActions.get(id), browserOverrides.get(id));
+            WebExtension.Action page = resolved(pageActions.get(id), pageOverrides.get(id));
+            if (browser != null && Boolean.TRUE.equals(browser.enabled)) {
+                actions.add(browser); labels.add(name(entry.getValue()) + (browser.title == null ? "" : " · " + browser.title));
+            }
+            if (page != null && Boolean.TRUE.equals(page.enabled)) {
+                actions.add(page); labels.add(name(entry.getValue()) + (page.title == null ? " · Página" : " · " + page.title));
+            }
+        }
+        if (actions.isEmpty()) {
+            new MaterialAlertDialogBuilder(a).setTitle("Ações das extensões").setMessage("Nenhuma ação disponível nesta página")
+                .setPositiveButton("Fechar", null).show(); return;
+        }
+        new MaterialAlertDialogBuilder(a).setTitle("Ações das extensões")
+            .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).click())
+            .setNegativeButton("Fechar", null).show();
+    }
+
+    @Override public GeckoResult<GeckoSession> onTogglePopup(WebExtension extension, WebExtension.Action action) {
+        if (popupDialog != null && popupDialog.isShowing() && extension.id.equals(popupId)) {
+            popupDialog.dismiss(); return null;
+        }
+        return openPopup(extension);
+    }
+
+    @Override public GeckoResult<GeckoSession> onOpenPopup(WebExtension extension, WebExtension.Action action) {
+        return openPopup(extension);
+    }
+
+    private GeckoResult<GeckoSession> openPopup(WebExtension extension) {
+        Activity a = owner();
+        if (a == null) return null;
+        if (popupDialog != null) popupDialog.dismiss();
+        final GeckoSession popup = new GeckoSession();
+        final GeckoView view = new GeckoView(a);
+        view.setViewBackend(GeckoView.BACKEND_TEXTURE_VIEW);
+        final com.google.android.material.bottomsheet.BottomSheetDialog sheet =
+            new com.google.android.material.bottomsheet.BottomSheetDialog(a);
+        popup.setContentDelegate(new GeckoSession.ContentDelegate() {
+            @Override public void onCloseRequest(GeckoSession session) { sheet.dismiss(); }
+            @Override public void onCrash(GeckoSession session) { sheet.dismiss(); notifyUser("A janela da extensão falhou"); }
+        });
+        final Uri base = Uri.parse(extension.metaData.baseUrl);
+        popup.setNavigationDelegate(new GeckoSession.NavigationDelegate() {
+            @Override public GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession session, LoadRequest request) {
+                if (request == null || request.uri == null) return GeckoResult.deny();
+                Uri target = Uri.parse(request.uri);
+                if ("about:blank".equals(request.uri)) return GeckoResult.allow();
+                if ("moz-extension".equalsIgnoreCase(target.getScheme()) && target.getHost() != null
+                    && target.getHost().equals(base.getHost())) return GeckoResult.allow();
+                if (request.hasUserGesture && "https".equalsIgnoreCase(target.getScheme())
+                    && target.getHost() != null && target.getUserInfo() == null) openPage.accept(request.uri);
+                return GeckoResult.deny();
+            }
+        });
+        popup.open(runtime);
+        view.setSession(popup);
+        view.setLayoutParams(new ViewGroup.LayoutParams(-1, dp(a, 520)));
+        sheet.setContentView(view);
+        sheet.setOnDismissListener(ignored -> {
+            view.releaseSession(); popup.close();
+            if (popupDialog == sheet) { popupDialog = null; popupId = null; }
+        });
+        popupDialog = sheet; popupId = extension.id;
+        sheet.show(); popup.setActive(true);
+        return GeckoResult.fromValue(popup);
     }
 
     private void toggle(WebExtension extension) {
         GeckoResult<WebExtension> result = extension.metaData.enabled
             ? controller.disable(extension, WebExtensionController.EnableSource.USER)
             : controller.enable(extension, WebExtensionController.EnableSource.USER);
-        result.accept(updated -> { notifyUser(updated.metaData.enabled ? "Extensão ativada" : "Extensão desativada"); list(); },
+        result.accept(updated -> { attachExtension(updated); notifyUser(updated.metaData.enabled ? "Extensão ativada" : "Extensão desativada"); list(); },
             error -> notifyUser("Não foi possível alterar o estado da extensão"));
     }
 
@@ -286,6 +561,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
             .setNegativeButton("Cancelar", null).setPositiveButton("Verificar", (d, w) -> {
                 notifyUser("Verificando atualização…");
                 controller.update(extension).accept(updated -> {
+                    if (updated != null && !closed) attachExtension(updated);
                     notifyUser(updated == null ? "Nenhuma atualização disponível" : "Extensão atualizada");
                 }, error -> notifyUser("Não foi possível atualizar a extensão"));
             }).show();
@@ -301,6 +577,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate {
                     Activity current = activity.get();
                     if (current != null) current.getSharedPreferences("snav_extension_origins", Activity.MODE_PRIVATE)
                         .edit().remove(extension.id).apply();
+                    removeActions(extension.id);
                     notifyUser("Extensão desinstalada"); list();
                 },
                     error -> notifyUser("Não foi possível desinstalar a extensão"))).show();

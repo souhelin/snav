@@ -52,7 +52,7 @@ class RefreshComposeHost(
                             modifier = Modifier.align(Alignment.TopCenter),
                             isRefreshing = refreshing,
                             state = state,
-                            threshold = threshold,
+                            maxDistance = threshold,
                             containerColor = Color(context.getColor(R.color.snav_surface)),
                             color = Color(context.getColor(R.color.snav_accent)),
                         )
