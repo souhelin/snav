@@ -3151,7 +3151,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     gesture.cancel();
                     refreshIndicator.setVisibility(View.GONE);
                 } else if (action == MotionEvent.ACTION_MOVE) {
-                    boolean eligible = geckoScrollY <= 0 && !readerMode && hasPageForActions()
+                    RefreshAwareGeckoView inputView = (RefreshAwareGeckoView) geckoView;
+                    if (inputView.isWaitingForGecko()) return false;
+                    boolean eligible = inputView.isRefreshEligible() && geckoScrollY <= 0 && !readerMode && hasPageForActions()
                         && pullPageUrl != null && pullPageUrl.equals(geckoEngine.getCurrentUri());
                     float distance = gesture.move(event.getX(), event.getY(), event.getEventTime(), event.getPointerCount(), eligible);
                     if (distance > 0) {
@@ -3161,14 +3163,20 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         refreshIndicator.setVisibility(View.VISIBLE);
                     } else refreshIndicator.setVisibility(View.GONE);
                 } else if (action == MotionEvent.ACTION_UP) {
-                    boolean eligible = geckoScrollY <= 0 && !readerMode && hasPageForActions()
+                    boolean eligible = ((RefreshAwareGeckoView) geckoView).isRefreshEligible()
+                        && geckoScrollY <= 0 && !readerMode && hasPageForActions()
                         && pullPageUrl != null && pullPageUrl.equals(geckoEngine.getCurrentUri());
                     if (gesture.release(event.getX(), event.getY(), event.getEventTime(), eligible)) {
                         beginPageProgress(); // block repeated refreshes before Gecko's start callback
                         refreshIndicator.setIndeterminate(true);
                         refreshIndicator.setTranslationY(dp(24));
                         refreshIndicator.setVisibility(View.VISIBLE);
-                        geckoEngine.reload();
+                        // Let Gecko receive ACTION_UP before starting a new load.
+                        geckoView.post(new Runnable() {
+                            @Override public void run() {
+                                if (geckoEngine != null && pageLoading) geckoEngine.reload();
+                            }
+                        });
                     } else refreshIndicator.setVisibility(View.GONE);
                     pullPageUrl = null;
                 }
