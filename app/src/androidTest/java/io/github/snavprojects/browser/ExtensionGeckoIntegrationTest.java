@@ -46,6 +46,15 @@ public class ExtensionGeckoIntegrationTest {
     @Before public void setUp() throws Exception {
         scenario = ActivityScenario.launch(MainActivity.class);
         INSTRUMENTATION.runOnMainSync(() -> controller = GeckoEngineController.getRuntime().getWebExtensionController());
+        // A Activity can be ready before Gecko registers the extension list handler.
+        // Retry startup failures for a bounded period; do not skip a failed test.
+        long deadline = android.os.SystemClock.uptimeMillis() + 20000;
+        Exception last = null;
+        do {
+            try { findFixture(ID); last = null; break; }
+            catch (Exception error) { last = error; android.os.SystemClock.sleep(500); }
+        } while (android.os.SystemClock.uptimeMillis() < deadline);
+        if (last != null) throw last;
         assertNull("Use uma instalação isolada: a extensão de teste já existe", findFixture(ID));
         assertNull("Use uma instalação isolada: a extensão sem assinatura já existe", findFixture(UNSIGNED_ID));
         mayRemoveFixtures = true;

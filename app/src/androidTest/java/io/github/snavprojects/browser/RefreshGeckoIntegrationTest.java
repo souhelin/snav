@@ -146,7 +146,7 @@ public class RefreshGeckoIntegrationTest {
 
     @Test public void shortPageCanRefreshAtTop() throws Exception {
         try (Harness h = new Harness(page(false))) {
-            h.drag(0, 160); assertEquals(h.browser.debugDecision, 1, h.refreshes.get());
+            h.drag(0, 160); assertEquals(1, h.refreshes.get());
         }
     }
 
@@ -166,7 +166,7 @@ public class RefreshGeckoIntegrationTest {
         // root element below it, so set touch-action on that actual ancestor.
         String html = page(false).replace("<style>", "<style>html{touch-action:none}");
         try (Harness h = new Harness(html)) {
-            h.drag(0, 160); assertEquals(h.browser.debugDecision, 0, h.refreshes.get());
+            h.drag(0, 160); assertEquals(0, h.refreshes.get());
         }
     }
 

@@ -13,12 +13,12 @@ public class RefreshGeckoDecisionTest {
         Detail(int result, int scroll, int overscroll) { super(result, scroll, overscroll); }
     }
 
-    @Test public void allowsOnlyUnclaimedTouchAtOverscrollableTop() {
+    @Test public void requiresBrowserHandledTouchAtOverscrollableTop() {
         int vertical = PanZoomController.OVERSCROLL_FLAG_VERTICAL;
         assertTrue(RefreshAwareGeckoView.permitsRefresh(new Detail(
             PanZoomController.INPUT_RESULT_HANDLED, PanZoomController.SCROLLABLE_FLAG_NONE, vertical)));
         assertFalse(RefreshAwareGeckoView.permitsRefresh(null));
-        assertTrue(RefreshAwareGeckoView.permitsRefresh(new Detail(
+        assertFalse(RefreshAwareGeckoView.permitsRefresh(new Detail(
             PanZoomController.INPUT_RESULT_UNHANDLED, PanZoomController.SCROLLABLE_FLAG_NONE, vertical)));
         assertFalse(RefreshAwareGeckoView.permitsRefresh(new Detail(
             PanZoomController.INPUT_RESULT_UNHANDLED, PanZoomController.SCROLLABLE_FLAG_NONE,
