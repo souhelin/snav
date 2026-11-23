@@ -164,9 +164,9 @@ tasks.register("generateLauncherIcons") {
                 int red = (pixel >>> 16) & 0xff
                 int green = (pixel >>> 8) & 0xff
                 int blue = pixel & 0xff
-                int luminance = (red * 2126 + green * 7152 + blue * 722) / 10000
-                int coverage = Math.max(0, Math.min(255, (185 - luminance) * 255 / 75))
-                int alpha = (sourceAlpha * coverage + 127) / 255
+                int luminance = (red * 2126 + green * 7152 + blue * 722).intdiv(10000)
+                int coverage = Math.max(0, Math.min(255, ((185 - luminance) * 255).intdiv(75)))
+                int alpha = (sourceAlpha * coverage + 127).intdiv(255)
                 silhouette.setRGB(x, y, (alpha << 24) | 0x00ffffff)
             }
         }
