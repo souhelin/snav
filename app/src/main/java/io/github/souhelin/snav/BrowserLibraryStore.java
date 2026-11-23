@@ -15,6 +15,8 @@ public final class BrowserLibraryStore {
     private static final String PREFS = "snav_browser_library_v1";
     private static final String BOOKMARKS = "bookmarks";
     private static final String HISTORY = "history";
+    private static final String PINNED = "pinned";
+    private static final int MAX_PINNED = 4;
     private static final int MAX_HISTORY = 1000;
     private static final int MAX_BOOKMARKS = 1000;
     private static final int MAX_URL_LENGTH = 8192;
@@ -92,10 +94,6 @@ public final class BrowserLibraryStore {
         if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
             || parsed.getHost() == null || parsed.getUserInfo() != null) return;
         JSONArray source = read(HISTORY), result = new JSONArray();
-        for (int i = 0; i < source.length(); i++) {
-            JSONObject item = source.optJSONObject(i);
-            if (item != null && !safeUrl.equals(item.optString("url"))) result.put(item);
-        }
         JSONObject item = new JSONObject();
         try {
             String safeTitle = clean(title);
@@ -103,10 +101,14 @@ public final class BrowserLibraryStore {
             item.put("title", safeTitle.isEmpty() ? safeUrl : safeTitle);
             item.put("url", safeUrl);
             item.put("visitedAt", System.currentTimeMillis());
-            result.put(0, item);
-            JSONArray bounded = new JSONArray();
-            for (int i = 0; i < result.length() && i < MAX_HISTORY; i++) bounded.put(result.get(i));
-            write(HISTORY, bounded);
+            // JSONArray.put(index, value) replaces an element; prepend explicitly
+            // so updating the newest page never discards the previous visit.
+            result.put(item);
+            for (int i = 0; i < source.length() && result.length() < MAX_HISTORY; i++) {
+                JSONObject previous = source.optJSONObject(i);
+                if (previous != null && !safeUrl.equals(previous.optString("url"))) result.put(previous);
+            }
+            write(HISTORY, result);
         } catch (JSONException ignored) {}
     }
 
@@ -138,6 +140,70 @@ public final class BrowserLibraryStore {
     }
 
     public synchronized void clearHistory() { write(HISTORY, new JSONArray()); }
+
+    public synchronized List<Entry> getPinned() { return entries(PINNED, "createdAt"); }
+
+    public synchronized boolean pin(String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
+        JSONArray values = read(PINNED);
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item != null && safeUrl.equals(item.optString("url"))) return true;
+        }
+        if (values.length() >= MAX_PINNED) return false;
+        try {
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            JSONObject item = new JSONObject();
+            item.put("title", safeTitle.isEmpty() ? parsed.getHost() : safeTitle);
+            item.put("url", safeUrl);
+            item.put("createdAt", System.currentTimeMillis());
+            values.put(item);
+            write(PINNED, values);
+            return true;
+        } catch (JSONException ignored) { return false; }
+    }
+
+    /** Updates an existing shortcut in place, without replacing another shortcut. */
+    public synchronized boolean updatePinned(String oldUrl, String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
+        JSONArray values = read(PINNED);
+        JSONObject target = null;
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(oldUrl).equals(item.optString("url"))) target = item;
+            else if (safeUrl.equals(item.optString("url"))) return false;
+        }
+        if (target == null) return false;
+        String safeTitle = clean(title);
+        if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+        try {
+            target.put("title", safeTitle.isEmpty() ? parsed.getHost() : safeTitle);
+            target.put("url", safeUrl);
+            write(PINNED, values);
+            return true;
+        } catch (JSONException error) { return false; }
+    }
+
+    public synchronized boolean unpin(String url) {
+        JSONArray values = read(PINNED), result = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(url).equals(item.optString("url"))) removed = true;
+            else result.put(item);
+        }
+        if (removed) write(PINNED, result);
+        return removed;
+    }
 
     /** Validates and replaces bookmarks from a Netscape bookmark HTML import. */
     public synchronized int importBookmarks(String html) {

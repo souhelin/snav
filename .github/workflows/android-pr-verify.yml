@@ -1,0 +1,73 @@
+name: Android PR verification
+on:
+  pull_request:
+  push:
+    branches:
+      - 'arena/**'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - name: Install Android SDK
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
+          android sdk install --canary platforms/android-37 build-tools/36.0.0
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - name: Build and run unit tests
+        shell: bash
+        run: |
+          set +e
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug > "$RUNNER_TEMP/gradle-check.log" 2>&1
+          result=$?
+          tail -100 "$RUNNER_TEMP/gradle-check.log"
+          if [ "$result" -ne 0 ]; then
+            message=$(tail -60 "$RUNNER_TEMP/gradle-check.log" | sed 's/%/%25/g' | tr '\n' '|' | cut -c1-12000)
+            echo "::error::$message"
+          fi
+          exit "$result"
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - name: Install Android SDK
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/16.0/bin" >> "$GITHUB_PATH"
+          android sdk install --canary platforms/android-37 build-tools/36.0.0
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+      - name: Enable hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run Android tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/android-emulator-tests.sh
