@@ -31,3 +31,14 @@ disponível ou não for decodificável, é usado o símbolo oficial Material Sym
 - Limpar o histórico e os dados de navegação e confirmar que os recentes somem,
   mas os fixados permanecem. Verificar acessibilidade, tema escuro e tela inicial
   com teclado aberto em telas pequenas.
+- Visitar pelo menos 5 URLs HTTPS diferentes e confirmar que os 4 recentes mais
+  novos aparecem na ordem correta. Voltar a uma página, reiniciar o aplicativo e
+  verificar a ordem, os títulos e a persistência. Os fixados devem continuar
+  independentes da lista de recentes.
+- Na tela inicial, confirmar que apenas o menu aparece no topo. As ações de
+  página ficam desativadas até haver uma página aberta; gerenciar abas,
+  biblioteca e preferências continuam disponíveis. Repetir após abrir uma aba
+  vazia, interromper o carregamento, limpar os dados e diante de um erro.
+- Abrir uma página HTTPS e confirmar que o endereço e o ícone de informações
+  aparecem na tela 2. Salvar nos favoritos pelo menu e verificar na biblioteca;
+  a tela de informações não deve exibir as ações de favoritos ou histórico.

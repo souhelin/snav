@@ -31,6 +31,7 @@ android {
         targetSdkVersion 35
         versionCode 1
         versionName "0.2.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     compileOptions {
@@ -164,4 +165,6 @@ dependencies {
     implementation 'org.mozilla.geckoview:geckoview:160.0.20261116130455'
     implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
 }

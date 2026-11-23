@@ -94,10 +94,6 @@ public final class BrowserLibraryStore {
         if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
             || parsed.getHost() == null || parsed.getUserInfo() != null) return;
         JSONArray source = read(HISTORY), result = new JSONArray();
-        for (int i = 0; i < source.length(); i++) {
-            JSONObject item = source.optJSONObject(i);
-            if (item != null && !safeUrl.equals(item.optString("url"))) result.put(item);
-        }
         JSONObject item = new JSONObject();
         try {
             String safeTitle = clean(title);
@@ -105,10 +101,14 @@ public final class BrowserLibraryStore {
             item.put("title", safeTitle.isEmpty() ? safeUrl : safeTitle);
             item.put("url", safeUrl);
             item.put("visitedAt", System.currentTimeMillis());
-            result.put(0, item);
-            JSONArray bounded = new JSONArray();
-            for (int i = 0; i < result.length() && i < MAX_HISTORY; i++) bounded.put(result.get(i));
-            write(HISTORY, bounded);
+            // JSONArray.put(index, value) replaces an element; prepend explicitly
+            // so updating the newest page never discards the previous visit.
+            result.put(item);
+            for (int i = 0; i < source.length() && result.length() < MAX_HISTORY; i++) {
+                JSONObject previous = source.optJSONObject(i);
+                if (previous != null && !safeUrl.equals(previous.optString("url"))) result.put(previous);
+            }
+            write(HISTORY, result);
         } catch (JSONException ignored) {}
     }
 

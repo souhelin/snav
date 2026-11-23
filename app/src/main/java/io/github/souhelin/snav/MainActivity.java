@@ -137,6 +137,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private LinearLayout homeShortcuts;
     private View pageErrorView;
     private String failedPageUrl;
+    private String loadingPageUrl;
     private boolean stoppedByUser;
     private boolean toolsOpenedFromBrowser;
     private final java.util.concurrent.ExecutorService faviconExecutor = java.util.concurrent.Executors.newFixedThreadPool(2);
@@ -372,7 +373,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		linear_copiar_URL.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View _view) {
-				SketchwareUtil.showMessage(getApplicationContext(), "Copiado para a área de transferência");
+				SketchwareUtil.showMessage(getApplicationContext(), "Link copiado");
 				((ClipboardManager) getSystemService(getApplicationContext().CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("clipboard", (geckoEngine == null ? null : geckoEngine.getCurrentUri())));
 			}
 		});
@@ -684,7 +685,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void showPendingCrashReport() {
 		final java.io.File marker = new java.io.File(getFilesDir(), PENDING_CRASH_FILE);
 		if (!marker.exists()) return;
-		showSnavDecisionSheet("Falha detectada no Snav",
+		showSnavDecisionSheet("O Snav foi fechado",
 			"O Snav foi encerrado inesperadamente. Copie o diagnóstico para ajudar a identificar a causa.",
 			"Copiar diagnóstico", "Depois", new Runnable() {
 				@Override public void run() { if (copyDiagnosticReport()) marker.delete(); }
@@ -922,7 +923,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		toParams.topMargin = dp(12);
 		content.addView(toLayout, toParams);
 		final TextView status = new TextView(this);
-		status.setText("Carregando idiomas disponíveis…");
+		status.setText("Carregando idiomas…");
 		status.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
 		status.setTextSize(12);
 		status.setPadding(0, dp(8), 0, dp(12));
@@ -930,7 +931,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		LinearLayout actions = new LinearLayout(this);
 		actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
 		MaterialButton restore = new MaterialButton(this);
-		restore.setText("Original");
+		restore.setText("Ver original");
 		restore.setAllCaps(false);
 		restore.setTextColor(getResources().getColor(R.color.snav_on_surface));
 		restore.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
@@ -1017,7 +1018,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				int fromIndex = sourceNames.indexOf(fromInput.getText().toString());
 				int toIndex = targetNames.indexOf(toInput.getText().toString());
 				if (fromIndex < 0 || toIndex < 0) {
-					status.setText("Selecione os dois idiomas");
+					status.setText("Selecione os idiomas da página e da tradução");
 					return;
 				}
 				final String from = sourceLanguages.get(fromIndex).code;
@@ -1026,7 +1027,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					status.setText("Escolha idiomas diferentes");
 					return;
 				}
-				status.setText("Iniciando tradução e preparando modelos…");
+				status.setText("Preparando tradução…");
 				translate.setEnabled(false);
 				translationHandler.post(new Runnable() {
 					@Override public void run() {
@@ -1144,7 +1145,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (geckoEngine == null || !isSecureOrigin(sourceUri)) {
 			readerModePending = false;
 			readerOriginalUri = null;
-			Toast.makeText(this, "Não foi possível preparar esta página para leitura", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "Não foi possível preparar a página para leitura", Toast.LENGTH_LONG).show();
 			return;
 		}
 		final GeckoSession sourceSession = geckoEngine.getSession();
@@ -1350,12 +1351,46 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         tela2.setVisibility(screen == 2 ? View.VISIBLE : View.GONE);
         tela3.setVisibility(screen == 3 ? View.VISIBLE : View.GONE);
         linear_b.setVisibility(screen == 3 ? View.GONE : View.VISIBLE);
+        updateTopBar();
+        if (screen == 3) updateToolActions();
         if (screen != 1 && edittext1 != null) {
             edittext1.clearFocus();
             android.view.inputmethod.InputMethodManager keyboard = (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
             if (keyboard != null) keyboard.hideSoftInputFromWindow(edittext1.getWindowToken(), 0);
         }
         if (screen == 1) refreshHomeShortcuts();
+    }
+
+    private boolean hasUsablePage() {
+        return geckoEngine != null && isSecureOrigin(geckoEngine.getCurrentUri())
+            && !pageLoading && vazio.getVisibility() != View.VISIBLE
+            && (pageErrorView == null || pageErrorView.getVisibility() != View.VISIBLE);
+    }
+
+    private boolean hasPageForActions() {
+        return tela2.getVisibility() == View.VISIBLE && hasUsablePage();
+    }
+
+    private void updateTopBar() {
+        if (linear_b == null || tela1 == null || text_barra == null || button_site_info == null) return;
+        boolean home = tela1.getVisibility() == View.VISIBLE;
+        boolean browser = tela2.getVisibility() == View.VISIBLE;
+        linear_b.setBackgroundColor(home ? Color.TRANSPARENT : getResources().getColor(R.color.snav_surface));
+        linear_b.setGravity(home ? Gravity.END | Gravity.CENTER_VERTICAL : Gravity.CENTER_VERTICAL);
+        linear_b.setClickable(browser);
+        text_barra.setVisibility(browser ? View.VISIBLE : View.GONE);
+        button_site_info.setVisibility(browser && hasUsablePage() ? View.VISIBLE : View.GONE);
+    }
+
+    private void updateToolActions() {
+        boolean enabled = toolsOpenedFromBrowser && hasUsablePage();
+        View[] pageTools = { linear_copiar_URL, linear_tradutor_google,
+            linear_modo_leitura, linear_abrir_no_navegador };
+        for (View tool : pageTools) {
+            if (tool == null) continue;
+            tool.setEnabled(enabled);
+            tool.setAlpha(enabled ? 1f : 0.38f);
+        }
     }
 
     private void returnFromTools() {
@@ -1369,7 +1404,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         error.setPadding(dp(24), dp(24), dp(24), dp(24));
         error.setBackgroundColor(getResources().getColor(R.color.snav_surface));
         TextView message = new TextView(this);
-        message.setText("Não foi possível carregar a página. Verifique sua conexão e tente novamente.");
+        message.setText("Não foi possível carregar a página. Verifique a conexão e tente novamente.");
         message.setGravity(Gravity.CENTER);
         message.setTextColor(getResources().getColor(R.color.snav_on_surface));
         message.setTextSize(16);
@@ -1474,7 +1509,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         Toast.makeText(MainActivity.this, "Página desafixada", Toast.LENGTH_SHORT).show();
                     } else if (browserLibraryStore.pin(entry.title, entry.url)) {
                         Toast.makeText(MainActivity.this, "Página fixada", Toast.LENGTH_SHORT).show();
-                    } else Toast.makeText(MainActivity.this, "Você pode fixar até 4 páginas", Toast.LENGTH_SHORT).show();
+                    } else Toast.makeText(MainActivity.this, "Fixe até 4 páginas", Toast.LENGTH_SHORT).show();
                     refreshHomeShortcuts();
                     return true;
                 }
@@ -1572,7 +1607,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 String url = item.optString("url", "");
                 if (!url.isEmpty() && !url.equals("about:blank")
                     && !url.startsWith("https://")) continue;
-                browserTabs.add(new BrowserTab(item.optString("title", "Nova guia"),
+                browserTabs.add(new BrowserTab(item.optString("title", "Nova aba"),
                     url.isEmpty() ? null : url, null));
             }
             if (!browserTabs.isEmpty()) activeBrowserTab = Math.max(0,
@@ -1589,7 +1624,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         for (BrowserTab tab : browserTabs) {
             JSONObject item = new JSONObject();
             try {
-                item.put("title", tab.title == null ? "Nova guia" : tab.title);
+                item.put("title", tab.title == null ? "Nova aba" : tab.title);
                 item.put("url", tab.url == null ? "" : tab.url);
                 saved.put(item);
             } catch (JSONException ignored) {}
@@ -1628,8 +1663,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private void createBrowserTab() { createBrowserTab(null); }
 
     private void createBrowserTab(String url) {
-        if (browserTabs.size() >= 12) { Toast.makeText(this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show(); return; }
-        browserTabs.add(new BrowserTab("Nova guia", url, null));
+        if (browserTabs.size() >= 12) { Toast.makeText(this, "Você pode abrir até 12 abas", Toast.LENGTH_SHORT).show(); return; }
+        browserTabs.add(new BrowserTab("Nova aba", url, null));
         int next = browserTabs.size() - 1;
         switchBrowserTab(next);
     }
@@ -1638,7 +1673,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         if (browserTabs.size() <= 1) {
             exitReaderMode();
             if (pageErrorView != null) pageErrorView.setVisibility(View.GONE);
-            BrowserTab only = browserTabs.get(0); only.title = "Nova guia"; only.url = null; only.state = null;
+            BrowserTab only = browserTabs.get(0); only.title = "Nova aba"; only.url = null; only.state = null;
             currentPageTitle = null; activeBrowserTab = 0; text_barra.setText("Snav Browser"); vazio.setVisibility(View.VISIBLE); if (geckoEngine != null) geckoEngine.loadUri("about:blank", false);
         } else {
             boolean closingActive = index == activeBrowserTab;
@@ -1658,14 +1693,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 vazio.setVisibility(selected.url == null || selected.url.isEmpty() || "about:blank".equals(selected.url) ? View.VISIBLE : View.GONE);
             }
         }
-        updateTabCounter(); persistBrowserTabs(); showTabsBottomSheet();
+        updateTabCounter(); persistBrowserTabs(); updateTopBar(); showTabsBottomSheet();
     }
 
     private void performLoadStop() {
         if (pageLoading && geckoEngine != null) {
             stoppedByUser = true;
+            loadingPageUrl = null;
             geckoEngine.stop();
             finishPageProgress();
+            updateTopBar();
         } else if (geckoEngine != null && geckoEngine.getCurrentUri() != null && !geckoEngine.getCurrentUri().equals("about:blank")) {
             if (readerMode) exitReaderMode();
             geckoEngine.reload();
@@ -1679,56 +1716,73 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
+        root.addView(new BottomSheetDragHandleView(this), new LinearLayout.LayoutParams(-1, dp(42)));
         TextView heading = new TextView(this);
         heading.setText("Menu");
         heading.setTextSize(21);
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
         root.addView(heading);
-        addMenuSheetRow(root, R.drawable.ms_tab, "Gerenciar abas", new Runnable() {
+        addMenuSheetRow(root, R.drawable.ms_tab, "Gerenciar abas", true, new Runnable() {
             @Override public void run() { sheet.dismiss(); showTabsBottomSheet(); }
         });
-        addMenuSheetRow(root, R.drawable.ms_menu_book, "Biblioteca", new Runnable() {
+        addMenuSheetRow(root, R.drawable.ms_menu_book, "Biblioteca", true, new Runnable() {
             @Override public void run() { sheet.dismiss(); showBrowserLibraryBottomSheet(false); }
         });
-        addMenuSheetRow(root, R.drawable.ms_refresh, "Carregar / interromper", new Runnable() {
+        final boolean pageAvailable = hasPageForActions();
+        boolean canStop = tela2.getVisibility() == View.VISIBLE && pageLoading
+            && isSecureOrigin(loadingPageUrl);
+        addMenuSheetRow(root, pageLoading ? R.drawable.ms_stop : R.drawable.ms_refresh,
+            pageLoading ? "Interromper carregamento" : "Recarregar página", pageAvailable || canStop, new Runnable() {
             @Override public void run() { sheet.dismiss(); performLoadStop(); }
         });
-        final String currentUrl = geckoEngine == null ? null : geckoEngine.getCurrentUri();
-        if (isSecureOrigin(currentUrl)) {
-            boolean pinned = false;
+        final String currentUrl = pageAvailable ? geckoEngine.getCurrentUri() : null;
+        boolean pinned = false;
+        if (currentUrl != null) {
             for (BrowserLibraryStore.Entry entry : browserLibraryStore.getPinned()) {
                 if (entry.url.equals(currentUrl)) pinned = true;
             }
-            final boolean alreadyPinned = pinned;
-            addMenuSheetRow(root, pinned ? R.drawable.ms_keep_off : R.drawable.ms_keep, pinned ? "Desafixar da tela inicial" : "Fixar na tela inicial", new Runnable() {
-                @Override public void run() {
-                    sheet.dismiss();
-                    if (alreadyPinned) browserLibraryStore.unpin(currentUrl);
-                    else if (!browserLibraryStore.pin(currentPageTitle, currentUrl)) {
-                        Toast.makeText(MainActivity.this, "Você pode fixar até 4 páginas", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    refreshHomeShortcuts();
-                }
-            });
         }
-        addMenuSheetRow(root, R.drawable.ms_build, "Ferramentas", new Runnable() {
+        final boolean alreadyPinned = pinned;
+        addMenuSheetRow(root, pinned ? R.drawable.ms_keep_off : R.drawable.ms_keep,
+            pinned ? "Desafixar da tela inicial" : "Fixar na tela inicial", pageAvailable, new Runnable() {
+            @Override public void run() {
+                sheet.dismiss();
+                if (!hasPageForActions() || !currentUrl.equals(geckoEngine.getCurrentUri())) return;
+                if (alreadyPinned) browserLibraryStore.unpin(currentUrl);
+                else if (!browserLibraryStore.pin(currentPageTitle, currentUrl)) {
+                    Toast.makeText(MainActivity.this, "Fixe até 4 páginas", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                refreshHomeShortcuts();
+                Toast.makeText(MainActivity.this, alreadyPinned ? "Página desafixada" : "Página fixada", Toast.LENGTH_SHORT).show();
+            }
+        });
+        addMenuSheetRow(root, R.drawable.ms_bookmark_add, "Salvar nos favoritos", pageAvailable, new Runnable() {
+            @Override public void run() {
+                sheet.dismiss();
+                if (!hasPageForActions() || !currentUrl.equals(geckoEngine.getCurrentUri())) return;
+                if (browserLibraryStore.addBookmark(currentPageTitle, currentUrl))
+                    Toast.makeText(MainActivity.this, "Salvo nos favoritos", Toast.LENGTH_SHORT).show();
+                else Toast.makeText(MainActivity.this, "Não foi possível salvar nos favoritos", Toast.LENGTH_SHORT).show();
+            }
+        });
+        addMenuSheetRow(root, R.drawable.ms_build, "Ferramentas", true, new Runnable() {
             @Override public void run() {
                 sheet.dismiss();
                 toolsOpenedFromBrowser = tela2.getVisibility() == View.VISIBLE;
                 showScreen(3);
             }
         });
-        sheet.setContentView(root);
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(root, new ScrollView.LayoutParams(-1, -2));
+        sheet.setContentView(scroll);
         sheet.show();
         sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
         sheet.getBehavior().setSkipCollapsed(true);
     }
 
-    private void addMenuSheetRow(LinearLayout parent, int iconRes, String label, final Runnable action) {
+    private void addMenuSheetRow(LinearLayout parent, int iconRes, String label, boolean enabled, final Runnable action) {
         MaterialButton row = new MaterialButton(this, null,
             com.google.android.material.R.attr.materialButtonOutlinedStyle);
         row.setAllCaps(false);
@@ -1742,6 +1796,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         row.setStrokeWidth(0);
         row.setCornerRadius(dp(16));
         row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
+        row.setEnabled(enabled);
+        row.setAlpha(enabled ? 1f : 0.38f);
+        if (!enabled) row.setContentDescription(label + ". Abra uma página para usar esta ação");
         row.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View view) { action.run(); }
         });
@@ -1758,8 +1815,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         for (int i = 0; i < browserTabs.size(); i++) {
             final int index = i; final BrowserTab tab = browserTabs.get(i);
             LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
-            TextView label = new TextView(this); String name = tab.title == null || tab.title.trim().isEmpty() ? "Nova guia" : tab.title;
-            label.setText((i == activeBrowserTab ? "Aba atual · " : "") + name + "\n" + (tab.url == null ? "Página em branco" : domainForAddressBar(tab.url)));
+            TextView label = new TextView(this); String name = tab.title == null || tab.title.trim().isEmpty() ? "Nova aba" : tab.title;
+            label.setText((i == activeBrowserTab ? "Aba atual · " : "") + name + "\n" + (tab.url == null ? "Nenhuma página aberta" : domainForAddressBar(tab.url)));
             label.setTextColor(getResources().getColor(R.color.snav_on_surface)); label.setTextSize(14); label.setPadding(dp(8), dp(14), dp(8), dp(14));
             row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
             ImageButton close = new ImageButton(this);
@@ -1894,7 +1951,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                             boolean removed = showingHistory[0] ? browserLibraryStore.removeHistory(item.url) : browserLibraryStore.removeBookmark(item.url);
                             if (removed) {
                                 render[0].run();
-                                Toast.makeText(MainActivity.this, showingHistory[0] ? "Registro removido" : "Favorito removido", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this, showingHistory[0] ? "Página removida do histórico" : "Favorito removido", Toast.LENGTH_SHORT).show();
                                 return true;
                             }
                             return false;
@@ -1921,7 +1978,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 refreshHomeShortcuts();
                 showingHistory[0] = true;
                 render[0].run();
-                Toast.makeText(MainActivity.this, "Histórico apagado", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this, "Histórico limpo", Toast.LENGTH_SHORT).show();
             }
         });
         render[0].run();
@@ -2042,7 +2099,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 open.setDataAndType(itemUri, getContentResolver().getType(itemUri));
                 open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 try { startActivity(open); }
-                catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show(); }
+                catch (ActivityNotFoundException error) { Toast.makeText(MainActivity.this, "Nenhum aplicativo disponível para abrir este arquivo", Toast.LENGTH_LONG).show(); }
             }
         });
         item.setOnLongClickListener(new View.OnLongClickListener() {
@@ -2084,7 +2141,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         picker.addCategory(Intent.CATEGORY_OPENABLE);
         picker.setType("text/html");
         try { startActivityForResult(picker, REQUEST_IMPORT_BOOKMARKS); }
-        catch (ActivityNotFoundException error) { Toast.makeText(this, "Seletor de arquivos indisponível", Toast.LENGTH_LONG).show(); }
+        catch (ActivityNotFoundException error) { Toast.makeText(this, "Não foi possível abrir o seletor de arquivos", Toast.LENGTH_LONG).show(); }
     }
 
     private void exportBookmarks() {
@@ -2093,7 +2150,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         picker.setType("text/html");
         picker.putExtra(Intent.EXTRA_TITLE, "snav-bookmarks.html");
         try { startActivityForResult(picker, REQUEST_EXPORT_BOOKMARKS); }
-        catch (ActivityNotFoundException error) { Toast.makeText(this, "Seletor de arquivos indisponível", Toast.LENGTH_LONG).show(); }
+        catch (ActivityNotFoundException error) { Toast.makeText(this, "Não foi possível abrir o seletor de arquivos", Toast.LENGTH_LONG).show(); }
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -2143,16 +2200,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		title.setPadding(0, 0, 0, siteInfoDp(18));
 		content.addView(title);
 		addSiteInfoRow(content, "Endereço completo", currentUrl == null ? "Nenhum endereço aberto" : currentUrl);
-        addLibraryAction(content, "Salvar nos favoritos", new Runnable() {
-            @Override public void run() {
-                if (browserLibraryStore != null && browserLibraryStore.addBookmark(currentPageTitle, currentUrl))
-                    Toast.makeText(MainActivity.this, "Adicionado aos favoritos", Toast.LENGTH_SHORT).show();
-                else Toast.makeText(MainActivity.this, "Não foi possível salvar este endereço", Toast.LENGTH_SHORT).show();
-            }
-        });
-        addLibraryAction(content, "Favoritos e histórico", new Runnable() {
-            @Override public void run() { sheet.dismiss(); showBrowserLibraryBottomSheet(false); }
-        });
+
 		addSiteInfoRow(content, "Conexão", "https".equalsIgnoreCase(scheme) ? "HTTPS — conexão criptografada" : "about".equalsIgnoreCase(scheme) ? "Página interna do GeckoView" : "Não disponível");
 		addSiteInfoRow(content, "Proteção", "Proteção contra rastreamento e isolamento de cookies de terceiros pelo GeckoView");
 		addSiteInfoRow(content, "Permissões", "Câmera, microfone e localização exigem sua permissão para cada site HTTPS e, quando necessário, autorização do Android");
@@ -2175,7 +2223,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		clearData.setOnClickListener(new View.OnClickListener() {
 			@Override public void onClick(View view) {
 				if (host == null || geckoEngine == null) {
-					Toast.makeText(MainActivity.this, "Não há domínio para limpar", Toast.LENGTH_SHORT).show();
+					Toast.makeText(MainActivity.this, "Abra um site para limpar os dados", Toast.LENGTH_SHORT).show();
 					return;
 				}
 				sheet.dismiss();
@@ -2283,7 +2331,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             boolean granted = grantResults != null && grantResults.length > 0
                 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
             if (granted) showDownloadsBottomSheet();
-            else Toast.makeText(this, "Permissão negada. Não foi possível listar os downloads.", Toast.LENGTH_LONG).show();
+            else Toast.makeText(this, "Permita o acesso aos arquivos para ver os downloads", Toast.LENGTH_LONG).show();
         } else if (requestCode == 4104) {
 			boolean granted = grantResults != null && grantResults.length > 0
 				&& grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
@@ -2295,7 +2343,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if (granted) saveGeckoDownload(response, name);
 				else {
 					closeResponseBody(response);
-					Toast.makeText(this, "Permissão negada. Download cancelado.", Toast.LENGTH_LONG).show();
+					Toast.makeText(this, "Download cancelado. Permita o acesso aos arquivos para baixar.", Toast.LENGTH_LONG).show();
 				}
 			}
 		}
@@ -2506,7 +2554,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 		final String secureUrl = secureBuilder.build().toString();
 		showSnavDecisionSheet("HTTP bloqueado",
-			"O Snav não envia dados por HTTP. A conexão com " + host + " não é criptografada. Deseja tentar abrir a versão HTTPS?",
+			"A conexão com " + host + " não é criptografada. O Snav permite apenas conexões HTTPS. Tentar abrir a versão segura?",
 			"Tentar HTTPS", "Cancelar", new Runnable() {
 				@Override public void run() { loadUrlWithPrivacyHeaders(secureUrl); showScreen(2); vazio.setVisibility(View.GONE); }
 			}, null);
@@ -2711,7 +2759,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		try {
 			startActivity(new Intent(Intent.ACTION_VIEW, uri));
 		} catch (ActivityNotFoundException error) {
-			Toast.makeText(this, "Não há aplicativo disponível para abrir este endereço", Toast.LENGTH_SHORT).show();
+			Toast.makeText(this, "Nenhum aplicativo disponível para abrir este endereço", Toast.LENGTH_SHORT).show();
 		}
 	}
 
@@ -2722,6 +2770,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				@Override public void accept(Void ignored) {
                     browserLibraryStore.clearHistory();
                     refreshHomeShortcuts();
+                    updateTopBar();
+                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
 					if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Dados de navegação removidos", Toast.LENGTH_SHORT).show();
 				}
 			},
@@ -2864,7 +2914,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					}
 					runOnUiThread(new Runnable() {
 						@Override public void run() {
-							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Download salvo em Downloads", Toast.LENGTH_LONG).show();
+							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Download salvo na pasta Downloads", Toast.LENGTH_LONG).show();
 						}
 					});
 				} catch (final Exception error) {
@@ -2874,7 +2924,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					logDiagnostic("Falha ao salvar download Gecko: " + error.getClass().getSimpleName());
 					runOnUiThread(new Runnable() {
 						@Override public void run() {
-							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Falha ao salvar o download", Toast.LENGTH_LONG).show();
+							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Não foi possível salvar o download", Toast.LENGTH_LONG).show();
 						}
 					});
 				}
@@ -3075,10 +3125,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 	}
 	public void _gone() {
-		//visibilidade
-		//telas
-		tela2.setVisibility(View.GONE);
-		tela3.setVisibility(View.GONE);
+        showScreen(1);
 	}
 	
 	
@@ -3126,15 +3173,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             new GeckoEngineController.Listener() {
                 @Override public void onPageStarted(String uri) {
                     logDiagnostic("Navegação Gecko iniciada: " + safeHostForDiagnostics(uri));
+                    loadingPageUrl = uri;
                     beginPageProgress();
                     vazio.setVisibility(View.GONE);
                     stoppedByUser = false;
                     failedPageUrl = null;
                     if (pageErrorView != null) pageErrorView.setVisibility(View.GONE);
+                    updateTopBar();
+                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                 }
                 @Override public void onPageStopped(boolean success) {
+                    loadingPageUrl = null;
                     finishPageProgress();
                     stoppedByUser = false;
+                    updateTopBar();
+                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                     // A stop can belong to an interrupted load; it must not decide
                     // whether the current tab is empty or replace its content.
                 }
@@ -3144,6 +3197,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     failedPageUrl = uri;
                     vazio.setVisibility(View.GONE);
                     if (pageErrorView != null) pageErrorView.setVisibility(View.VISIBLE);
+                    updateTopBar();
+                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                 }
                 @Override public void onProgressChanged(int value) {
                     if (!pageLoading) beginPageProgress();
@@ -3166,6 +3221,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         }
                     }
                     text_barra.setText(domainForAddressBar(uri));
+                    updateTopBar();
+                    if (tela3.getVisibility() == View.VISIBLE) updateToolActions();
                     if (!browserTabs.isEmpty()) { browserTabs.get(activeBrowserTab).url = uri; persistBrowserTabs(); }
                     if (browserLibraryStore != null && uri != null && uri.startsWith("https://")) {
                         currentPageTitle = null;
@@ -3195,7 +3252,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                             Uri requested = Uri.parse(uri);
                             if (!"https".equalsIgnoreCase(requested.getScheme()) || requested.getHost() == null || requested.getUserInfo() != null) return;
                             if (browserTabs.size() >= 12) {
-                                Toast.makeText(MainActivity.this, "Limite de 12 abas atingido", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this, "Você pode abrir até 12 abas", Toast.LENGTH_SHORT).show();
                                 return;
                             }
                             createBrowserTab(uri);
@@ -3222,7 +3279,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
         installGeckoPermissionDelegate();
-        if (browserTabs.isEmpty()) browserTabs.add(new BrowserTab("Nova guia", pendingRestoreUri, null));
+        if (browserTabs.isEmpty()) browserTabs.add(new BrowserTab("Nova aba", pendingRestoreUri, null));
         persistBrowserTabs();
         updateTabCounter();
         geckoEngine.getSession().setTranslationsSessionDelegate(
