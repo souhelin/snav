@@ -1500,7 +1500,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         icon.setImageResource(iconRes);
         icon.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface_variant)));
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(24), dp(24));
-        iconParams.marginEnd = dp(16);
+        iconParams.setMarginEnd(dp(16));
         row.addView(icon, iconParams);
         TextView text = new TextView(this);
         text.setText(label);
