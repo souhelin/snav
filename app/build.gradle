@@ -1,6 +1,7 @@
 // Top-level build file for the Snav Browser Android application.
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 def releaseKeystorePath = System.getenv("KEYSTORE_PATH")
@@ -16,20 +17,29 @@ def hasReleaseSigning = [
 ].every { value -> value != null && !value.trim().isEmpty() }
 
 def launcherSource = file("src/main/assets/ic_launcher_source.png")
-def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons")
+def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons").get().asFile
 
 android {
-    compileSdk 35
+    namespace "io.github.souhelin.snav"
+    compileSdk 37
+    buildToolsVersion '36.0.0'
 
     useLibrary 'org.apache.http.legacy'
 
     defaultConfig {
         applicationId "io.github.souhelin.snav"
-        namespace "io.github.souhelin.snav"
-        minSdkVersion 21
+        minSdkVersion 26
         targetSdkVersion 35
         versionCode 1
         versionName "0.2.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures { compose true }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     sourceSets {
@@ -47,14 +57,27 @@ android {
         }
     }
 
+    splits {
+        abi {
+            enable true
+            reset()
+            if (project.hasProperty('snavEmulatorTest')) {
+                include 'x86_64'
+            } else {
+                include 'arm64-v8a', 'armeabi-v7a'
+            }
+            universalApk false
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
-            // Local release builds remain possible without credentials.
-            // CI supplies all four values and produces a signed APK.
+            // Local and CI can assemble an unsigned release to validate R8.
+            // Provide all four environment variables to produce a signed APK.
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.release
             }
@@ -92,7 +115,7 @@ tasks.register("generateLauncherIcons") {
             [name: "xxxhdpi", scale: 4, legacy: 192, adaptive: 432]
         ]
 
-        def resRoot = generatedLauncherRes.get().asFile
+        def resRoot = generatedLauncherRes
         project.delete(resRoot)
 
         densities.each { density ->
@@ -145,6 +168,15 @@ tasks.named("preBuild").configure {
 
 dependencies {
     implementation 'com.google.android.material:material:1.13.0'
+    implementation platform('androidx.compose:compose-bom:2026.09.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.material3:material3'
+    // Pinned stable GeckoView release; update regularly for engine security fixes.
+    implementation 'org.mozilla.geckoview:geckoview:160.0.20261116130455'
     implementation 'androidx.dynamicanimation:dynamicanimation:1.0.0'
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test:runner:1.6.2'
+    androidTestImplementation 'androidx.test:core:1.6.1'
 }

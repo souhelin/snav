@@ -21,6 +21,7 @@ import java.util.Random;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Downloads and keeps a bounded offline set of Unsplash wallpapers. */
 public final class UnsplashWallpaperManager {
@@ -45,6 +46,7 @@ public final class UnsplashWallpaperManager {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final File cacheDirectory;
     private final Random random = new Random();
+    private final AtomicBoolean loadInProgress = new AtomicBoolean(false);
 
     public UnsplashWallpaperManager(Context context) {
         appContext = context.getApplicationContext();
@@ -52,39 +54,47 @@ public final class UnsplashWallpaperManager {
     }
 
     public void load(boolean enabled, final Callback callback) {
-        if (!enabled || callback == null) return;
+        if (!enabled || callback == null || !loadInProgress.compareAndSet(false, true)) return;
         final WeakReference<Callback> callbackReference = new WeakReference<Callback>(callback);
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) return;
-                List<File> cached = listCachedFiles();
-                boolean delivered = false;
-                if (!cached.isEmpty()) {
-                    File selected = cached.get(random.nextInt(cached.size()));
-                    Bitmap bitmap = decodeWallpaper(selected);
-                    if (bitmap != null) {
-                        notifyReady(callbackReference, bitmap);
-                        delivered = true;
-                    }
-                }
-                if (!hasInternet()) return;
-                for (int i = 0; i < MAX_IMAGES; i++) {
-                    File target = new File(cacheDirectory, "wallpaper_" + i + ".img");
-                    if (target.isFile() && target.length() > 0 && isValidImage(target)) continue;
-                    if (target.exists()) target.delete();
-                    if (!downloadPhoto(PHOTO_IDS[i], target)) continue;
-                    if (!delivered) {
-                        Bitmap bitmap = decodeWallpaper(target);
-                        if (bitmap != null) {
-                            notifyReady(callbackReference, bitmap);
-                            delivered = true;
+        try {
+            EXECUTOR.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) return;
+                        List<File> cached = listCachedFiles();
+                        boolean delivered = false;
+                        if (!cached.isEmpty()) {
+                            File selected = cached.get(random.nextInt(cached.size()));
+                            Bitmap bitmap = decodeWallpaper(selected);
+                            if (bitmap != null) {
+                                notifyReady(callbackReference, bitmap);
+                                delivered = true;
+                            }
                         }
+                        if (!hasInternet()) return;
+                        for (int i = 0; i < MAX_IMAGES; i++) {
+                            File target = new File(cacheDirectory, "wallpaper_" + i + ".img");
+                            if (target.isFile() && target.length() > 0 && isValidImage(target)) continue;
+                            if (target.exists()) target.delete();
+                            if (!downloadPhoto(PHOTO_IDS[i], target)) continue;
+                            if (!delivered) {
+                                Bitmap bitmap = decodeWallpaper(target);
+                                if (bitmap != null) {
+                                    notifyReady(callbackReference, bitmap);
+                                    delivered = true;
+                                }
+                            }
+                        }
+                        trimCache();
+                    } finally {
+                        loadInProgress.set(false);
                     }
                 }
-                trimCache();
-            }
-        });
+            });
+        } catch (java.util.concurrent.RejectedExecutionException error) {
+            loadInProgress.set(false);
+        }
     }
 
     private List<File> listCachedFiles() {

@@ -1,3 +1,16 @@
+## 2026-11-22 — Menu inferior do botão de três pontos
+
+### Adicionado
+- Modal Bottom Sheet no menu de três pontinhos usando os componentes MD3 existentes (`BottomSheetDialog` e `BottomSheetDragHandleView`), com as opções já disponíveis no projeto: "Gerenciar abas", "Biblioteca", "Carregar / interromper" e "Ferramentas" (abertura da tela 3).
+- Linhas do menu com os ícones do próprio projeto (`ms_tab`, `ms_menu_book`, `ms_refresh`, `ms_build`), cores `snav_on_surface` e `snav_on_surface_variant` e alturas na mesma medida das linhas da tela de ferramentas.
+
+### Alterado
+- O botão de três pontinhos passou a abrir o menu inferior em vez de abrir direto a tela de ferramentas; a tela de ferramentas continua acessível pela opção "Ferramentas" do menu.
+- A lógica de carregar/interromper foi extraída para o método `performLoadStop()`, compartilhado entre o botão da barra de endereço e a nova opção do menu, sem duplicar lógica.
+
+### Verificação
+- Compilação e testes locais ainda não foram executados neste ambiente (sem JDK/Gradle disponíveis); validar com `./gradlew test assembleDebug` antes de integrar à `main`.
+
 ## 2026-11-19 — Wallpaper Unsplash e atualização por gesto
 
 ### Adicionado
