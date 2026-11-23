@@ -185,6 +185,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		startDiagnostics();
 		initialize(_savedInstanceState);
 		initializeLogic();
+        if (_savedInstanceState != null && _savedInstanceState.containsKey("snav_visible_screen")) {
+            toolsOpenedFromBrowser = _savedInstanceState.getBoolean("snav_tools_from_browser", false);
+            showScreen(_savedInstanceState.getInt("snav_visible_screen", 1));
+        }
 		addDiagnosticMenuAction();
 		showPendingCrashReport();
 	}
@@ -692,6 +696,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
+        if (tela1 != null && tela2 != null && tela3 != null) {
+            outState.putInt("snav_visible_screen", tela3.getVisibility() == View.VISIBLE ? 3 : tela2.getVisibility() == View.VISIBLE ? 2 : 1);
+            outState.putBoolean("snav_tools_from_browser", toolsOpenedFromBrowser);
+        }
 		if (geckoEngine != null) {
 			geckoEngine.flushSessionState();
 			GeckoSession.SessionState state = geckoEngine.getSessionState();
