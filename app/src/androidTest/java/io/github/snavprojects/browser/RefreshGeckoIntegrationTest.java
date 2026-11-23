@@ -150,7 +150,9 @@ public class RefreshGeckoIntegrationTest {
 
 
     @Test public void shortPageHonorsTouchActionNone() throws Exception {
-        String html = page(false).replace("body{margin:0}", "body{margin:0;touch-action:none}");
+        // The short body does not fill the viewport; the gesture starts on the
+        // root element below it, so set touch-action on that actual ancestor.
+        String html = page(false).replace("<style>", "<style>html{touch-action:none}");
         try (Harness h = new Harness(html)) {
             h.drag(0, 160); assertEquals(0, h.refreshes.get());
         }

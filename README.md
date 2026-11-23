@@ -58,6 +58,8 @@ gradle -PsnavEmulatorTest=true :app:connectedDebugAndroidTest
 
 A propriedade de teste seleciona x86_64 para o emulador; as compilações normais mantêm as ABIs de distribuição. Execute os testes instrumentados em uma instalação isolada: os testes de extensões instalam e removem pacotes de teste. O workflow [Android PR verification](.github/workflows/android-pr-verify.yml) executa build, testes unitários e testes em emulador. Testes em emulador não substituem a validação em dispositivos físicos.
 
+Para gerar um Android App Bundle (AAB) com as ABIs de distribuição, use `gradle -PsnavBuildBundle=true :app:bundleRelease`. A propriedade separa os arquivos intermediários do AAB dos APKs por arquitetura.
+
 Para gerar uma release assinada, configure `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD` no ambiente e execute `gradle :app:assembleRelease`. Sem todas as variáveis, o projeto pode gerar uma release não assinada para validar o build. Não compartilhe chaves ou senhas. O [workflow de release](.github/workflows/android-release.yml) descreve a configuração de CI, quando disponível.
 
 Antes de contribuir, leia [as regras de desenvolvimento](AGENTS.md) e [o padrão de escrita](WRITING_STYLE.md). Consulte também o [histórico de alterações](CHANGELOG.md), observando que resultados históricos se referem às versões e aos testes indicados em cada registro.

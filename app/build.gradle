@@ -16,6 +16,13 @@ def hasReleaseSigning = [
     releaseKeyPassword
 ].every { value -> value != null && !value.trim().isEmpty() }
 
+// AABs cannot share the APK split outputs; isolate their intermediates.
+// The normal APK and emulator build directories remain unchanged.
+def snavBundle = project.hasProperty('snavBuildBundle')
+if (snavBundle) {
+    layout.buildDirectory = layout.projectDirectory.dir("build/bundleOnly")
+}
+
 def launcherSource = file("src/main/assets/ic_launcher_source.png")
 def generatedLauncherRes = layout.buildDirectory.dir("generated/res/launcherIcons").get().asFile
 
@@ -33,6 +40,9 @@ android {
         versionCode 1
         versionName "0.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        if (snavBundle) {
+            ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+        }
     }
 
     buildFeatures { compose true }
@@ -59,7 +69,7 @@ android {
 
     splits {
         abi {
-            enable true
+            enable !snavBundle
             reset()
             if (project.hasProperty('snavEmulatorTest')) {
                 include 'x86_64'

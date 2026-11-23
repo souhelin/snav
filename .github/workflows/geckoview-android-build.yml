@@ -58,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          gradle --no-daemon :app:bundleRelease > "$RUNNER_TEMP/bundle-release.log" 2>&1
+          gradle --no-daemon -PsnavBuildBundle=true :app:bundleRelease > "$RUNNER_TEMP/bundle-release.log" 2>&1
           result=$?
           tail -100 "$RUNNER_TEMP/bundle-release.log"
           if [ "$result" -ne 0 ]; then
@@ -74,5 +74,5 @@ jobs:
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
+            app/build/bundleOnly/outputs/bundle/release/*.aab
           if-no-files-found: error
