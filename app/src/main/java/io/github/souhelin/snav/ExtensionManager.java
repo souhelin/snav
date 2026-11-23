@@ -122,6 +122,18 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
             }).setNegativeButton("Fechar", null).show();
     }
 
+    void installFromPage(String address) {
+        Activity a = owner();
+        if (a == null || installing) return;
+        final URI uri;
+        try { uri = ExtensionDownloadPolicy.parse(address); }
+        catch (Exception invalid) { notifyUser("Link de extensão inválido"); return; }
+        new MaterialAlertDialogBuilder(a).setTitle("Baixar extensão?")
+            .setMessage("A página solicitou um XPI de " + uri.getHost()
+                + ". O servidor e possíveis destinos HTTPS de redirecionamento receberão solicitações. Você verá as permissões antes de instalar.")
+            .setNegativeButton("Cancelar", null).setPositiveButton("Baixar", (d, w) -> download(address, null)).show();
+    }
+
     private void pickFile() {
         Activity a = owner();
         if (a == null || installing) { notifyUser("Aguarde a instalação em andamento"); return; }
@@ -150,8 +162,9 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
                             if (in == null) throw new IOException("Arquivo indisponível");
                             staged = stage(in, cacheDir);
                         }
+                        final List<String> warnings = ExtensionCompatibilityChecker.inspect(staged);
                         final File result = staged;
-                        main.post(() -> installStaged(result, WebExtensionController.INSTALLATION_METHOD_FROM_FILE, "Arquivo selecionado"));
+                        main.post(() -> installStaged(result, WebExtensionController.INSTALLATION_METHOD_FROM_FILE, "Arquivo selecionado", warnings));
                     } catch (Exception error) {
                         if (staged != null) staged.delete();
                         main.post(() -> failed("Não foi possível ler ou validar o arquivo XPI"));
@@ -222,8 +235,9 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
                 if (expectedHash != null && !expectedHash.equalsIgnoreCase(sha256(staged)))
                     throw new IOException("A integridade do arquivo não corresponde ao catálogo");
                 final String origin = "HTTPS: " + target.getHost();
+                final List<String> warnings = ExtensionCompatibilityChecker.inspect(staged);
                 final File result = staged;
-                main.post(() -> installStaged(result, WebExtensionController.INSTALLATION_METHOD_MANAGER, origin));
+                main.post(() -> installStaged(result, WebExtensionController.INSTALLATION_METHOD_MANAGER, origin, warnings));
             } catch (Exception error) {
                 if (staged != null) staged.delete();
                 main.post(() -> failed("Não foi possível baixar ou validar a extensão."));
@@ -354,8 +368,17 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
         } finally { if (!success) file.delete(); }
     }
 
-    private void installStaged(final File file, String method, final String origin) {
+    private void installStaged(final File file, String method, final String origin, List<String> warnings) {
         if (owner() == null) { file.delete(); installing = false; return; }
+        StringBuilder text = new StringBuilder("A instalação depende da validação do GeckoView e da sua confirmação das permissões. A análise não garante compatibilidade.");
+        for (String warning : warnings) text.append("\n\n• ").append(warning);
+        askPermission("Verificação de compatibilidade", text.toString(), allowed -> {
+            if (!allowed || owner() == null) { file.delete(); installing = false; return; }
+            doInstall(file, method, origin);
+        });
+    }
+
+    private void doInstall(final File file, String method, final String origin) {
         try {
             controller.install(Uri.fromFile(file).toString(), method).accept(
                 extension -> {

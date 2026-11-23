@@ -60,7 +60,8 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                     if (serial != gestureSerial) return;
                     waitingForGecko = false;
                     refreshEligible = !movedBeforeDecision && detail != null
-                        && detail.handledResult() == PanZoomController.INPUT_RESULT_HANDLED
+                        && (detail.handledResult() == PanZoomController.INPUT_RESULT_HANDLED
+                            || detail.handledResult() == PanZoomController.INPUT_RESULT_UNHANDLED)
                         && (detail.scrollableDirections() & PanZoomController.SCROLLABLE_FLAG_TOP) == 0
                         && (detail.overscrollDirections() & PanZoomController.OVERSCROLL_FLAG_VERTICAL) != 0;
                     if (refreshEligible) startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);

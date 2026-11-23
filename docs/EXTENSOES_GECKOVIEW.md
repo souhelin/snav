@@ -1,65 +1,65 @@
-# Extensões: integração inicial com GeckoView
+# Extensões no GeckoView
 
-O aplicativo usa `org.mozilla.geckoview:geckoview:160.0.20261116130455`.
-O `GeckoRuntime` é compartilhado e a Activity gerencia a sessão Gecko ativa.
-Esta integração é **preliminar e não foi validada em dispositivos**; não deve
-ser apresentada como suporte completo a extensões.
+O Snav usa `org.mozilla.geckoview:geckoview:160.0.20261116130455` e um
+`GeckoRuntime` compartilhado. O gerenciador utiliza `WebExtensionController`
+para instalar, listar, ativar, desativar, atualizar e desinstalar. O Gecko é a
+fonte de verdade para instalações persistentes, versões e permissões. O Snav
+armazena somente a origem informada na instalação, sem os parâmetros do link.
 
-## Como está organizado
+## Instalação
 
-`ExtensionManager` usa o `WebExtensionController` do runtime para listar,
-instalar, ativar, desativar, remover e atualizar extensões. O Gecko mantém as
-instalações, versões, permissões e estado no próprio perfil; o aplicativo não
-mantém uma cópia que possa ficar inconsistente. O Snav registra separadamente
-apenas a origem informada pelo usuário (arquivo ou host HTTPS). É possível
-revogar em conjunto as permissões opcionais concedidas, mas não as obrigatórias.
+Em **Ferramentas > Extensões**, pesquise o catálogo recomendado da Mozilla,
+indique um link HTTPS ou selecione um arquivo XPI. Um clique de usuário em um
+link HTTPS com caminho terminado em `.xpi` também oferece a instalação. Para
+links que não expõem esse sufixo, use o gerenciador ou escolha o arquivo.
+Catálogo e downloads enviam solicitações aos servidores envolvidos; os
+redirecionamentos são limitados a cinco e cada destino deve usar HTTPS, sem
+credenciais. O catálogo é filtrado por Android e versão 160; resultados do
+catálogo não garantem compatibilidade com todas as capacidades do Snav.
 
-Para instalar, em **Ferramentas > Extensões**, selecione um XPI ou informe um
-link HTTPS direto. O Snav primeiro solicita autorização para ler ou baixar o
-arquivo, copia-o para o armazenamento privado (limite de 20 MiB) e verifica
-limites e estrutura sem extrair o conteúdo. Em seguida, o GeckoView valida o
-manifesto e a assinatura da Mozilla e solicita a decisão sobre permissões e
-origens. O arquivo temporário é apagado após o resultado. Redirecionamentos
-não são seguidos; o download usa os certificados e verificação de hostname
-padrão do Android, sem cookies. Falhas e cancelamentos não autorizam a instalação.
-Não há autorização para navegação privada. O consentimento é negado se a tela
-ficar indisponível. O prompt de atualização é usado para permissões novas e o
-de permissões opcionais, para requisições feitas pela extensão.
+O arquivo é copiado para o cache privado, com limites de tamanho compactado e
+descompactado e verificação de estrutura. Downloads do catálogo são conferidos
+contra o SHA-256 informado pela API da Mozilla. O verificador do Snav lê o
+manifesto e avisa sobre recursos de integração conhecidos que ainda são
+parciais; não é uma análise completa das APIs usadas. O Gecko valida manifesto,
+compatibilidade e assinatura Mozilla. O usuário confirma os avisos e, depois,
+as permissões apresentadas pelo `PromptDelegate`; navegação privada não é
+concedida. Quando a tela de consentimento não está ativa, a solicitação é
+negada. O arquivo temporário é apagado após resultado ou cancelamento.
 
-A inspeção estrutural **não valida a assinatura nem garante compatibilidade**.
-A própria instalação não garante que uma extensão funcione. O usuário deve
-conferir nome, permissões, sites e coleta de dados antes de aceitar.
+## Gerenciamento e limites
 
-## Limitações importantes
+A tela de detalhes apresenta estado, versão, descrição, origem e permissões.
+É possível revogar as permissões opcionais concedidas, não as obrigatórias.
+A atualização usa `WebExtensionController.update`; novas permissões requerem
+consentimento. O Snav integra ações de navegador e página e abre seus popups em
+uma sessão Gecko separada, com navegação externa HTTPS por ação do usuário.
 
-- Não há catálogo integrado nem instalação acionada por páginas. Pode ser
-  necessário baixar manualmente um XPI assinado e selecioná-lo no Snav. Links
-  que redirecionam, incluindo alguns links de catálogos, não funcionam.
-- Os delegates de botões, janelas de extensão, menus de contexto e parte da
-  integração com abas ainda não foram implementados. O aplicativo reutiliza uma
-  sessão Gecko ao alternar suas abas; não presume isolamento de cada aba como
-  uma sessão separada. Muitas extensões dependem dessas capacidades.
-- A comunicação nativa descrita pela Mozilla é restrita a extensões
-  privilegiadas. O Snav não registra um canal de mensagens nativas genérico para
-  extensões de terceiros.
-- Nenhuma verificação independente de APIs usadas por um pacote foi concluída.
-  O manifesto V2 ou V3 e APIs como `tabs`, `webRequest`, `storage` e
-  `declarativeNetRequest` dependem da implementação Gecko e dos delegates do
-  aplicativo. Não há promessa de compatibilidade com Firefox desktop ou Chrome.
-- A instalação por arquivo temporário significa que o Gecko pode registrar
-  como origem um arquivo local. A origem apresentada pelo Snav corresponde ao
-  host ou arquivo informado na instalação, não a uma certificação do autor.
-- O estado, erros, instalação, atualização, reinicialização, consentimentos e
-  limpeza de arquivos devem ser testados com XPIs realmente assinados em
-  dispositivos Android antes de qualquer distribuição. Um teste unitário do
-  validador, sozinho, não comprova a segurança nem a integração do sistema.
+Ainda existem limitações: o navegador reutiliza uma sessão Gecko ao alternar
+abas, não implementa todos os delegates de criação/gerenciamento de abas nem
+os menus de contexto de extensões, e não disponibiliza um canal de mensagens
+nativas genérico a extensões de terceiros. Manifestos V2 e V3, event pages,
+content scripts, storage, webRequest e declarativeNetRequest dependem do
+suporte real do Gecko e da extensão. O verificador não garante que uma API
+utilizada indiretamente esteja disponível. Não há garantia de compatibilidade
+com extensões para Firefox desktop ou Chrome.
 
-## Referências para desenvolvimento
+As verificações locais não substituem testes de instalação, reinicialização,
+atualização, permissões e falhas com XPIs assinados, nem a avaliação em várias
+versões do Android. Consulte os jobs do PR antes da distribuição.
 
-- [Guia GeckoView de WebExtensions](https://firefox-source-docs.mozilla.org/mobile/android/geckoview/consumer/web-extensions.html)
-- [WebExtensionController da linha Firefox 160](https://github.com/mozilla-firefox/firefox/blob/2887d9de1f69/mobile/android/geckoview/src/main/java/org/mozilla/geckoview/WebExtensionController.java)
-- [Documentação WebExtensions da Mozilla](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions)
+## Desenvolver uma extensão
 
-A referência do código é a tag `FIREFOX_160_0_RELEASE` (Firefox 160.0), não o
-artefato binário específico `160.0.20261116130455`; diferenças devem ser
-verificadas na compilação e nos testes com a dependência exata do projeto.
+Use as APIs WebExtensions compatíveis com Firefox para Android, forneça
+`manifest.json`, versão e um ID Gecko, solicite apenas as permissões necessárias
+e faça a assinatura pela Mozilla antes de distribuir. Teste as funcionalidades no
+Snav; uma instalação aceita não garante que todos os delegates estejam
+implementados. Para extensões embutidas privilegiadas, a comunicação nativa tem
+regras diferentes e não deve ser exposta indiscriminadamente a terceiros.
+
+Referências oficiais: [WebExtensions no GeckoView](https://firefox-source-docs.mozilla.org/mobile/android/geckoview/consumer/web-extensions.html),
+[WebExtensionController da linha Firefox 160](https://github.com/mozilla-firefox/firefox/blob/2887d9de1f69/mobile/android/geckoview/src/main/java/org/mozilla/geckoview/WebExtensionController.java),
+[API do catálogo Mozilla](https://mozilla.github.io/addons-server/topics/api/addons.html) e
+[documentação WebExtensions](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions).
+A referência de código é a tag `FIREFOX_160_0_RELEASE`, não o artefato binário
+exato `160.0.20261116130455`.

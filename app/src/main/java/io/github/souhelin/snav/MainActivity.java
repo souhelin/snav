@@ -3315,6 +3315,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 @Override public void onExternalNavigationRequested(String uri) {
                     openExternalUri(uri);
                 }
+                @Override public void onExtensionInstallRequested(final String uri) {
+                    if (extensionManager != null) extensionManager.installFromPage(uri);
+                }
                 @Override public void onNewTabRequested(final String uri) {
                     new Handler(Looper.getMainLooper()).post(new Runnable() {
                         @Override public void run() {
