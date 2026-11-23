@@ -3,6 +3,7 @@ package io.github.souhelin.snav;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -40,17 +41,20 @@ public class ExtensionGeckoIntegrationTest {
     private File unsigned;
     private final AtomicInteger prompts = new AtomicInteger();
     private WebExtensionController.PromptDelegate testDelegate;
+    private boolean mayRemoveFixtures;
 
     @Before public void setUp() throws Exception {
         scenario = ActivityScenario.launch(MainActivity.class);
         INSTRUMENTATION.runOnMainSync(() -> controller = GeckoEngineController.getRuntime().getWebExtensionController());
+        assertNull("Use uma instalação isolada: a extensão de teste já existe", findFixture(ID));
+        assertNull("Use uma instalação isolada: a extensão sem assinatura já existe", findFixture(UNSIGNED_ID));
+        mayRemoveFixtures = true;
         signed = fixture("borderify.xpi");
         unsigned = fixture("borderify-unsigned.xpi");
-        removeFixtureIfInstalled();
     }
 
     @After public void tearDown() throws Exception {
-        try { if (controller != null) removeFixtureIfInstalled(); }
+        try { if (controller != null && mayRemoveFixtures) removeFixtureIfInstalled(); }
         finally {
             INSTRUMENTATION.runOnMainSync(() -> {
                 if (controller != null && controller.getPromptDelegate() == testDelegate)
@@ -119,7 +123,7 @@ public class ExtensionGeckoIntegrationTest {
             await(() -> controller.install(Uri.fromFile(signed).toString(), WebExtensionController.INSTALLATION_METHOD_FROM_FILE));
             fail("A instalação recusada não deveria ser concluída");
         } catch (Exception expected) { assertTrue("O Gecko deveria solicitar consentimento", prompts.get() > 0); }
-        assertEquals(null, findFixture());
+        assertNull(findFixture());
 
         decide(true);
         WebExtension installed = await(() -> controller.install(Uri.fromFile(signed).toString(), WebExtensionController.INSTALLATION_METHOD_FROM_FILE));
@@ -136,7 +140,7 @@ public class ExtensionGeckoIntegrationTest {
         WebExtension enabled = await(() -> controller.enable(reloaded, WebExtensionController.EnableSource.USER));
         assertTrue(enabled.metaData.enabled);
         await(() -> controller.uninstall(enabled));
-        assertEquals(null, findFixture());
+        assertNull(findFixture());
     }
 
     @Test public void unsignedPackageIsRejected() throws Exception {
@@ -144,6 +148,6 @@ public class ExtensionGeckoIntegrationTest {
         try {
             await(() -> controller.install(Uri.fromFile(unsigned).toString(), WebExtensionController.INSTALLATION_METHOD_FROM_FILE));
             fail("O Gecko não deveria instalar um pacote sem assinatura");
-        } catch (Exception expected) { assertEquals(null, findFixture(UNSIGNED_ID)); }
+        } catch (Exception expected) { assertNull(findFixture(UNSIGNED_ID)); }
     }
 }
