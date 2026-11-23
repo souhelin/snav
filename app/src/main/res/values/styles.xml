@@ -6,7 +6,7 @@
         <item name="android:colorControlHighlight">@color/colorControlHighlight</item>
         <item name="android:colorControlNormal">@color/colorControlNormal</item>
         <item name="colorPrimary">@color/snav_accent</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorOnPrimary">#301800</item>
         <item name="colorPrimaryContainer">@color/snav_switch_primary_container</item>
         <item name="colorOnPrimaryContainer">@color/snav_on_surface</item>
         <item name="colorSurface">@color/snav_surface</item>
@@ -14,7 +14,10 @@
         <item name="colorSurfaceVariant">@color/snav_outline</item>
         <item name="colorOnSurfaceVariant">@color/snav_on_surface_variant</item>
         <item name="colorOutline">@color/snav_on_surface_variant</item>
-        <item name="materialSwitchStyle">@style/SnavMaterialSwitch</item>
+        <item name="colorSecondary">@color/snav_primary</item>
+        <item name="colorOutlineVariant">@color/snav_outline</item>
+        <item name="colorError">@color/snav_error</item>
+        <item name="android:colorBackground">@color/snav_background</item>
         <item name="bottomSheetDialogTheme">@style/SnavBottomSheetDialog</item>
         <item name="android:statusBarColor">@color/snav_background</item>
         <item name="android:navigationBarColor">@color/snav_surface</item>
@@ -27,7 +30,7 @@
     </style>
 
     <style name="SnavModalBottomSheet" parent="Widget.Material3.BottomSheet.Modal">
-        <item name="backgroundTint">@color/snav_surface</item>
+        <item name="backgroundTint">?attr/colorSurface</item>
         <item name="shapeAppearance">@style/SnavBottomSheetShape</item>
     </style>
 
@@ -45,14 +48,4 @@
     </style>
     <style name="AppTheme.DebugActivity" parent="@style/AppTheme" />
 
-    <style name="SnavMaterialSwitch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
-        <item name="materialThemeOverlay">@style/SnavMaterialSwitchThemeOverlay</item>
-    </style>
-    <style name="SnavMaterialSwitchThemeOverlay" parent="">
-        <item name="colorPrimary">@color/snav_accent</item>
-        <item name="colorPrimaryContainer">@color/snav_switch_primary_container</item>
-        <item name="colorOnSurface">@color/snav_on_surface</item>
-        <item name="colorOutline">@color/snav_on_surface_variant</item>
-        <item name="colorSurfaceVariant">@color/snav_outline</item>
-    </style>
 </resources>

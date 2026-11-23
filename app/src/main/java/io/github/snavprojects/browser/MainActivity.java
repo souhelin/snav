@@ -151,6 +151,19 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	@Override
 	protected void onCreate(Bundle _savedInstanceState) {
 		super.onCreate(_savedInstanceState);
+        if (getSharedPreferences("Dados", MODE_PRIVATE).getBoolean("dynamic_color", true)) {
+            com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this);
+        }
+        int background = themeColor(android.R.attr.colorBackground, R.color.snav_background);
+        int surface = themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface);
+        getWindow().setStatusBarColor(background);
+        getWindow().setNavigationBarColor(surface);
+        int flags = getWindow().getDecorView().getSystemUiVisibility();
+        flags = androidx.core.graphics.ColorUtils.calculateLuminance(background) > 0.5
+            ? flags | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR : flags & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        flags = androidx.core.graphics.ColorUtils.calculateLuminance(surface) > 0.5
+            ? flags | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : flags & ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        getWindow().getDecorView().setSystemUiVisibility(flags);
 		setContentView(R.layout.main);
 		applyImeInsetsWorkaround();
 		if (_savedInstanceState != null) {
@@ -254,8 +267,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if (enabled) {
 					setupUnsplashWallpaper();
 				} else {
-					tela1.setBackgroundColor(getResources().getColor(R.color.snav_background));
-					text_icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
+					tela1.setBackgroundColor(themeColor(android.R.attr.colorBackground, R.color.snav_background));
+					text_icon.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 				}
 			}
 		});
@@ -603,7 +616,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (linear33 == null) return;
 		TextView action = new TextView(this);
 		action.setText("Copiar diagnóstico");
-		action.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		action.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		action.setTextSize(14);
 		action.setGravity(Gravity.CENTER_VERTICAL);
 		int horizontal = (int) (16 * getResources().getDisplayMetrics().density + 0.5f);
@@ -842,7 +855,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 		TextView title = new TextView(this);
 		title.setText("Traduzir página");
-		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		LinearLayout.LayoutParams translationTitleParams = new LinearLayout.LayoutParams(-1, -2);
@@ -850,7 +863,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(title, translationTitleParams);
 		TextView subtitle = new TextView(this);
 		subtitle.setText("Os idiomas necessários podem ser baixados na primeira tradução");
-		subtitle.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		subtitle.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		subtitle.setTextSize(13);
 		subtitle.setPadding(0, dp(6), 0, dp(16));
 		content.addView(subtitle);
@@ -878,7 +891,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(toLayout, toParams);
 		final TextView status = new TextView(this);
 		status.setText("Carregando idiomas…");
-		status.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		status.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		status.setTextSize(12);
 		status.setPadding(0, dp(8), 0, dp(12));
 		content.addView(status);
@@ -887,9 +900,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		MaterialButton restore = new MaterialButton(this);
 		restore.setText("Ver original");
 		restore.setAllCaps(false);
-		restore.setTextColor(getResources().getColor(R.color.snav_on_surface));
-		restore.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
-		restore.setStrokeColor(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_outline)));
+		restore.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
+		restore.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface)));
+		restore.setStrokeColor(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorOutlineVariant, R.color.snav_outline)));
 		restore.setStrokeWidth(dp(1));
 		restore.setCornerRadius(dp(20));
 		LinearLayout.LayoutParams restoreParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
@@ -1058,13 +1071,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(handle, new LinearLayout.LayoutParams(-1, dp(48)));
 		TextView title = new TextView(this);
 		title.setText("Modo de leitura");
-		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		content.addView(title);
 		TextView description = new TextView(this);
 		description.setText("Mostra o conteúdo principal da página em uma visualização simplificada");
-		description.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		description.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		description.setTextSize(14);
 		description.setPadding(0, dp(8), 0, dp(20));
 		content.addView(description);
@@ -1204,11 +1217,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		LinearLayout page = new LinearLayout(this);
 		page.setOrientation(LinearLayout.VERTICAL);
 		page.setPadding(dp(24), dp(24), dp(24), dp(32));
-		page.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+		page.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface));
 
 		TextView eyebrow = new TextView(this);
 		eyebrow.setText("Modo de leitura");
-		eyebrow.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		eyebrow.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		eyebrow.setTextSize(12);
 		eyebrow.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		page.addView(eyebrow);
@@ -1217,7 +1230,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			? Uri.parse(sourceUri).getHost() : currentPageTitle.trim();
 		TextView title = new TextView(this);
 		title.setText(heading == null ? "Artigo" : heading);
-		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		title.setTextSize(25);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		title.setLineSpacing(dp(2), 1.05f);
@@ -1227,7 +1240,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		TextView source = new TextView(this);
 		source.setText(Uri.parse(sourceUri).getHost() == null ? sourceUri : Uri.parse(sourceUri).getHost());
-		source.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		source.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		source.setTextSize(13);
 		LinearLayout.LayoutParams sourceParams = new LinearLayout.LayoutParams(-1, -2);
 		sourceParams.topMargin = dp(8);
@@ -1245,7 +1258,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		TextView body = new TextView(this);
 		body.setText(article);
-		body.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		body.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		body.setTextSize(18);
 		body.setLineSpacing(dp(8), 1.18f);
 		body.setTextIsSelectable(true);
@@ -1284,13 +1297,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void addSiteInfoRow(LinearLayout parent, String title, String value) {
 		TextView heading = new TextView(this);
 		heading.setText(title);
-		heading.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		heading.setTextSize(12);
 		parent.addView(heading);
 
 		TextView detail = new TextView(this);
 		detail.setText(value);
-		detail.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		detail.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		detail.setTextSize(14);
 		detail.setTextIsSelectable(true);
 		detail.setPadding(0, siteInfoDp(3), 0, siteInfoDp(12));
@@ -1339,11 +1352,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         error.setOrientation(LinearLayout.VERTICAL);
         error.setGravity(Gravity.CENTER);
         error.setPadding(dp(24), dp(24), dp(24), dp(24));
-        error.setBackgroundColor(getResources().getColor(R.color.snav_surface));
+        error.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface));
         TextView message = new TextView(this);
         message.setText("Não foi possível carregar a página. Verifique a conexão e tente novamente.");
         message.setGravity(Gravity.CENTER);
-        message.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        message.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         message.setTextSize(16);
         error.addView(message);
         MaterialButton retry = new MaterialButton(this);
@@ -1373,7 +1386,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         else if (Dados.getBoolean("home_show_pinned", true)) {
             TextView hint = new TextView(this);
             hint.setText("Para fixar até 4 páginas, use o menu ou mantenha um recente pressionado");
-            hint.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            hint.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
             hint.setTextSize(12);
             hint.setGravity(Gravity.CENTER);
             homeShortcuts.addView(hint);
@@ -1386,7 +1399,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         heading.setText(title);
         heading.setTextSize(14);
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         homeShortcuts.addView(heading);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -1412,21 +1425,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             icon.setMinimumWidth(0);
             icon.setPadding(0, 0, 0, 0);
             icon.setCornerRadius(dp(28));
-            icon.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_switch_primary_container)));
+            icon.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorPrimaryContainer, R.color.snav_switch_primary_container)));
             icon.setContentDescription("Abrir " + name + ". Toque e segure para ver opções");
             iconContainer.addView(icon, new FrameLayout.LayoutParams(-1, -1));
             ImageView image = new ImageView(this);
             image.setScaleType(ImageView.ScaleType.FIT_CENTER);
             image.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             image.setImageResource(R.drawable.ms_language);
-            image.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface)));
+            image.setImageTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface)));
             iconContainer.addView(image, new FrameLayout.LayoutParams(dp(32), dp(32), Gravity.CENTER));
             item.addView(iconContainer, new LinearLayout.LayoutParams(dp(56), dp(56)));
             bindFavicon(image, entry.url);
             TextView label = new TextView(this);
             label.setText(name);
             label.setTextSize(12);
-            label.setTextColor(getResources().getColor(R.color.snav_on_surface));
+            label.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
             label.setGravity(Gravity.CENTER);
             label.setMaxLines(1);
             label.setEllipsize(TextUtils.TruncateAt.END);
@@ -1481,8 +1494,15 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 });
                 addMenuSheetRow(root, R.drawable.ms_keep_off, "Desafixar página", true, new Runnable() {
                     @Override public void run() {
-                        sheet.dismiss(); browserLibraryStore.unpin(entry.url); refreshHomeShortcuts();
-                        Toast.makeText(MainActivity.this, "Página desafixada", Toast.LENGTH_SHORT).show();
+                        sheet.dismiss();
+                        if (browserLibraryStore.unpin(entry.url)) {
+                            refreshHomeShortcuts();
+                            showFeedback("Página desafixada", "Desfazer", () -> {
+                                boolean restored = browserLibraryStore.pin(entry.title, entry.url);
+                                refreshHomeShortcuts();
+                                if (!restored) showFeedback("Não foi possível restaurar a página fixada", null, null);
+                            });
+                        }
                     }
                 });
             } else {
@@ -1490,7 +1510,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     @Override public void run() {
                         sheet.dismiss();
                         boolean saved = browserLibraryStore.pin(entry.title, entry.url);
-                        Toast.makeText(MainActivity.this, saved ? "Página fixada" : "Fixe até 4 páginas", Toast.LENGTH_SHORT).show();
+                        showFeedback(saved ? "Página fixada" : "Fixe até 4 páginas", null, null);
                         refreshHomeShortcuts();
                     }
                 });
@@ -1503,7 +1523,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             }
         }
         View divider = new View(this);
-        divider.setBackgroundColor(getResources().getColor(R.color.snav_outline));
+        divider.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorOutlineVariant, R.color.snav_outline));
         LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(-1, dp(1));
         dividerParams.topMargin = dp(8); dividerParams.bottomMargin = dp(8);
         root.addView(divider, dividerParams);
@@ -1527,7 +1547,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private void addShortcutVisibilitySwitch(LinearLayout parent, String label, final String key) {
         MaterialSwitch toggle = new MaterialSwitch(this);
         toggle.setText(label);
-        toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        toggle.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         toggle.setTextSize(14);
         toggle.setPadding(dp(12), 0, dp(12), 0);
         toggle.setChecked(Dados.getBoolean(key, true));
@@ -1818,7 +1838,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         heading.setText("Menu");
         heading.setTextSize(21);
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         root.addView(heading);
         addMenuSheetRow(root, R.drawable.ms_tab, "Gerenciar abas", true, new Runnable() {
             @Override public void run() { sheet.dismiss(); showTabsBottomSheet(); }
@@ -1860,7 +1880,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 sheet.dismiss();
                 if (!hasPageForActions() || !currentUrl.equals(geckoEngine.getCurrentUri())) return;
                 if (browserLibraryStore.addBookmark(currentPageTitle, currentUrl))
-                    Toast.makeText(MainActivity.this, "Salvo nos favoritos", Toast.LENGTH_SHORT).show();
+                    showFeedback("Salvo nos favoritos", null, null);
                 else Toast.makeText(MainActivity.this, "Não foi possível salvar nos favoritos", Toast.LENGTH_SHORT).show();
             }
         });
@@ -1871,7 +1891,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
                 if (clipboard != null) {
                     clipboard.setPrimaryClip(ClipData.newPlainText("Link", currentUrl));
-                    Toast.makeText(MainActivity.this, "Link copiado", Toast.LENGTH_SHORT).show();
+                    showFeedback("Link copiado", null, null);
                 }
             }
         });
@@ -1914,14 +1934,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         row.setAllCaps(false);
         row.setText(label);
         row.setTextSize(14);
-        row.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        row.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         row.setIconResource(iconRes);
-        row.setIconTint(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface_variant)));
+        row.setIconTint(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant)));
         row.setIconGravity(MaterialButton.ICON_GRAVITY_START);
         row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         row.setStrokeWidth(0);
         row.setCornerRadius(dp(16));
-        row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
+        row.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface)));
         row.setEnabled(enabled);
         row.setAlpha(enabled ? 1f : 0.38f);
         if (!enabled) row.setContentDescription(label + (label.contains("privada") ? ". Indisponível" : ". Abra uma página para usar esta ação"));
@@ -1935,7 +1955,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         final BottomSheetDialog sheet = new BottomSheetDialog(this);
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22), dp(18), dp(22), dp(24));
         BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this); root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
-        TextView heading = new TextView(this); heading.setText("Abas abertas · " + browserTabs.size()); heading.setTextSize(21); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextColor(getResources().getColor(R.color.snav_on_surface)); root.addView(heading);
+        TextView heading = new TextView(this); heading.setText("Abas abertas · " + browserTabs.size()); heading.setTextSize(21); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface)); root.addView(heading);
         addLibraryAction(root, "Nova aba", new Runnable() { @Override public void run() { sheet.dismiss(); createBrowserTab(); } });
         ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); scroll.addView(list); root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(340)));
         for (int i = 0; i < browserTabs.size(); i++) {
@@ -1943,11 +1963,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
             TextView label = new TextView(this); String name = tab.title == null || tab.title.trim().isEmpty() ? "Nova aba" : tab.title;
             label.setText((i == activeBrowserTab ? "Aba atual · " : "") + name + "\n" + (tab.url == null ? "Nenhuma página aberta" : domainForAddressBar(tab.url)));
-            label.setTextColor(getResources().getColor(R.color.snav_on_surface)); label.setTextSize(14); label.setPadding(dp(8), dp(14), dp(8), dp(14));
+            label.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface)); label.setTextSize(14); label.setPadding(dp(8), dp(14), dp(8), dp(14));
             row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
             ImageButton close = new ImageButton(this);
             close.setImageResource(R.drawable.ms_close);
-            close.setImageTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_on_surface_variant)));
+            close.setImageTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant)));
             close.setBackgroundResource(android.R.drawable.list_selector_background);
             close.setPadding(dp(12), dp(12), dp(12), dp(12));
             close.setContentDescription("Fechar " + name);
@@ -1962,7 +1982,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private void addLibraryAction(LinearLayout parent, String label, final Runnable action) {
         TextView button = new TextView(this);
         button.setText(label);
-        button.setTextColor(getResources().getColor(R.color.snav_primary));
+        button.setTextColor(themeColor(com.google.android.material.R.attr.colorSecondary, R.color.snav_primary));
         button.setTextSize(15);
         button.setGravity(Gravity.CENTER_VERTICAL);
         button.setMinHeight(dp(52));
@@ -1998,7 +2018,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         heading.setText("Biblioteca");
         heading.setTextSize(21);
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         root.addView(heading);
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
@@ -2008,7 +2028,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         history.setText("Histórico");
         for (TextView tab : new TextView[] { favorites, history }) {
             tab.setTextSize(14);
-            tab.setTextColor(getResources().getColor(R.color.snav_primary));
+            tab.setTextColor(themeColor(com.google.android.material.R.attr.colorSecondary, R.color.snav_primary));
             tab.setGravity(Gravity.CENTER);
             tab.setPadding(dp(12), dp(14), dp(12), dp(14));
             actions.addView(tab, new LinearLayout.LayoutParams(0, dp(48), 1));
@@ -2030,7 +2050,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 if (data.isEmpty()) {
                     TextView empty = new TextView(MainActivity.this);
                     empty.setText(showingHistory[0] ? "Seu histórico está vazio" : "Nenhum favorito salvo");
-                    empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                    empty.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
                     empty.setPadding(0, dp(22), 0, dp(22));
                     entries.addView(empty);
                 }
@@ -2041,7 +2061,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         if (!group.equals(lastHistoryGroup)) {
                             TextView groupHeading = new TextView(MainActivity.this);
                             groupHeading.setText(historyDateLabel(item.visitedAt));
-                            groupHeading.setTextColor(getResources().getColor(R.color.snav_primary));
+                            groupHeading.setTextColor(themeColor(com.google.android.material.R.attr.colorSecondary, R.color.snav_primary));
                             groupHeading.setTextSize(13);
                             groupHeading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
                             groupHeading.setPadding(dp(8), dp(16), dp(8), dp(6));
@@ -2054,12 +2074,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     row.setPadding(dp(8), dp(12), dp(8), dp(12));
                     TextView name = new TextView(MainActivity.this);
                     name.setText(item.title);
-                    name.setTextColor(getResources().getColor(R.color.snav_on_surface));
+                    name.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
                     name.setTextSize(15);
                     name.setMaxLines(1);
                     TextView address = new TextView(MainActivity.this);
                     address.setText(item.url);
-                    address.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                    address.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
                     address.setTextSize(12);
                     address.setMaxLines(1);
                     row.addView(name);
@@ -2125,7 +2145,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         heading.setText("Downloads");
         heading.setTextSize(21);
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         root.addView(heading);
         ScrollView scroll = new ScrollView(this);
         LinearLayout list = new LinearLayout(this);
@@ -2187,7 +2207,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         } else {
             TextView legacy = new TextView(this);
             legacy.setText("Para ver downloads, permita o acesso aos arquivos");
-            legacy.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            legacy.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
             legacy.setPadding(0, dp(18), 0, dp(18));
             legacy.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View view) {
@@ -2200,7 +2220,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         if (list.getChildCount() == 0) {
             TextView empty = new TextView(this);
             empty.setText("Nenhum download encontrado");
-            empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+            empty.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
             empty.setPadding(0, dp(18), 0, dp(18));
             list.addView(empty);
         }
@@ -2214,7 +2234,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         final TextView item = new TextView(this);
         item.setText((name == null ? "Arquivo" : name) + "\n"
             + android.text.format.Formatter.formatShortFileSize(this, size));
-        item.setTextColor(getResources().getColor(R.color.snav_on_surface));
+        item.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         item.setTextSize(14);
         item.setPadding(dp(8), dp(14), dp(8), dp(14));
         item.setBackgroundResource(android.R.drawable.list_selector_background);
@@ -2243,7 +2263,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                                     if (list.getChildCount() == 0) {
                                         TextView empty = new TextView(MainActivity.this);
                                         empty.setText("Nenhum download encontrado");
-                                        empty.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+                                        empty.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
                                         empty.setPadding(0, dp(18), 0, dp(18));
                                         list.addView(empty);
                                     }
@@ -2324,7 +2344,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		TextView title = new TextView(this);
 		title.setText("Informações do site");
-		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		title.setPadding(0, 0, 0, siteInfoDp(18));
@@ -2338,7 +2358,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		TextView clearData = new TextView(this);
 		clearData.setText("Limpar dados deste site");
-		clearData.setTextColor(Color.WHITE);
+		clearData.setTextColor(themeColor(com.google.android.material.R.attr.colorOnPrimary, android.R.color.white));
 		clearData.setTextSize(14);
 		clearData.setGravity(Gravity.CENTER);
 		clearData.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -2381,7 +2401,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		});
 		TextView managePermissions = new TextView(this);
 		managePermissions.setText("Gerenciar permissões do aplicativo");
-		managePermissions.setTextColor(Color.WHITE);
+		managePermissions.setTextColor(themeColor(com.google.android.material.R.attr.colorOnPrimary, android.R.color.white));
 		managePermissions.setTextSize(14);
 		managePermissions.setGravity(Gravity.CENTER);
 		managePermissions.setMinHeight(siteInfoDp(48));
@@ -2479,6 +2499,49 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
 	}
 
+    private int themeColor(int attribute, int fallback) {
+        return com.google.android.material.color.MaterialColors.getColor(this, attribute, getColor(fallback));
+    }
+
+    // Material Snackbar handles accessibility-adjusted timeouts and swipe dismissal.
+    void showFeedback(String message, String action, Runnable onAction) {
+        if (isFinishing() || isDestroyed()) return;
+        View root = findViewById(R.id.snav_snackbar_host);
+        if (root == null) return;
+        com.google.android.material.snackbar.Snackbar snackbar =
+            com.google.android.material.snackbar.Snackbar.make(root, message,
+                action == null ? com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+                    : com.google.android.material.snackbar.Snackbar.LENGTH_LONG);
+        if (action != null && onAction != null) snackbar.setAction(action, view -> onAction.run());
+        snackbar.show();
+    }
+
+    private void addDynamicColorPreference() {
+        if (linear33 == null || linear33.findViewWithTag("snav_dynamic_color") != null) return;
+        LinearLayout row = new LinearLayout(this);
+        row.setTag("snav_dynamic_color");
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(dp(8), dp(8), dp(8), dp(8));
+        MaterialSwitch toggle = new MaterialSwitch(this);
+        toggle.setText("Cores dinâmicas");
+        toggle.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
+        boolean available = com.google.android.material.color.DynamicColors.isDynamicColorAvailable();
+        toggle.setChecked(available && Dados.getBoolean("dynamic_color", true));
+        toggle.setEnabled(available);
+        row.addView(toggle);
+        TextView summary = new TextView(this);
+        summary.setText(available ? "Usar as cores do dispositivo. Desative para usar as cores do Snav."
+            : "Indisponível neste dispositivo. O Snav usa suas próprias cores.");
+        summary.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
+        summary.setTextSize(14);
+        row.addView(summary);
+        linear33.addView(row);
+        toggle.setOnCheckedChangeListener((button, checked) -> {
+            Dados.edit().putBoolean("dynamic_color", checked).apply();
+            recreate();
+        });
+    }
+
 		private void addTrackerBlockingPreference(boolean enabled) {
 		if (linear33 == null || linear33.findViewWithTag("snav_tracker_preference") != null) return;
 		LinearLayout row = new LinearLayout(this);
@@ -2487,12 +2550,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		row.setPadding(dp(8), dp(8), dp(8), dp(8));
 		MaterialSwitch toggle = new MaterialSwitch(this);
 		toggle.setText("Proteção contra rastreamento");
-		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		toggle.setTextSize(14);
 		toggle.setChecked(enabled);
 		TextView summary = new TextView(this);
 		summary.setText("Usa a proteção contra rastreamento do GeckoView");
-		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		summary.setTextSize(12);
 		summary.setPadding(dp(40), 0, dp(8), 0);
 		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
@@ -2516,12 +2579,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		row.setPadding(dp(8), dp(8), dp(8), dp(8));
 		MaterialSwitch toggle = new MaterialSwitch(this);
 		toggle.setText("Do Not Track");
-		toggle.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		toggle.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		toggle.setTextSize(14);
 		toggle.setChecked(enabled);
 		TextView summary = new TextView(this);
 		summary.setText("Envia Do Not Track nas navegações iniciadas pelo Snav; os sites podem ignorar essa solicitação");
-		summary.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		summary.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		summary.setTextSize(12);
 		summary.setPadding(dp(40), 0, dp(8), 0);
 		row.addView(toggle, new LinearLayout.LayoutParams(-1, dp(48)));
@@ -2592,7 +2655,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		TextView title = new TextView(this);
 		title.setText(titleText);
-		title.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		title.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		title.setTextSize(20);
 		title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 		LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
@@ -2600,12 +2663,12 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		content.addView(title, titleParams);
 
 		View divider = new View(this);
-		divider.setBackgroundColor(getResources().getColor(R.color.snav_outline));
+		divider.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorOutlineVariant, R.color.snav_outline));
 		content.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
 
 		TextView message = new TextView(this);
 		message.setText(messageText);
-		message.setTextColor(getResources().getColor(R.color.snav_on_surface_variant));
+		message.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
 		message.setTextSize(14);
 		message.setLineSpacing(dp(3), 1f);
 		LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(-1, -2);
@@ -2619,16 +2682,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		MaterialButton negative = new MaterialButton(this);
 		negative.setText(negativeText);
 		negative.setAllCaps(false);
-		negative.setTextColor(getResources().getColor(R.color.snav_on_surface));
-		negative.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_surface)));
-		negative.setStrokeColor(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_outline)));
+		negative.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
+		negative.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface)));
+		negative.setStrokeColor(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorOutlineVariant, R.color.snav_outline)));
 		negative.setStrokeWidth(dp(1));
 		negative.setCornerRadius(dp(20));
 		MaterialButton positive = new MaterialButton(this);
 		positive.setText(positiveText);
 		positive.setAllCaps(false);
-		positive.setTextColor(Color.WHITE);
-		positive.setBackgroundTintList(android.content.res.ColorStateList.valueOf(getResources().getColor(R.color.snav_accent)));
+		positive.setTextColor(themeColor(com.google.android.material.R.attr.colorOnPrimary, android.R.color.white));
+		positive.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorPrimary, R.color.snav_accent)));
 		positive.setCornerRadius(dp(20));
 		LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
 		actions.addView(negative, buttonParams);
@@ -3066,11 +3129,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private void setupUnsplashWallpaper() {
 		if (checkbox_wallpaper == null) return;
 		if (!checkbox_wallpaper.isChecked()) {
-			tela1.setBackgroundColor(getResources().getColor(R.color.snav_background));
-			text_icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
+			tela1.setBackgroundColor(themeColor(android.R.attr.colorBackground, R.color.snav_background));
+			text_icon.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 			return;
 		}
-		text_icon.setTextColor(getResources().getColor(R.color.snav_on_surface));
+		text_icon.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 		if (wallpaperManager == null) wallpaperManager = new UnsplashWallpaperManager(this);
 		wallpaperCallback = new UnsplashWallpaperManager.Callback() {
 			@Override
@@ -3238,6 +3301,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         prog.setIndeterminate(true);
         addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
         addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
+        addDynamicColorPreference();
         javaScriptEnabled = !"desativado".equals(Dados.getString("java", "ativado"));
         restorePersistedBrowserTabs();
         geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);

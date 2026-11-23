@@ -52,8 +52,8 @@ class RefreshComposeHost(
                             isRefreshing = refreshingState,
                             state = state,
                             maxDistance = threshold,
-                            containerColor = Color(context.getColor(R.color.snav_surface)),
-                            color = Color(context.getColor(R.color.snav_accent)),
+                            containerColor = Color(com.google.android.material.color.MaterialColors.getColor(context, com.google.android.material.R.attr.colorSurface, context.getColor(R.color.snav_surface))),
+                            color = Color(com.google.android.material.color.MaterialColors.getColor(context, com.google.android.material.R.attr.colorPrimary, context.getColor(R.color.snav_accent))),
                         )
                     },
                 ) {

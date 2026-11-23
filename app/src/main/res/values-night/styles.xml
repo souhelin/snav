@@ -14,21 +14,14 @@
         <item name="colorSurfaceVariant">@color/snav_outline</item>
         <item name="colorOnSurfaceVariant">@color/snav_on_surface_variant</item>
         <item name="colorOutline">@color/snav_on_surface_variant</item>
-        <item name="materialSwitchStyle">@style/SnavMaterialSwitch</item>
+        <item name="colorSecondary">@color/snav_primary</item>
+        <item name="colorOutlineVariant">@color/snav_outline</item>
+        <item name="colorError">@color/snav_error</item>
+        <item name="android:colorBackground">@color/snav_background</item>
         <item name="android:statusBarColor">@color/snav_background</item>
         <item name="android:navigationBarColor">@color/snav_surface</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
     <style name="NoActionBar" parent="@style/AppTheme" />
-    <style name="SnavMaterialSwitch" parent="Widget.Material3.CompoundButton.MaterialSwitch">
-        <item name="materialThemeOverlay">@style/SnavMaterialSwitchThemeOverlay</item>
-    </style>
-    <style name="SnavMaterialSwitchThemeOverlay" parent="">
-        <item name="colorPrimary">@color/snav_accent</item>
-        <item name="colorPrimaryContainer">@color/snav_switch_primary_container</item>
-        <item name="colorOnSurface">@color/snav_on_surface</item>
-        <item name="colorOutline">@color/snav_on_surface_variant</item>
-        <item name="colorSurfaceVariant">@color/snav_outline</item>
-    </style>
 </resources>
