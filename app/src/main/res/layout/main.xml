@@ -30,7 +30,7 @@
             android:padding="12dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ms_tune"
-            android:tint="?attr/colorOnSurface_variant" />
+            android:tint="?attr/colorOnSurfaceVariant" />
 
         <TextView
             android:id="@+id/text_barra"
@@ -55,7 +55,7 @@
             android:padding="12dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ms_more_vert"
-            android:tint="?attr/colorOnSurface_variant" />
+            android:tint="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
     <LinearLayout
@@ -131,7 +131,7 @@
                                 android:padding="0dp"
                                 android:hint="Pesquisar ou inserir endereço"
                                 android:textColor="?attr/colorOnSurface"
-                                android:textColorHint="?attr/colorOnSurface_variant"
+                                android:textColorHint="?attr/colorOnSurfaceVariant"
                                 android:textSize="16sp"
                                 android:selectAllOnFocus="true" />
 
@@ -180,7 +180,7 @@
                     android:padding="12dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ms_more_vert"
-                    android:tint="?attr/colorOnSurface_variant" />
+                    android:tint="?attr/colorOnSurfaceVariant" />
             </FrameLayout>
         </LinearLayout>
 
@@ -258,7 +258,7 @@
                             android:layout_marginTop="8dp"
                             android:padding="8dp"
                             android:text="Toque para voltar à pesquisa"
-                            android:textColor="?attr/colorOnSurface_variant"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:textSize="14sp" />
                     </LinearLayout>
 
@@ -306,7 +306,7 @@
                             android:contentDescription="Voltar"
                             android:padding="12dp"
                             android:src="@drawable/ms_arrow_back"
-                            android:tint="?attr/colorOnSurface_variant" />
+                            android:tint="?attr/colorOnSurfaceVariant" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -338,7 +338,7 @@
                             android:id="@+id/checkbox_brilho"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            style="@style/SnavMaterialSwitch"
+                            style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
                             android:minHeight="48dp"
                             android:gravity="center_vertical"
                             android:text="Escurecer páginas"
@@ -357,7 +357,7 @@
                             android:id="@+id/checkbox_javascript2"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            style="@style/SnavMaterialSwitch"
+                            style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
                             android:minHeight="48dp"
                             android:checked="true"
                             android:gravity="center_vertical"
@@ -377,7 +377,7 @@
                             android:id="@+id/checkbox_wallpaper"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            style="@style/SnavMaterialSwitch"
+                            style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
                             android:minHeight="48dp"
                             android:gravity="center_vertical"
                             android:text="Papel de parede do Unsplash"

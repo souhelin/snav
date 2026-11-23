@@ -2691,7 +2691,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		positive.setText(positiveText);
 		positive.setAllCaps(false);
 		positive.setTextColor(themeColor(com.google.android.material.R.attr.colorOnPrimary, android.R.color.white));
-		positive.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(com.google.android.material.R.attr.colorPrimary, R.color.snav_accent)));
+		positive.setBackgroundTintList(android.content.res.ColorStateList.valueOf(themeColor(androidx.appcompat.R.attr.colorPrimary, R.color.snav_accent)));
 		positive.setCornerRadius(dp(20));
 		LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
 		actions.addView(negative, buttonParams);
