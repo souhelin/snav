@@ -1,5 +1,11 @@
 # Política de Segurança e Privacidade — Snav Browser
 
+> **Contexto:** o diagnóstico de implementação abaixo descreve a antiga
+> versão baseada em Android WebView. A versão atual usa GeckoView: não tome a
+> tabela e os detalhes específicos de WebView como descrição do comportamento
+> atual. Consulte [a migração para GeckoView](GECKOVIEW_MIGRATION.md) e o
+> [README](../README.md). Os requisitos de segurança continuam aplicáveis.
+
 **Branch de implementação:** `feature/privacy-protection-and-policies`  
 **Plataforma:** Android nativo, Java e Android WebView.  
 **Princípio:** privacidade por padrão, permissões mínimas e transparência.

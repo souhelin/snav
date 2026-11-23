@@ -6,10 +6,12 @@ por nested scroll somente o arrasto vertical elegível e entrega todos os evento
 originais ao Gecko, sem enviá-los duas vezes. A consulta inicial a
 `onTouchEventForDetailResult` segue a abordagem do
 [NestedGeckoView da Mozilla](https://github.com/mozilla-firefox/firefox/blob/2887d9de1f69/mobile/android/android-components/components/browser/engine-gecko/src/main/java/mozilla/components/browser/engine/gecko/NestedGeckoView.kt).
-Ela rejeita gestos tratados pelo conteúdo ou não tratados pelo controlador de
-rolagem do Gecko, rolagem disponível para cima, overscroll vertical proibido e
-resposta tardia após movimento significativo. O Gecko só documenta os campos
-de direção como válidos para eventos tratados pelo controlador de rolagem.
+Ela rejeita gestos tratados pelo conteúdo, rolagem disponível para cima,
+overscroll vertical proibido e resposta tardia após movimento significativo.
+O Gecko só documenta os campos de direção como válidos para eventos tratados
+pelo controlador de rolagem. Se o evento inicial não for tratado, a ponte pede
+uma nova decisão para o primeiro movimento e somente prossegue se esse evento
+for tratado pelo controlador. Um resultado não tratado nunca autoriza o gesto.
 
 O classificador exige um dedo, arrasto predominantemente vertical, limite de
 110 dp e soltura. O Material 3 usado aqui tem limite posicional padrão de 80 dp

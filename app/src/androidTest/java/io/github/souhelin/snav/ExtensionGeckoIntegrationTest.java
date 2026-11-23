@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 @RunWith(AndroidJUnit4.class)
 public class ExtensionGeckoIntegrationTest {
     private static final String ID = "{3d31c3e3-273e-4099-88d5-a135b62be61e}";
+    private static final String UNSIGNED_ID = "borderify@example.com";
     private static final Instrumentation INSTRUMENTATION = InstrumentationRegistry.getInstrumentation();
     private ActivityScenario<MainActivity> scenario;
     private WebExtensionController controller;
@@ -97,15 +98,19 @@ public class ExtensionGeckoIntegrationTest {
         return result.get();
     }
 
-    private WebExtension findFixture() throws Exception {
+    private WebExtension findFixture(String id) throws Exception {
         List<WebExtension> installed = await(() -> controller.list());
-        for (WebExtension extension : installed) if (ID.equals(extension.id)) return extension;
+        for (WebExtension extension : installed) if (id.equals(extension.id)) return extension;
         return null;
     }
 
+    private WebExtension findFixture() throws Exception { return findFixture(ID); }
+
     private void removeFixtureIfInstalled() throws Exception {
-        WebExtension extension = findFixture();
-        if (extension != null) await(() -> controller.uninstall(extension));
+        for (String id : new String[]{ID, UNSIGNED_ID}) {
+            WebExtension extension = findFixture(id);
+            if (extension != null) await(() -> controller.uninstall(extension));
+        }
     }
 
     @Test public void consentStateAndActivityRecreation() throws Exception {
@@ -139,6 +144,6 @@ public class ExtensionGeckoIntegrationTest {
         try {
             await(() -> controller.install(Uri.fromFile(unsigned).toString(), WebExtensionController.INSTALLATION_METHOD_FROM_FILE));
             fail("O Gecko não deveria instalar um pacote sem assinatura");
-        } catch (Exception expected) { assertEquals(null, findFixture()); }
+        } catch (Exception expected) { assertEquals(null, findFixture(UNSIGNED_ID)); }
     }
 }

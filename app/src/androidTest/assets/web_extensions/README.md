@@ -15,5 +15,5 @@ SHA-256:
 - `borderify-unsigned.xpi`: `ecfa45ea3a2bf2aeaabeb91980c86cc033d538f6c2c77974725e399a0ce9204c`
 
 Esses arquivos são incluídos somente no APK de testes. O pacote assinado tem
-um certificado de teste Mozilla válido até novembro de 2029; ele pode deixar
+um certificado de assinatura Mozilla válido até novembro de 2029; ele pode deixar
 de ser aceito antes disso se a política de validação do Gecko mudar.
