@@ -1,4 +1,4 @@
-package io.github.souhelin.snav;
+package io.github.snavprojects.browser;
 
 import android.content.Context;
 import android.util.AttributeSet;
@@ -25,6 +25,7 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
     private float downX, downY, sentDistance;
     private boolean waitingForGecko, movedBeforeDecision, refreshEligible, blocked;
     private String gesturePage, refreshConfirmedPage;
+    String lastGeckoDecision = "sem resultado";
     private Supplier<String> eligiblePage = () -> null;
 
     public RefreshAwareGeckoView(Context context, AttributeSet attrs) {
@@ -59,6 +60,9 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                 super.onTouchEventForDetailResult(event).accept(detail -> {
                     if (serial != gestureSerial) return;
                     waitingForGecko = false;
+                    lastGeckoDecision = detail == null ? "null" : "result=" + detail.handledResult()
+                        + " scroll=" + detail.scrollableDirections() + " overscroll=" + detail.overscrollDirections()
+                        + " late=" + movedBeforeDecision;
                     refreshEligible = !movedBeforeDecision && permitsRefresh(detail);
                     if (refreshEligible) startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);
                 }, error -> {

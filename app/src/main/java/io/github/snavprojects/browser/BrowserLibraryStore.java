@@ -1,4 +1,4 @@
-package io.github.souhelin.snav;
+package io.github.snavprojects.browser;
 
 import android.content.Context;
 import android.content.SharedPreferences;

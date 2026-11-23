@@ -219,7 +219,7 @@
                     android:layout_weight="1"
                     android:background="@color/snav_surface">
 
-                    <io.github.souhelin.snav.RefreshAwareGeckoView
+                    <io.github.snavprojects.browser.RefreshAwareGeckoView
                         android:id="@+id/geckoview"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"

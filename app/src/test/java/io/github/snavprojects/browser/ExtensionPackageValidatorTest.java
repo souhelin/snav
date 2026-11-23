@@ -1,4 +1,4 @@
-package io.github.souhelin.snav;
+package io.github.snavprojects.browser;
 
 import static org.junit.Assert.fail;
 import java.io.File;

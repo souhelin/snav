@@ -1,4 +1,4 @@
-package io.github.souhelin.snav;
+package io.github.snavprojects.browser;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -130,7 +130,7 @@ public class RefreshGeckoIntegrationTest {
 
     @Test public void shortPageCanRefreshAtTop() throws Exception {
         try (Harness h = new Harness(page(false))) {
-            h.drag(0, 160); assertEquals(1, h.refreshes.get());
+            h.drag(0, 160); assertEquals("Decisão Gecko: " + h.browser.lastGeckoDecision, 1, h.refreshes.get());
         }
     }
 

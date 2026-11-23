@@ -1,4 +1,4 @@
-package io.github.souhelin.snav;
+package io.github.snavprojects.browser;
 import android.app.*;
 import android.content.*;
 import android.graphics.drawable.*;

@@ -1,4 +1,4 @@
-package io.github.souhelin.snav;
+package io.github.snavprojects.browser;
 
 /** Conservative single-pointer classifier. All events still go to GeckoView. */
 final class PullGestureTracker {

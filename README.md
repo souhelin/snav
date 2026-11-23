@@ -38,8 +38,11 @@ Essas medidas não impedem todo rastreamento nem eliminam todos os riscos. A [po
 | Java | 17 |
 | Android Gradle Plugin / Gradle | 9.1.1 / 9.3.1 |
 | GeckoView | 160.0.20261116130455 |
+| Identificador do aplicativo | `io.github.snavprojects.browser` |
 | Interface | Android Views/XML e Compose Material 3 para atualização por arrasto |
 | ABIs de distribuição | ARM64 e ARMv7 |
+
+A mudança do identificador faz o Android tratar esta versão como um aplicativo separado da versão anterior. Ela não atualiza a instalação antiga e não transfere automaticamente dados, extensões ou permissões. A publicação também exige um cadastro correspondente na loja e a configuração adequada de assinatura.
 
 O repositório não inclui Gradle Wrapper. Instale o Gradle 9.3.1, o JDK 17, o SDK Android 37 e o Build Tools 36.0.0 antes de executar:
 
