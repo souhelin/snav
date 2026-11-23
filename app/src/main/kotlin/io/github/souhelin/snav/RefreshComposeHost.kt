@@ -32,8 +32,8 @@ class RefreshComposeHost(
     private val composeView = ComposeView(context)
 
     init {
-        // The Material 3 pull modifier applies a 0.5 drag multiplier: a 55 dp
-        // positional threshold therefore corresponds to a 110 dp finger drag.
+        // Gecko's nested-scroll bridge scales deltas so Material's default
+        // 80 dp positional threshold corresponds to about 110 dp of finger travel.
         (browser.parent as? ViewGroup)?.removeView(browser)
         container.addView(composeView, 0, FrameLayout.LayoutParams(-1, -1))
         composeView.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -46,7 +46,6 @@ class RefreshComposeHost(
                     onRefresh = { onRefresh.run() },
                     modifier = Modifier.fillMaxSize(),
                     state = state,
-                    threshold = threshold,
                     indicator = {
                         PullToRefreshDefaults.Indicator(
                             modifier = Modifier.align(Alignment.TopCenter),

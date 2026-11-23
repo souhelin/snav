@@ -107,7 +107,9 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
     }
 
     private void updateNestedPull(float distance) {
-        int delta = Math.round(distance) - Math.round(sentDistance);
+        // Material 3 uses an 80 dp positional threshold and a 0.5 drag
+        // multiplier. Scale 110 dp of finger travel to 160 dp nested travel.
+        int delta = Math.round(distance * 16f / 11f) - Math.round(sentDistance * 16f / 11f);
         if (delta > 0) {
             consumed[0] = consumed[1] = 0;
             dispatchNestedScroll(0, 0, 0, -delta, null, ViewCompat.TYPE_TOUCH, consumed);
@@ -122,7 +124,7 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
         refreshConfirmedPage = null;
         if (sentDistance > 0) {
             consumed[0] = consumed[1] = 0;
-            dispatchNestedPreScroll(0, (int) Math.ceil(sentDistance) + 1, consumed, null, ViewCompat.TYPE_TOUCH);
+            dispatchNestedPreScroll(0, (int) Math.ceil(sentDistance * 16f / 11f) + 1, consumed, null, ViewCompat.TYPE_TOUCH);
             dispatchNestedPreFling(0, 0);
         }
         sentDistance = 0;

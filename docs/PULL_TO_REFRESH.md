@@ -10,9 +10,10 @@ Ela rejeita gestos tratados pelo conteúdo, rolagem disponível para cima,
 overscroll vertical proibido e resposta tardia após movimento significativo.
 
 O classificador exige um dedo, arrasto predominantemente vertical, limite de
-110 dp e soltura. No Material 3, o multiplicador de arrasto é 0,5: a posição de
-55 dp do indicador corresponde a 110 dp de arrasto real. O indicador e as
-animações são do próprio Compose Material 3. Ao cancelar, a ponte retrai os
+110 dp e soltura. O Material 3 usado aqui tem limite posicional padrão de 80 dp
+e multiplicador de arrasto de 0,5; a ponte escala os deltas nested scroll por
+160/110 para que o limite corresponda a aproximadamente 110 dp do dedo. O
+indicador e as animações são do próprio Compose Material 3. Ao cancelar, a ponte retrai os
 deltas já enviados e não confirma a atualização. O carregamento ativo bloqueia
 nova atualização e a URL é conferida novamente após a soltura.
 
