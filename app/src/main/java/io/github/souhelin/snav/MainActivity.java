@@ -42,7 +42,6 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.bottomsheet.BottomSheetDragHandleView;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import org.mozilla.geckoview.TranslationsController;
@@ -106,7 +105,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private LinearLayout vazio;
 	private GeckoView geckoView;
 	private FrameLayout browserContentContainer;
-	private CircularProgressIndicator refreshIndicator;
+    private RefreshComposeHost refreshHost;
 	private TextView text_barra;
 	private ImageButton button_site_info;
 	private ImageButton button_menu;
@@ -135,7 +134,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     private final Set<String> faviconAttempted = new HashSet<>();
 	private UnsplashWallpaperManager wallpaperManager;
 	private UnsplashWallpaperManager.Callback wallpaperCallback;
-    private String pullPageUrl;
     private ExtensionManager extensionManager;
     private Uri pendingExtensionFile;
 	private MaterialSwitch checkbox_javascript2;
@@ -225,16 +223,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		vazio = findViewById(R.id.vazio);
 		geckoView = findViewById(R.id.geckoview);
 		browserContentContainer = findViewById(R.id.browser_content_container);
-		if (browserContentContainer != null) {
-			refreshIndicator = new CircularProgressIndicator(this);
-			refreshIndicator.setIndicatorSize(dp(36));
-			refreshIndicator.setTrackThickness(dp(3));
-			refreshIndicator.setIndeterminate(false);
-			refreshIndicator.setVisibility(View.GONE);
-			FrameLayout.LayoutParams refreshParams = new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-			refreshParams.topMargin = dp(12);
-			browserContentContainer.addView(refreshIndicator, refreshParams);
-		}
+
 		text_barra = findViewById(R.id.text_barra);
 		button_site_info = findViewById(R.id.button_site_info);
 		button_menu = findViewById(R.id.button_menu);
@@ -795,7 +784,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			return;
 		}
 		pageLoading = false;
-		if (refreshIndicator != null) refreshIndicator.setVisibility(View.GONE);
+        if (refreshHost != null) refreshHost.setRefreshing(false);
 		if (showProgressRunnable != null) {
 			progressHandler.removeCallbacks(showProgressRunnable);
 		}
@@ -3132,55 +3121,19 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		@Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
 	}
 
-    // Interim View-based recognition: observe without consuming GeckoView events.
-    // GeckoView does not currently dispatch Compose nested scroll; see docs/PULL_TO_REFRESH.md.
     private void setupPullToRefresh() {
-        if (geckoView == null || refreshIndicator == null) return;
-        final float threshold = dp(110);
-        final PullGestureTracker gesture = new PullGestureTracker(threshold,
-            ViewConfiguration.get(this).getScaledTouchSlop(), ViewConfiguration.getLongPressTimeout());
-        geckoView.setOnTouchListener(new View.OnTouchListener() {
-            @Override public boolean onTouch(View view, MotionEvent event) {
-                int action = event.getActionMasked();
-                if (action == MotionEvent.ACTION_DOWN) {
-                    pullPageUrl = geckoEngine == null ? null : geckoEngine.getCurrentUri();
-                    boolean eligible = geckoScrollY <= 0 && !readerMode && hasPageForActions();
-                    gesture.begin(event.getX(), event.getY(), event.getEventTime(), eligible);
-                    refreshIndicator.setVisibility(View.GONE);
-                } else if (action == MotionEvent.ACTION_POINTER_DOWN || action == MotionEvent.ACTION_CANCEL) {
-                    gesture.cancel();
-                    refreshIndicator.setVisibility(View.GONE);
-                } else if (action == MotionEvent.ACTION_MOVE) {
-                    RefreshAwareGeckoView inputView = (RefreshAwareGeckoView) geckoView;
-                    if (inputView.isWaitingForGecko()) return false;
-                    boolean eligible = inputView.isRefreshEligible() && geckoScrollY <= 0 && !readerMode && hasPageForActions()
-                        && pullPageUrl != null && pullPageUrl.equals(geckoEngine.getCurrentUri());
-                    float distance = gesture.move(event.getX(), event.getY(), event.getEventTime(), event.getPointerCount(), eligible);
-                    if (distance > 0) {
-                        refreshIndicator.setIndeterminate(false);
-                        refreshIndicator.setProgressCompat(Math.min(100, Math.round(distance * 100f / threshold)), false);
-                        refreshIndicator.setTranslationY(Math.min(dp(72), distance * 0.45f));
-                        refreshIndicator.setVisibility(View.VISIBLE);
-                    } else refreshIndicator.setVisibility(View.GONE);
-                } else if (action == MotionEvent.ACTION_UP) {
-                    boolean eligible = ((RefreshAwareGeckoView) geckoView).isRefreshEligible()
-                        && geckoScrollY <= 0 && !readerMode && hasPageForActions()
-                        && pullPageUrl != null && pullPageUrl.equals(geckoEngine.getCurrentUri());
-                    if (gesture.release(event.getX(), event.getY(), event.getEventTime(), eligible)) {
-                        beginPageProgress(); // block repeated refreshes before Gecko's start callback
-                        refreshIndicator.setIndeterminate(true);
-                        refreshIndicator.setTranslationY(dp(24));
-                        refreshIndicator.setVisibility(View.VISIBLE);
-                        // Let Gecko receive ACTION_UP before starting a new load.
-                        geckoView.post(new Runnable() {
-                            @Override public void run() {
-                                if (geckoEngine != null && pageLoading) geckoEngine.reload();
-                            }
-                        });
-                    } else refreshIndicator.setVisibility(View.GONE);
-                    pullPageUrl = null;
-                }
-                return false; // do not steal the gesture from the page
+        if (!(geckoView instanceof RefreshAwareGeckoView) || browserContentContainer == null) return;
+        final RefreshAwareGeckoView browser = (RefreshAwareGeckoView) geckoView;
+        browser.setEligiblePage(() -> geckoScrollY <= 0 && !readerMode && hasPageForActions()
+            ? geckoEngine.getCurrentUri() : null);
+        refreshHost = new RefreshComposeHost(this, browserContentContainer, browser, new Runnable() {
+            @Override public void run() {
+                String confirmedPage = browser.consumeConfirmedRefresh();
+                if (confirmedPage == null || !hasPageForActions()
+                    || !confirmedPage.equals(geckoEngine.getCurrentUri())) return;
+                beginPageProgress(); // block duplicate reloads before Gecko's start callback
+                refreshHost.setRefreshing(true);
+                geckoEngine.reload();
             }
         });
     }
