@@ -46,6 +46,13 @@ public class MaterialFeedbackTest {
                 prefs.edit().putBoolean("dynamic_color", dynamic).commit();
                 try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
                     scenario.onActivity(activity -> {
+                        android.util.TypedValue applied = new android.util.TypedValue();
+                        int appliedAttr = activity.getResources().getIdentifier(
+                            "isMaterial3DynamicColorApplied", "attr", activity.getPackageName());
+                        assertTrue("Atributo de cores dinâmicas deve existir", appliedAttr != 0);
+                        boolean resolved = activity.getTheme().resolveAttribute(appliedAttr, applied, true);
+                        boolean isApplied = resolved && applied.data != 0;
+                        assertEquals(dynamic && DynamicColors.isDynamicColorAvailable(), isApplied);
                         int surface = MaterialColors.getColor(activity, com.google.android.material.R.attr.colorSurface, 0);
                         int text = MaterialColors.getColor(activity, com.google.android.material.R.attr.colorOnSurface, 0);
                         assertTrue("Texto deve ter contraste na superfície", ColorUtils.calculateContrast(text, surface) >= 4.5);
