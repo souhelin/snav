@@ -59,11 +59,7 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                 super.onTouchEventForDetailResult(event).accept(detail -> {
                     if (serial != gestureSerial) return;
                     waitingForGecko = false;
-                    refreshEligible = !movedBeforeDecision && detail != null
-                        && (detail.handledResult() == PanZoomController.INPUT_RESULT_HANDLED
-                            || detail.handledResult() == PanZoomController.INPUT_RESULT_UNHANDLED)
-                        && (detail.scrollableDirections() & PanZoomController.SCROLLABLE_FLAG_TOP) == 0
-                        && (detail.overscrollDirections() & PanZoomController.OVERSCROLL_FLAG_VERTICAL) != 0;
+                    refreshEligible = !movedBeforeDecision && permitsRefresh(detail);
                     if (refreshEligible) startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);
                 }, error -> {
                     if (serial == gestureSerial) { waitingForGecko = false; refreshEligible = false; }
@@ -104,6 +100,14 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                 break;
         }
         return super.onTouchEvent(event);
+    }
+
+    static boolean permitsRefresh(PanZoomController.InputResultDetail detail) {
+        // Gecko documents the direction flags as meaningful only for HANDLED.
+        // UNHANDLED may represent a website gesture or text selection.
+        return detail != null && detail.handledResult() == PanZoomController.INPUT_RESULT_HANDLED
+            && (detail.scrollableDirections() & PanZoomController.SCROLLABLE_FLAG_TOP) == 0
+            && (detail.overscrollDirections() & PanZoomController.OVERSCROLL_FLAG_VERTICAL) != 0;
     }
 
     private void updateNestedPull(float distance) {
