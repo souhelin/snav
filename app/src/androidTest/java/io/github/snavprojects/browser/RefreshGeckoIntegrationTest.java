@@ -28,6 +28,9 @@ public class RefreshGeckoIntegrationTest {
         final AtomicInteger scroll = new AtomicInteger();
         final AtomicInteger refreshes = new AtomicInteger();
         final CountDownLatch loaded = new CountDownLatch(1);
+        final CountDownLatch painted = new CountDownLatch(1);
+        final AtomicBoolean started = new AtomicBoolean();
+        final AtomicBoolean loadSuccess = new AtomicBoolean();
         GeckoSession session;
         RefreshAwareGeckoView browser;
         RefreshComposeHost host;
@@ -45,9 +48,15 @@ public class RefreshGeckoIntegrationTest {
                 frame.addView(browser, new FrameLayout.LayoutParams(-1, -1));
                 session = new GeckoSession();
                 session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
+                    @Override public void onPageStart(GeckoSession current, String url) { started.set(true); }
                     @Override public void onPageStop(GeckoSession current, boolean success) {
-                        loaded.countDown();
+                        loadSuccess.set(success); loaded.countDown();
                         if (host != null) host.setRefreshing(false);
+                    }
+                });
+                session.setContentDelegate(new GeckoSession.ContentDelegate() {
+                    @Override public void onFirstContentfulPaint(GeckoSession current) {
+                        if (started.get()) painted.countDown();
                     }
                 });
                 session.setScrollDelegate(new GeckoSession.ScrollDelegate() {
@@ -55,6 +64,7 @@ public class RefreshGeckoIntegrationTest {
                 });
                 session.open(GeckoEngineController.getRuntime());
                 browser.setSession(session);
+                session.setActive(true);
                 browser.setEligiblePage(() -> scroll.get() <= 0 ? "fixture" : null);
                 host = new RefreshComposeHost(activity, frame, browser, () -> {
                     if (browser.consumeConfirmedRefresh() != null) {
@@ -65,6 +75,8 @@ public class RefreshGeckoIntegrationTest {
                 catch (Exception error) { throw new RuntimeException(error); }
             });
             assertTrue("Gecko não carregou a página de teste", loaded.await(45, TimeUnit.SECONDS));
+            assertTrue("Gecko informou falha ao carregar a página", loadSuccess.get());
+            assertTrue("Gecko não pintou a página de teste", painted.await(45, TimeUnit.SECONDS));
             INSTRUMENTATION.waitForIdleSync();
             SystemClock.sleep(800); // allow compositor and Compose to attach
             scenario.onActivity(activity -> {
@@ -134,7 +146,7 @@ public class RefreshGeckoIntegrationTest {
 
     @Test public void shortPageCanRefreshAtTop() throws Exception {
         try (Harness h = new Harness(page(false))) {
-            h.drag(0, 160); assertEquals(1, h.refreshes.get());
+            h.drag(0, 160); assertEquals(h.browser.debugDecision, 1, h.refreshes.get());
         }
     }
 
@@ -154,7 +166,7 @@ public class RefreshGeckoIntegrationTest {
         // root element below it, so set touch-action on that actual ancestor.
         String html = page(false).replace("<style>", "<style>html{touch-action:none}");
         try (Harness h = new Harness(html)) {
-            h.drag(0, 160); assertEquals(0, h.refreshes.get());
+            h.drag(0, 160); assertEquals(h.browser.debugDecision, 0, h.refreshes.get());
         }
     }
 

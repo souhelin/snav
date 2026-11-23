@@ -25,6 +25,7 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
     private float downX, downY, sentDistance;
     private boolean waitingForGecko, movedBeforeDecision, refreshEligible, blocked;
     private String gesturePage, refreshConfirmedPage;
+    volatile String debugDecision = "sem resultado";
     private Supplier<String> eligiblePage = () -> null;
 
     public RefreshAwareGeckoView(Context context, AttributeSet attrs) {
@@ -59,6 +60,9 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                 super.onTouchEventForDetailResult(event).accept(detail -> {
                     if (serial != gestureSerial) return;
                     waitingForGecko = false;
+                    debugDecision = detail == null ? "null" : "result=" + detail.handledResult()
+                        + " scroll=" + detail.scrollableDirections() + " overscroll=" + detail.overscrollDirections()
+                        + " late=" + movedBeforeDecision;
                     refreshEligible = !movedBeforeDecision && permitsRefresh(detail);
                     if (refreshEligible) startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_TOUCH);
                 }, error -> {
@@ -85,8 +89,10 @@ public final class RefreshAwareGeckoView extends GeckoView implements NestedScro
                     refreshConfirmedPage = gesture.release(event.getX(), event.getY(), event.getEventTime(), eligible)
                         ? gesturePage : null;
                     // The Compose parent decides on release, even for zero velocity.
-                    dispatchNestedPreFling(0, 0);
-                } else cancelNestedPull();
+                    boolean parentConsumed = dispatchNestedPreFling(0, 0);
+                    debugDecision += " eligible=" + eligible + " distance=" + distance
+                        + " confirmed=" + (refreshConfirmedPage != null) + " parent=" + parentConsumed;
+                } else { debugDecision += " blocked=" + blocked + " waiting=" + waitingForGecko; cancelNestedPull(); }
                 gestureSerial++; waitingForGecko = false; refreshEligible = false;
                 stopNestedScroll(ViewCompat.TYPE_TOUCH);
                 break;
