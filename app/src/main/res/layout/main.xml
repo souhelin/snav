@@ -285,7 +285,7 @@
                             android:background="?android:attr/selectableItemBackgroundBorderless"
                             android:contentDescription="Voltar"
                             android:padding="12dp"
-                            android:src="@android:drawable/ic_media_previous"
+                            android:src="@drawable/ms_arrow_back"
                             android:tint="@color/snav_on_surface_variant" />
                         <TextView
                             android:layout_width="wrap_content"
@@ -431,7 +431,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:layout_marginTop="8dp"
-                                        android:text="Abrir fora"
+                                        android:text="Abrir"
                                         android:textColor="@color/snav_on_surface"
                                         android:textSize="12sp" />
                                 </LinearLayout>
@@ -509,7 +509,7 @@
                             style="@style/SnavMaterialSwitch"
                             android:minHeight="48dp"
                             android:gravity="center_vertical"
-                            android:text="Wallpaper Unsplash"
+                            android:text="Papel de parede do Unsplash"
                             android:textColor="@color/snav_on_surface"
                             android:textSize="14sp" />
                     </LinearLayout>

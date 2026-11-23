@@ -9,15 +9,19 @@ Para mostrar ícones, o aplicativo tenta buscar `/favicon.ico` diretamente de
 cada origem HTTPS exibida, inclusive ao reabrir a tela inicial. Essa requisição
 adicional não usa cookies, não segue redirecionamentos, respeita a preferência
 Do Not Track e não consulta serviços de terceiros. Se o ícone não estiver
-disponível ou não for decodificável, é usada a inicial do nome da página.
+disponível ou não for decodificável, é usado o símbolo oficial Material Symbols Rounded de página da Web.
 
 ## Verificação em dispositivo
 
 - Navegar entre páginas HTTPS, voltar e avançar, abrir links em nova aba e trocar
   de abas; confirmar que o conteúdo continua visível e que a barra de progresso
-  desaparece. Testar restauração da aba e rotação.
+  desaparece. Testar restauração da aba e rotação. Abrir links em nova aba
+  repetidamente e trocar entre uma aba vazia e uma página durante o carregamento;
+  a tela de aba vazia não deve aparecer sobre uma página. Testar também a troca
+  de abas com o modo de leitura ativo.
 - Desconectar a rede e abrir uma página; confirmar a mensagem de erro e que
-  **Tentar novamente** funciona após restaurar a conexão. Cancelar uma tentativa
+  **Tentar novamente** funciona após restaurar a conexão. Interromper um
+  carregamento não deve apresentar erro de uma navegação anterior. Cancelar uma tentativa
   de HTTP e confirmar que a tela anterior continua acessível.
 - Abrir Ferramentas a partir da tela inicial e da navegação. Confirmar que a
   barra superior está oculta e que o botão voltar retorna à tela anterior.

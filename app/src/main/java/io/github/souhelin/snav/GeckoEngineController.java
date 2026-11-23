@@ -15,6 +15,7 @@ import org.mozilla.geckoview.GeckoSession;
 import org.mozilla.geckoview.GeckoView;
 import org.mozilla.geckoview.StorageController;
 import org.mozilla.geckoview.WebResponse;
+import org.mozilla.geckoview.WebRequestError;
 
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ public final class GeckoEngineController {
     public interface Listener {
         default void onPageStarted(String uri) {}
         default void onPageStopped(boolean success) {}
+        default void onPageLoadError(String uri) {}
         default void onProgressChanged(int progress) {}
         default void onLocationChanged(String uri) {}
         default void onTitleChanged(String title) {}
@@ -51,6 +53,7 @@ public final class GeckoEngineController {
     private boolean canGoForward;
     private boolean storageOperationInProgress;
     private String currentUri;
+    private String loadingUri;
     private GeckoSession.SessionState sessionState;
 
     public GeckoEngineController(Context context, GeckoView view, Listener listener,
@@ -123,7 +126,7 @@ public final class GeckoEngineController {
         session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
             @Override
             public void onPageStart(GeckoSession currentSession, String uri) {
-                currentUri = uri;
+                loadingUri = uri;
                 Listener callback = GeckoEngineController.this.listener;
                 if (!closed && callback != null) callback.onPageStarted(uri);
             }
@@ -182,6 +185,16 @@ public final class GeckoEngineController {
                     callback.onExternalNavigationRequested(uri);
                 }
                 return GeckoResult.deny();
+            }
+
+            @Override
+            public GeckoResult<String> onLoadError(GeckoSession currentSession, String uri, WebRequestError error) {
+                Listener callback = GeckoEngineController.this.listener;
+                if (!closed && callback != null && uri != null && uri.equals(loadingUri)) {
+                    callback.onPageLoadError(uri);
+                }
+                // Never bypass TLS errors or load an insecure error page.
+                return null;
             }
 
             @Override
@@ -246,9 +259,10 @@ public final class GeckoEngineController {
         session.flushSessionState();
     }
 
-    public void restoreState(GeckoSession.SessionState state) {
+    public void restoreState(GeckoSession.SessionState state, String expectedUri) {
         ensureOpen();
         if (state == null) return;
+        loadingUri = expectedUri;
         sessionState = new GeckoSession.SessionState(state);
         session.restoreState(sessionState);
     }
@@ -296,6 +310,7 @@ public final class GeckoEngineController {
         if (!https && !blank && !reader) {
             throw new SecurityException("Only valid HTTPS pages and internal reader pages are allowed");
         }
+        loadingUri = uri;
         if (doNotTrack) {
             Map<String, String> headers = new java.util.HashMap<>();
             headers.put("DNT", "1");
@@ -414,6 +429,7 @@ public final class GeckoEngineController {
         if (dataCleared) {
             sessionState = null;
             currentUri = "about:blank";
+            loadingUri = "about:blank";
             canGoBack = false;
             canGoForward = false;
             session.loadUri("about:blank");
