@@ -28,7 +28,7 @@ class RefreshComposeHost(
     browser: RefreshAwareGeckoView,
     onRefresh: Runnable,
 ) {
-    private var refreshing by mutableStateOf(false)
+    private var refreshingState by mutableStateOf(false)
     private val composeView = ComposeView(context)
 
     init {
@@ -42,14 +42,14 @@ class RefreshComposeHost(
             val threshold = 55.dp
             MaterialTheme {
                 PullToRefreshBox(
-                    isRefreshing = refreshing,
+                    isRefreshing = refreshingState,
                     onRefresh = { onRefresh.run() },
                     modifier = Modifier.fillMaxSize(),
                     state = state,
                     indicator = {
                         PullToRefreshDefaults.Indicator(
                             modifier = Modifier.align(Alignment.TopCenter),
-                            isRefreshing = refreshing,
+                            isRefreshing = refreshingState,
                             state = state,
                             maxDistance = threshold,
                             containerColor = Color(context.getColor(R.color.snav_surface)),
@@ -63,5 +63,5 @@ class RefreshComposeHost(
         }
     }
 
-    fun setRefreshing(value: Boolean) { refreshing = value }
+    fun setRefreshing(value: Boolean) { refreshingState = value }
 }
