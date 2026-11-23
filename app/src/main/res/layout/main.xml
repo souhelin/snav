@@ -380,6 +380,15 @@
                             android:textSize="14sp" />
                     </LinearLayout>
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_extensions"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="start|center_vertical"
+                        android:text="Extensões"
+                        android:textColor="@color/snav_on_surface" />
+
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"

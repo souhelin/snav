@@ -136,6 +136,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private UnsplashWallpaperManager wallpaperManager;
 	private UnsplashWallpaperManager.Callback wallpaperCallback;
     private String pullPageUrl;
+    private ExtensionManager extensionManager;
+    private Uri pendingExtensionFile;
 	private MaterialSwitch checkbox_javascript2;
 	private TextView text5;
 	
@@ -313,6 +315,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				@Override public void onClick(View view) { showMenuBottomSheet(); }
 			});
 		}
+        findViewById(R.id.button_extensions).setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) { if (extensionManager != null) extensionManager.show(); }
+        });
         findViewById(R.id.button_home_menu).setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View view) { showMenuBottomSheet(); }
         });
@@ -707,12 +712,21 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	protected void onResume() {
 		super.onResume();
 		if (geckoEngine != null) geckoEngine.setActive(true);
+        if (extensionManager != null) {
+            extensionManager.setActive(true);
+            if (pendingExtensionFile != null) {
+                Uri file = pendingExtensionFile;
+                pendingExtensionFile = null;
+                extensionManager.installFile(file);
+            }
+        }
 		logDiagnostic("Ciclo de vida: onResume");
 	
 		clearGrantedPermissionDenials();}
 
 	@Override
 	protected void onPause() {
+        if (extensionManager != null) extensionManager.setActive(false);
 		if (geckoEngine != null) geckoEngine.setActive(false);
 		logDiagnostic("Ciclo de vida: onPause");
 		super.onPause();
@@ -740,6 +754,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (downloadExecutor != null) downloadExecutor.shutdown();
 		if (translationThread != null) translationThread.quitSafely();
         faviconExecutor.shutdownNow();
+        if (extensionManager != null) { extensionManager.close(); extensionManager = null; }
 		GeckoEngineController engineToClose = geckoEngine;
 		geckoEngine = null;
 		if (engineToClose != null) engineToClose.close();
@@ -2278,6 +2293,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null || data.getData() == null || browserLibraryStore == null) return;
         Uri uri = data.getData();
+        if (requestCode == ExtensionManager.REQUEST_XPI) {
+            pendingExtensionFile = uri;
+            return;
+        }
         try {
             if (requestCode == REQUEST_IMPORT_BOOKMARKS) {
                 StringBuilder html = new StringBuilder();
@@ -3365,6 +3384,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             },
             javaScriptEnabled,
             Dados.getBoolean("tracker_blocking", true));
+        extensionManager = new ExtensionManager(this, GeckoEngineController.getRuntime());
         installGeckoPermissionDelegate();
         if (browserTabs.isEmpty()) browserTabs.add(new BrowserTab("Nova aba", pendingRestoreUri, null));
         persistBrowserTabs();
