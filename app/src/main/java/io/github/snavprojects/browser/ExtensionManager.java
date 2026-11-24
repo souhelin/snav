@@ -88,6 +88,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
         for (WebExtension ext : registered.values()) {
             browserSession.getWebExtensionController().setActionDelegate(ext, null);
             ext.setActionDelegate(null);
+            ext.setTabDelegate(null);
         }
         registered.clear();
         if (controller.getPromptDelegate() == this) controller.setPromptDelegate(null);
@@ -438,13 +439,18 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
         appendPermissions(info, "Sites opcionais concedidos", meta.grantedOptionalOrigins);
         appendPermissions(info, "Dados opcionais concedidos", meta.grantedOptionalDataCollectionPermissions);
         info.append("\n\nAlgumas APIs e ações da extensão podem não estar disponíveis no Snav.");
-        final String[] options = {meta.enabled ? "Desativar" : "Ativar", "Verificar atualização", "Revogar permissões opcionais", "Desinstalar"};
+        final boolean hasOptions = meta.enabled && isOwnOptionsPage(meta.baseUrl, meta.optionsPageUrl);
+        final String[] options = hasOptions
+            ? new String[]{"Configurações da extensão", meta.enabled ? "Desativar" : "Ativar", "Verificar atualização", "Revogar permissões opcionais", "Desinstalar"}
+            : new String[]{meta.enabled ? "Desativar" : "Ativar", "Verificar atualização", "Revogar permissões opcionais", "Desinstalar"};
         AlertDialog detailsDialog = new MaterialAlertDialogBuilder(a).setTitle(name(extension)).setMessage(info.toString())
             .setPositiveButton("Ações", (dialog, which) -> new MaterialAlertDialogBuilder(a).setTitle(name(extension))
                 .setItems(options, (d, selected) -> {
-                    if (selected == 0) toggle(extension);
-                    else if (selected == 1) update(extension);
-                    else if (selected == 2) revoke(extension);
+                    if (hasOptions && selected == 0) { openOptionsPage(extension); return; }
+                    int action = selected - (hasOptions ? 1 : 0);
+                    if (action == 0) toggle(extension);
+                    else if (action == 1) update(extension);
+                    else if (action == 2) revoke(extension);
                     else uninstall(extension);
                 }).setNegativeButton("Cancelar", null).show())
             .setNegativeButton("Voltar", (dialog, which) -> list()).create();
@@ -464,6 +470,9 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
             removeActions(extension.id); return;
         }
         extension.setActionDelegate(this);
+        extension.setTabDelegate(new WebExtension.TabDelegate() {
+            @Override public void onOpenOptionsPage(WebExtension source) { openOptionsPage(source); }
+        });
         browserSession.getWebExtensionController().setActionDelegate(extension, this);
     }
 
@@ -472,6 +481,7 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
         if (old != null) {
             browserSession.getWebExtensionController().setActionDelegate(old, null);
             old.setActionDelegate(null);
+            old.setTabDelegate(null);
         }
         browserActions.remove(id); browserOverrides.remove(id);
         pageActions.remove(id); pageOverrides.remove(id);
@@ -527,6 +537,26 @@ final class ExtensionManager implements WebExtensionController.PromptDelegate, W
 
     @Override public GeckoResult<GeckoSession> onOpenPopup(WebExtension extension, WebExtension.Action action) {
         return openPopup(extension);
+    }
+
+    static boolean isOwnOptionsPage(String baseUrl, String optionsUrl) {
+        if (baseUrl == null || optionsUrl == null) return false;
+        Uri base = Uri.parse(baseUrl), page = Uri.parse(optionsUrl);
+        return "moz-extension".equalsIgnoreCase(base.getScheme())
+            && "moz-extension".equalsIgnoreCase(page.getScheme())
+            && base.getHost() != null && base.getHost().equalsIgnoreCase(page.getHost())
+            && page.getUserInfo() == null && page.getPort() == -1;
+    }
+
+    private void openOptionsPage(WebExtension extension) {
+        if (owner() == null || extension == null || !extension.metaData.enabled
+            || !isOwnOptionsPage(extension.metaData.baseUrl, extension.metaData.optionsPageUrl)) {
+            notifyUser("Configurações indisponíveis para esta extensão");
+            return;
+        }
+        GeckoResult<GeckoSession> result = openPopup(extension);
+        if (result != null) result.accept(session -> session.loadUri(extension.metaData.optionsPageUrl),
+            error -> notifyUser("Não foi possível abrir as configurações da extensão"));
     }
 
     private GeckoResult<GeckoSession> openPopup(WebExtension extension) {

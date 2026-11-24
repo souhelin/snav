@@ -170,6 +170,21 @@
                             android:layout_weight="1.2" />
                     </LinearLayout>
                 </ScrollView>
+                <TextView
+                    android:id="@+id/wallpaper_credit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:background="#99000000"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:visibility="gone" />
                 <ImageButton
                     android:id="@+id/button_home_menu"
                     android:layout_width="48dp"
@@ -320,13 +335,16 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="16dp"
                         android:layout_marginBottom="8dp"
-                        android:text="Preferências"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
+                        android:text="Aparência"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textColor="?attr/colorOnSurface" />
+                    <LinearLayout
+                        android:id="@+id/tools_appearance"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
                     <LinearLayout
                         android:id="@+id/linear_escurecer"
                         android:layout_width="match_parent"
@@ -345,7 +363,42 @@
                             android:textColor="?attr/colorOnSurface"
                             android:textSize="14sp" />
                     </LinearLayout>
-
+                    <LinearLayout
+                        android:id="@+id/linear_wallpaper"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp">
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/checkbox_wallpaper"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
+                            android:minHeight="48dp"
+                            android:gravity="center_vertical"
+                            android:text="Papel de parede do Unsplash"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                    </LinearLayout>
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="Privacidade e conteúdo"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textColor="?attr/colorOnSurface" />
+                    <LinearLayout
+                        android:id="@+id/tools_privacy"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
                     <LinearLayout
                         android:id="@+id/linear_JavaScript"
                         android:layout_width="match_parent"
@@ -365,42 +418,6 @@
                             android:textColor="?attr/colorOnSurface"
                             android:textSize="14sp" />
                     </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/linear_wallpaper"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:gravity="center_vertical"
-                        android:paddingStart="8dp"
-                        android:paddingEnd="8dp">
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/checkbox_wallpaper"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            style="@style/Widget.Material3.CompoundButton.MaterialSwitch"
-                            android:minHeight="48dp"
-                            android:gravity="center_vertical"
-                            android:text="Papel de parede do Unsplash"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="14sp" />
-                    </LinearLayout>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_extensions"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="56dp"
-                        android:gravity="start|center_vertical"
-                        android:text="Extensões"
-                        android:textColor="?attr/colorOnSurface" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginBottom="8dp"
-                        android:background="?attr/colorOutlineVariant" />
-
                     <LinearLayout
                         android:id="@+id/linear_limpar_dados2"
                         android:background="?android:attr/selectableItemBackground"
@@ -420,6 +437,27 @@
                             android:textColor="?attr/colorError"
                             android:textSize="14sp" />
                     </LinearLayout>
+                    </LinearLayout>
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="Complementos"
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textColor="?attr/colorOnSurface" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/button_extensions"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:gravity="start|center_vertical"
+                        android:text="Extensões"
+                        android:textColor="?attr/colorOnSurface" />
                 </LinearLayout>
             </ScrollView>
         </LinearLayout>

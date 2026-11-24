@@ -92,6 +92,15 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private WebResponse pendingGeckoDownload;
 	private String pendingGeckoDownloadName;
 	private final java.util.concurrent.ExecutorService downloadExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private static final java.util.concurrent.atomic.AtomicInteger DOWNLOAD_IDS = new java.util.concurrent.atomic.AtomicInteger(7000);
+    private static final java.util.concurrent.ConcurrentHashMap<Integer, DownloadStatus> ACTIVE_DOWNLOADS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final String DOWNLOAD_CHANNEL = "snav_downloads";
+    private static final class DownloadStatus {
+        final String name;
+        final long total;
+        volatile long bytes;
+        DownloadStatus(String name, long total) { this.name = name; this.total = total; }
+    }
 	
 	private LinearLayout linear1;
 	private LinearLayout tela1;
@@ -191,7 +200,20 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         }
 		addDiagnosticMenuAction();
 		showPendingCrashReport();
+        if (getIntent() != null && getIntent().getBooleanExtra("snav_show_downloads", false)) {
+            getIntent().removeExtra("snav_show_downloads");
+            findViewById(R.id.snav_snackbar_host).post(this::showDownloadsBottomSheet);
+        }
 	}
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (intent != null && intent.getBooleanExtra("snav_show_downloads", false)) {
+            intent.removeExtra("snav_show_downloads");
+            showDownloadsBottomSheet();
+        }
+    }
 	
 	/**
 	 * Android 15 enforces edge-to-edge for apps targeting SDK 35. In that mode
@@ -271,6 +293,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				if (enabled) {
 					setupUnsplashWallpaper();
 				} else {
+                    findViewById(R.id.wallpaper_credit).setVisibility(View.GONE);
 					tela1.setBackgroundColor(themeColor(android.R.attr.colorBackground, R.color.snav_background));
 					text_icon.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
 				}
@@ -1932,6 +1955,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         scroll.addView(root, new ScrollView.LayoutParams(-1, -2));
         sheet.setContentView(scroll);
         sheet.show();
+        View sheetSurface = sheet.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheetSurface != null) sheetSurface.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+            themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface)));
         sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
         sheet.getBehavior().setSkipCollapsed(true);
     }
@@ -2155,6 +2181,25 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
         root.addView(heading);
+        final TextView progress = new TextView(this);
+        progress.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
+        progress.setTextSize(14);
+        root.addView(progress, new LinearLayout.LayoutParams(-1, -2));
+        final Handler progressHandler = new Handler(Looper.getMainLooper());
+        final Runnable[] updateProgress = new Runnable[1];
+        updateProgress[0] = () -> {
+            StringBuilder text = new StringBuilder();
+            for (DownloadStatus status : ACTIVE_DOWNLOADS.values()) {
+                if (text.length() > 0) text.append("\n");
+                text.append(status.name).append(" · ");
+                if (status.total > 0) text.append(Math.min(100, (int) (status.bytes * 100.0 / status.total))).append("%");
+                else text.append(android.text.format.Formatter.formatShortFileSize(this, status.bytes));
+            }
+            progress.setText(text);
+            progress.setVisibility(text.length() == 0 ? View.GONE : View.VISIBLE);
+            if (sheet.isShowing()) progressHandler.postDelayed(updateProgress[0], 500);
+        };
+        sheet.setOnDismissListener(dialog -> progressHandler.removeCallbacks(updateProgress[0]));
         ScrollView scroll = new ScrollView(this);
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
@@ -2234,6 +2279,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         }
         sheet.setContentView(root);
         sheet.show();
+        updateProgress[0].run();
         sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
         sheet.getBehavior().setSkipCollapsed(true);
     }
@@ -2543,7 +2589,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         summary.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
         summary.setTextSize(14);
         row.addView(summary);
-        linear33.addView(row);
+        LinearLayout appearance = findViewById(R.id.tools_appearance);
+        appearance.addView(row);
         toggle.setOnCheckedChangeListener((button, checked) -> {
             Dados.edit().putBoolean("dynamic_color", checked).apply();
             recreate();
@@ -2575,8 +2622,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				com.google.android.material.snackbar.Snackbar.make(linear33, checked ? "Proteção contra rastreamento ativada" : "Proteção contra rastreamento desativada", com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
 			}
 		});
-		int insertAt = Math.max(0, linear33.getChildCount() - 1);
-		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout privacy = findViewById(R.id.tools_privacy);
+        int insertAt = Math.max(0, privacy.getChildCount() - 1);
+        privacy.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
 	}
 
 	private void addDoNotTrackPreference(boolean enabled) {
@@ -2605,8 +2653,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
 			}
 		});
-		int insertAt = Math.max(0, linear33.getChildCount() - 1);
-		linear33.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout privacy = findViewById(R.id.tools_privacy);
+        int insertAt = Math.max(0, privacy.getChildCount() - 1);
+        privacy.addView(row, insertAt, new LinearLayout.LayoutParams(-1, -2));
 	}
 
 	private String domainForAddressBar(String uri) {
@@ -3069,11 +3118,47 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		throw new IOException("Não foi possível gerar um nome exclusivo para o download");
 	}
 
+    private void updateDownloadNotification(int id, DownloadStatus status, boolean finished, boolean failed) {
+        android.app.NotificationManager manager = (android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) return;
+        if (Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(new android.app.NotificationChannel(DOWNLOAD_CHANNEL, "Downloads", android.app.NotificationManager.IMPORTANCE_LOW));
+        }
+        Intent open = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra("snav_show_downloads", true);
+        android.app.PendingIntent pending = android.app.PendingIntent.getActivity(this, id, open,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+        androidx.core.app.NotificationCompat.Builder builder = new androidx.core.app.NotificationCompat.Builder(this, DOWNLOAD_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setContentTitle(failed ? "Falha no download" : finished ? "Download concluído" : "Baixando")
+            .setContentText(status.name).setOnlyAlertOnce(true).setOngoing(!finished && !failed)
+            .setAutoCancel(finished || failed).setContentIntent(pending);
+        if (!finished && !failed) {
+            int percent = status.total > 0 ? Math.min(100, (int) (status.bytes * 100.0 / status.total)) : 0;
+            builder.setProgress(100, percent, status.total <= 0);
+        }
+        try { manager.notify(id, builder.build()); } catch (SecurityException ignored) { }
+    }
+
 	private void saveGeckoDownload(final WebResponse response, final String fileName) {
 		if (downloadExecutor == null || downloadExecutor.isShutdown()) {
 			closeResponseBody(response);
 			return;
 		}
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED
+            && !Dados.getBoolean("download_notification_asked", false)) {
+            Dados.edit().putBoolean("download_notification_asked", true).apply();
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 4106);
+        }
+        long length = -1;
+        try { length = Long.parseLong(responseHeader(response, "Content-Length")); } catch (Exception ignored) { }
+        final DownloadStatus status = new DownloadStatus(fileName, length);
+        final int notificationId = DOWNLOAD_IDS.incrementAndGet();
+        ACTIVE_DOWNLOADS.put(notificationId, status);
+        updateDownloadNotification(notificationId, status, false, false);
 		try {
 			downloadExecutor.execute(new Runnable() {
 			@Override public void run() {
@@ -3101,7 +3186,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					try (java.io.InputStream input = response.body; java.io.OutputStream stream = output) {
 						byte[] buffer = new byte[32768];
 						int read;
-						while ((read = input.read(buffer)) != -1) stream.write(buffer, 0, read);
+                        long lastUpdate = 0;
+						while ((read = input.read(buffer)) != -1) {
+                            stream.write(buffer, 0, read);
+                            status.bytes += read;
+                            long now = android.os.SystemClock.elapsedRealtime();
+                            if (now - lastUpdate >= 500) {
+                                updateDownloadNotification(notificationId, status, false, false);
+                                lastUpdate = now;
+                            }
+                        }
 						stream.flush();
 					}
 					if (Build.VERSION.SDK_INT >= 29 && mediaUri != null) {
@@ -3112,12 +3206,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 						android.media.MediaScannerConnection.scanFile(getApplicationContext(),
 							new String[] { legacyFile.getAbsolutePath() }, null, null);
 					}
+                    ACTIVE_DOWNLOADS.remove(notificationId);
+                    updateDownloadNotification(notificationId, status, true, false);
 					runOnUiThread(new Runnable() {
 						@Override public void run() {
 							if (!isFinishing() && !isDestroyed()) Toast.makeText(MainActivity.this, "Download salvo na pasta Downloads", Toast.LENGTH_LONG).show();
 						}
 					});
 				} catch (final Exception error) {
+                    ACTIVE_DOWNLOADS.remove(notificationId);
+                    updateDownloadNotification(notificationId, status, false, true);
 					if (mediaUri != null) getContentResolver().delete(mediaUri, null, null);
 					if (legacyFile != null && legacyFile.exists()) legacyFile.delete();
 					closeResponseBody(response);
@@ -3131,6 +3229,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 			});
 		} catch (java.util.concurrent.RejectedExecutionException error) {
+            ACTIVE_DOWNLOADS.remove(notificationId);
+            updateDownloadNotification(notificationId, status, false, true);
 			closeResponseBody(response);
 		}
 	}
@@ -3145,13 +3245,22 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		if (wallpaperManager == null) wallpaperManager = new UnsplashWallpaperManager(this);
 		wallpaperCallback = new UnsplashWallpaperManager.Callback() {
 			@Override
-			public void onWallpaperReady(Bitmap bitmap) {
+			public void onWallpaperReady(Bitmap bitmap, UnsplashWallpaperManager.Photo photo) {
 				if (isFinishing() || isDestroyed() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) {
 					if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
 					return;
 				}
 				tela1.setBackground(new UnsplashWallpaperDrawable(bitmap));
 				text_icon.setTextColor(Color.WHITE);
+                TextView credit = findViewById(R.id.wallpaper_credit);
+                credit.setText("Foto: " + photo.author + " / Unsplash");
+                credit.setContentDescription("Abrir foto de " + photo.author + " no Unsplash");
+                credit.setOnClickListener(view -> {
+                    loadUrlWithPrivacyHeaders(photo.pageUrl);
+                    showScreen(2);
+                    vazio.setVisibility(View.GONE);
+                });
+                credit.setVisibility(View.VISIBLE);
 			}
 		};
 		wallpaperManager.load(true, wallpaperCallback);

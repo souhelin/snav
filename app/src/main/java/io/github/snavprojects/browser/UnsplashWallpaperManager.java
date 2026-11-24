@@ -25,19 +25,33 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Downloads and keeps a bounded offline set of Unsplash wallpapers. */
 public final class UnsplashWallpaperManager {
-    public interface Callback {
-        void onWallpaperReady(Bitmap bitmap);
+    public static final class Photo {
+        public final String imageId, author, pageUrl;
+        Photo(String imageId, String author, String pageId) {
+            this.imageId = imageId;
+            this.author = author;
+            this.pageUrl = "https://unsplash.com/photos/" + pageId + "?utm_source=snav_browser&utm_medium=referral";
+        }
     }
 
-    private static final String[] PHOTO_IDS = {
-        "photo-1500530855697-b586d89ba3ee",
-        "photo-1470770841072-f978cf4d019e",
-        "photo-1501785888041-af3ef285b470",
-        "photo-1470252649378-9c29740c9fa8",
-        "photo-1441974231531-c6227db76b6e",
-        "photo-1472396961693-142e6e269027",
-        "photo-1464822759023-fed622ff2c3b",
-        "photo-1518837695005-2083093ee35b"
+    public interface Callback {
+        void onWallpaperReady(Bitmap bitmap, Photo photo);
+    }
+
+    // Curated from the linked Unsplash photo pages; never associate old cache
+    // entries with guessed author metadata. Subjects include forest, sea,
+    // mountains, desert and the night sky.
+    static final Photo[] PHOTOS = {
+        new Photo("photo-1441974231531-c6227db76b6e", "Lukasz Szmigiel", "jFCViYFYcus"),
+        new Photo("photo-1774650802872-db8045c04a7b", "Mihály Köles", "3wWZNi4tZb0"),
+        new Photo("photo-1775750265219-ef98f7df0444", "Riley Brockett", "f1wVwqpcnrw"),
+        new Photo("photo-1759310347910-091a3f3c26e6", "Mathias Reding", "3zKUh7rEJqI"),
+        new Photo("photo-1718567234333-e60566ef06e4", "Rodrigo Silva", "DQ7-ouISDNc"),
+        new Photo("photo-1718308055947-2f3d8d5ea983", "Bram Bergers", "YHaNHQXFIhU"),
+        new Photo("photo-1759042753972-9e857c6fd0a9", "Wietse Jongsma", "3fxV1g2UG3M"),
+        new Photo("photo-1658835495224-50998dd4503a", "Yujin Yano", "eKAwsFSz7cY"),
+        new Photo("photo-1534796636912-3b95b3ab5986", "Kai Pilger", "Ef6iL87-vOA"),
+        new Photo("photo-1530180061773-77ff7cbc99f4", "Annie Spratt", "NZ3bvBaBWFo")
     };
     private static final int MAX_IMAGES = 8;
     private static final int MAX_IMAGE_BYTES = 1536 * 1024;
@@ -47,6 +61,7 @@ public final class UnsplashWallpaperManager {
     private final File cacheDirectory;
     private final Random random = new Random();
     private final AtomicBoolean loadInProgress = new AtomicBoolean(false);
+    private volatile WeakReference<Callback> pendingCallback = new WeakReference<>(null);
 
     public UnsplashWallpaperManager(Context context) {
         appContext = context.getApplicationContext();
@@ -54,57 +69,46 @@ public final class UnsplashWallpaperManager {
     }
 
     public void load(boolean enabled, final Callback callback) {
-        if (!enabled || callback == null || !loadInProgress.compareAndSet(false, true)) return;
-        final WeakReference<Callback> callbackReference = new WeakReference<Callback>(callback);
+        if (!enabled || callback == null) return;
+        pendingCallback = new WeakReference<>(callback);
+        if (!loadInProgress.compareAndSet(false, true)) return;
         try {
-            EXECUTOR.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) return;
-                        List<File> cached = listCachedFiles();
-                        boolean delivered = false;
-                        if (!cached.isEmpty()) {
-                            File selected = cached.get(random.nextInt(cached.size()));
-                            Bitmap bitmap = decodeWallpaper(selected);
-                            if (bitmap != null) {
-                                notifyReady(callbackReference, bitmap);
-                                delivered = true;
-                            }
+            EXECUTOR.execute(() -> {
+                try {
+                    if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) return;
+                    List<Photo> candidates = new ArrayList<>();
+                    Collections.addAll(candidates, PHOTOS);
+                    Collections.shuffle(candidates, random);
+                    String last = appContext.getSharedPreferences("unsplash_wallpaper", Context.MODE_PRIVATE)
+                        .getString("last_photo", "");
+                    // Last displayed item is tried only as a fallback.
+                    Collections.sort(candidates, (a, b) -> Boolean.compare(a.imageId.equals(last), b.imageId.equals(last)));
+                    boolean online = hasInternet();
+                    int requests = 0;
+                    for (Photo photo : candidates) {
+                        File file = cacheFile(photo);
+                        if (!file.isFile() || !isValidImage(file)) {
+                            if (!online || requests >= 3) continue;
+                            requests++;
+                            if (!downloadPhoto(photo.imageId, file)) continue;
                         }
-                        if (!hasInternet()) return;
-                        for (int i = 0; i < MAX_IMAGES; i++) {
-                            File target = new File(cacheDirectory, "wallpaper_" + i + ".img");
-                            if (target.isFile() && target.length() > 0 && isValidImage(target)) continue;
-                            if (target.exists()) target.delete();
-                            if (!downloadPhoto(PHOTO_IDS[i], target)) continue;
-                            if (!delivered) {
-                                Bitmap bitmap = decodeWallpaper(target);
-                                if (bitmap != null) {
-                                    notifyReady(callbackReference, bitmap);
-                                    delivered = true;
-                                }
-                            }
-                        }
+                        Bitmap bitmap = decodeWallpaper(file);
+                        if (bitmap == null) continue;
+                        file.setLastModified(System.currentTimeMillis());
+                        appContext.getSharedPreferences("unsplash_wallpaper", Context.MODE_PRIVATE)
+                            .edit().putString("last_photo", photo.imageId).apply();
                         trimCache();
-                    } finally {
-                        loadInProgress.set(false);
+                        notifyReady(bitmap, photo);
+                        break;
                     }
-                }
+                } finally { loadInProgress.set(false); }
             });
         } catch (java.util.concurrent.RejectedExecutionException error) {
             loadInProgress.set(false);
         }
     }
 
-    private List<File> listCachedFiles() {
-        List<File> files = new ArrayList<File>();
-        for (int i = 0; i < MAX_IMAGES; i++) {
-            File file = new File(cacheDirectory, "wallpaper_" + i + ".img");
-            if (file.isFile() && file.length() > 0) files.add(file);
-        }
-        return files;
-    }
+    private File cacheFile(Photo photo) { return new File(cacheDirectory, photo.imageId + ".img"); }
 
     private boolean isValidImage(File file) {
         BitmapFactory.Options bounds = new BitmapFactory.Options();
@@ -194,29 +198,23 @@ public final class UnsplashWallpaperManager {
         return BitmapFactory.decodeFile(file.getAbsolutePath(), options);
     }
 
-    private void notifyReady(final WeakReference<Callback> callbackReference, final Bitmap bitmap) {
+    private void notifyReady(final Bitmap bitmap, final Photo photo) {
         mainHandler.post(new Runnable() {
             @Override
             public void run() {
-                Callback callback = callbackReference.get();
-                if (callback != null) callback.onWallpaperReady(bitmap);
+                Callback callback = pendingCallback.get();
+                if (callback != null) callback.onWallpaperReady(bitmap, photo);
                 else if (!bitmap.isRecycled()) bitmap.recycle();
             }
         });
     }
 
     private void trimCache() {
-        File[] files = cacheDirectory.listFiles();
+        File[] files = cacheDirectory.listFiles((dir, name) -> name.endsWith(".img"));
         if (files == null) return;
-        for (File file : files) {
-            if (!file.getName().endsWith(".img") && !file.getName().endsWith(".part")) {
-                file.delete();
-            }
-        }
-        List<File> valid = listCachedFiles();
-        if (valid.size() > MAX_IMAGES) {
-            Collections.sort(valid);
-            for (int i = MAX_IMAGES; i < valid.size(); i++) valid.get(i).delete();
-        }
+        List<File> entries = new ArrayList<>();
+        Collections.addAll(entries, files);
+        Collections.sort(entries, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+        for (int i = MAX_IMAGES; i < entries.size(); i++) entries.get(i).delete();
     }
 }
