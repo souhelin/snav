@@ -87,6 +87,7 @@ public final class GeckoEngineController {
                     .allowInsecureConnections(GeckoRuntimeSettings.HTTPS_ONLY)
                     .build();
                 runtime = GeckoRuntime.create(context.getApplicationContext(), settings);
+                runtime.setWebNotificationDelegate(new WebNotificationBridge(context));
             }
         }
 
@@ -347,6 +348,25 @@ public final class GeckoEngineController {
     public void goBack() { ensureOpen(); if (canGoBack) session.goBack(); }
     public void goForward() { ensureOpen(); if (canGoForward) session.goForward(); }
     public void setActive(boolean active) { if (!closed) session.setActive(active); }
+
+    public GeckoResult<java.util.List<GeckoSession.PermissionDelegate.ContentPermission>> getSitePermissions(String uri) {
+        ensureOpen();
+        GeckoResult<java.util.List<GeckoSession.PermissionDelegate.ContentPermission>> result = new GeckoResult<>(mainHandler);
+        if (!storageHandler.post(() -> {
+            if (closed) { mainHandler.post(() -> result.completeExceptionally(new IllegalStateException("Gecko engine is closed"))); return; }
+            try {
+                runtime.getStorageController().getPermissions(uri, false).accept(
+                    permissions -> mainHandler.post(() -> result.complete(permissions)),
+                    error -> mainHandler.post(() -> result.completeExceptionally(error)));
+            } catch (Throwable error) { mainHandler.post(() -> result.completeExceptionally(error)); }
+        })) result.completeExceptionally(new IllegalStateException("Storage worker is unavailable"));
+        return result;
+    }
+
+    public void setSitePermission(GeckoSession.PermissionDelegate.ContentPermission permission, int value) {
+        ensureOpen();
+        runtime.getStorageController().setPermission(permission, value);
+    }
 
     public GeckoResult<Void> clearSiteData(String host) {
         ensureOpen();

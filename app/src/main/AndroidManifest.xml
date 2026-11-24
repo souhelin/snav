@@ -32,6 +32,10 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".WebNotificationBridge$WebNotificationActivity" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <receiver android:name=".WebNotificationBridge$WebNotificationDismissReceiver" android:exported="false" />
+
         <uses-library
             android:name="org.apache.http.legacy"
             android:required="false" />

@@ -85,6 +85,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	private GeckoSession.PermissionDelegate.Callback pendingAndroidPermissionCallback;
 	private String pendingAndroidPermissionOrigin;
 	private String[] pendingAndroidPermissions;
+    private final java.util.List<GeckoResult<Integer>> pendingContentPermissions = new java.util.ArrayList<>();
+    private GeckoResult<Integer> pendingNotificationPermission;
+    private String pendingNotificationOrigin;
+    private boolean pendingDownloadNotificationPermission;
 	private GeckoSession.PermissionDelegate.MediaCallback pendingMediaPermissionCallback;
 	private GeckoSession.PermissionDelegate.MediaSource[] pendingVideoSources;
 	private GeckoSession.PermissionDelegate.MediaSource[] pendingAudioSources;
@@ -784,6 +788,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			pendingMediaPermissionCallback = null;
 		}
 		pendingAndroidPermissions = null;
+        for (GeckoResult<Integer> pending : new java.util.ArrayList<>(pendingContentPermissions)) {
+            finishContentPermission(pending, false);
+        }
 		if (downloadExecutor != null) downloadExecutor.shutdown();
 		if (translationThread != null) translationThread.quitSafely();
         faviconExecutor.shutdownNow();
@@ -2407,7 +2414,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 
 		addSiteInfoRow(content, "Conexão", "https".equalsIgnoreCase(scheme) ? "HTTPS — conexão criptografada" : "about".equalsIgnoreCase(scheme) ? "Página interna do GeckoView" : "Não disponível");
 		addSiteInfoRow(content, "Proteção", "Proteção contra rastreamento e isolamento de cookies de terceiros pelo GeckoView");
-		addSiteInfoRow(content, "Permissões", "Câmera, microfone e localização exigem sua permissão para cada site HTTPS e, quando necessário, autorização do Android");
+		addSiteInfoRow(content, "Permissões", "Câmera, microfone e localização exigem autorização para o site e, quando necessário, para o aplicativo no Android");
+        if (isSecureOrigin(currentUrl)) {
+            addLibraryAction(content, "Gerenciar permissões do site", () -> {
+                sheet.dismiss();
+                showSitePermissions(currentUrl);
+            });
+        }
 		addSiteInfoRow(content, "JavaScript", javaScriptEnabled ? "Ativado para o navegador" : "Desativado para o navegador");
 
 		TextView clearData = new TextView(this);
@@ -2531,6 +2544,17 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 					media.reject();
 				}
 			}
+        } else if (requestCode == 4106) {
+            pendingDownloadNotificationPermission = false;
+        } else if (requestCode == 4107) {
+            GeckoResult<Integer> result = pendingNotificationPermission;
+            String origin = pendingNotificationOrigin;
+            pendingNotificationPermission = null;
+            pendingNotificationOrigin = null;
+            if (result != null) finishContentPermission(result, grantResults != null && grantResults.length > 0
+                && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
+                && geckoEngine != null && isSameOrigin(origin, geckoEngine.getCurrentUri())
+                && WebNotificationBridge.areEnabled(this));
 		} else if (requestCode == 4105) {
             boolean granted = grantResults != null && grantResults.length > 0
                 && grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
@@ -2866,21 +2890,33 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			@Override
 			public GeckoResult<Integer> onContentPermissionRequest(GeckoSession session,
 				final GeckoSession.PermissionDelegate.ContentPermission permission) {
-				if (!isSecureOrigin(permission.uri)
-					|| permission.permission != GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION) {
-					return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
-				}
-				final GeckoResult<Integer> result = new GeckoResult<Integer>();
-				permission.notifyShown();
-				Uri origin = Uri.parse(permission.uri);
-				showSnavDecisionSheet("Permitir localização?",
-					"O site " + origin.getHost() + " solicita acesso à sua localização. Permita apenas se você iniciou essa ação.",
-					"Permitir", "Bloquear", new Runnable() {
-						@Override public void run() { result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW); }
-					}, new Runnable() {
-						@Override public void run() { result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY); }
-					});
-				return result;
+                String label = requestableContentPermissionLabel(permission.permission);
+                final String topOrigin = geckoEngine == null ? null : geckoEngine.getCurrentUri();
+                if (label == null || !isSecureOrigin(permission.uri) || !isSecureOrigin(topOrigin)) {
+                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+                }
+                if (permission.thirdPartyOrigin != null && !isSecureOrigin(permission.thirdPartyOrigin)) {
+                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+                }
+                final GeckoResult<Integer> result = new GeckoResult<>();
+                pendingContentPermissions.add(result);
+                permission.notifyShown();
+                String requester = Uri.parse(permission.uri).getHost();
+                String thirdParty = permission.thirdPartyOrigin == null ? ""
+                    : " Terceiro envolvido: " + Uri.parse(permission.thirdPartyOrigin).getHost() + ".";
+                String warning = permission.permission == GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE
+                    ? " Após concedida, essa permissão não pode ser revogada individualmente pelo GeckoView." : "";
+                showSnavDecisionSheet("Permitir " + label + "?",
+                    "O site " + requester + " solicita " + label + "." + thirdParty + warning,
+                    "Permitir", "Bloquear", () -> {
+                        if (geckoEngine == null || !isSameOrigin(topOrigin, geckoEngine.getCurrentUri())) {
+                            finishContentPermission(result, false);
+                        } else if (permission.permission == GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION) {
+                            requestSiteNotificationPermission(result, topOrigin);
+                        } else finishContentPermission(result, true);
+                    },
+                    () -> finishContentPermission(result, false));
+                return result;
 			}
 
 			@Override
@@ -2905,6 +2941,92 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 			}
 		});
 	}
+
+    private void requestSiteNotificationPermission(GeckoResult<Integer> result, String origin) {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            if (pendingNotificationPermission != null || pendingAndroidPermissionCallback != null || pendingDownloadNotificationPermission) {
+                finishContentPermission(result, false); return;
+            }
+            pendingNotificationPermission = result;
+            pendingNotificationOrigin = origin;
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 4107);
+        } else {
+            finishContentPermission(result, WebNotificationBridge.areEnabled(this));
+        }
+    }
+
+    private void finishContentPermission(GeckoResult<Integer> result, boolean allow) {
+        if (!pendingContentPermissions.remove(result)) return;
+        result.complete(allow ? GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW
+            : GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+    }
+
+    static String requestableContentPermissionLabel(int type) {
+        switch (type) {
+            case GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION: return "localização";
+            case GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION: return "notificações";
+            case GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE: return "armazenamento persistente";
+            case GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_INAUDIBLE: return "reprodução automática sem som";
+            case GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_AUDIBLE: return "reprodução automática com som";
+            case GeckoSession.PermissionDelegate.PERMISSION_STORAGE_ACCESS: return "acesso a cookies e armazenamento";
+            case GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS: return "mídia protegida";
+            default: return null; // Do not grant capabilities without a functioning host integration.
+        }
+    }
+
+    private static String storedPermissionLabel(int type) {
+        String label = requestableContentPermissionLabel(type);
+        if (label != null) return label;
+        switch (type) {
+            case GeckoSession.PermissionDelegate.PERMISSION_XR: return "realidade virtual";
+            case GeckoSession.PermissionDelegate.PERMISSION_TRACKING: return "rastreamento";
+            case GeckoSession.PermissionDelegate.PERMISSION_LOCAL_DEVICE_ACCESS: return "acesso ao dispositivo local";
+            case GeckoSession.PermissionDelegate.PERMISSION_LOCAL_NETWORK_ACCESS: return "acesso à rede local";
+            default: return "Permissão " + type;
+        }
+    }
+
+    private void showSitePermissions(String uri) {
+        if (geckoEngine == null || !isSecureOrigin(uri)) return;
+        geckoEngine.getSitePermissions(uri).accept(permissions -> {
+            if (isFinishing() || isDestroyed() || geckoEngine == null || !isSameOrigin(uri, geckoEngine.getCurrentUri())) return;
+            if (permissions == null || permissions.isEmpty()) {
+                new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle("Permissões do site")
+                    .setMessage("Nenhuma permissão de conteúdo armazenada para este site. Câmera e microfone também dependem das permissões do Android.")
+                    .setPositiveButton("Fechar", null).show();
+                return;
+            }
+            String[] labels = new String[permissions.size()];
+            for (int i = 0; i < labels.length; i++) {
+                GeckoSession.PermissionDelegate.ContentPermission p = permissions.get(i);
+                String value = p.value == GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW ? "Permitido"
+                    : p.value == GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY ? "Bloqueado" : "Perguntar";
+                labels[i] = storedPermissionLabel(p.permission) + " · " + value
+                    + (p.thirdPartyOrigin == null ? "" : " · " + p.thirdPartyOrigin);
+            }
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle("Permissões do site")
+                .setItems(labels, (dialog, index) -> {
+                    GeckoSession.PermissionDelegate.ContentPermission p = permissions.get(index);
+                    if (p.permission == GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE
+                        && p.value == GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW) {
+                        showFeedback("O GeckoView não permite revogar esta permissão individualmente", null, null);
+                        return;
+                    }
+                    String[] actions = p.permission == GeckoSession.PermissionDelegate.PERMISSION_TRACKING
+                        ? new String[]{"Bloquear"} : new String[]{"Bloquear", "Perguntar novamente"};
+                    new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                        .setTitle(storedPermissionLabel(p.permission)).setItems(actions, (d, action) -> {
+                            if (geckoEngine == null || !isSameOrigin(uri, geckoEngine.getCurrentUri())) return;
+                            geckoEngine.setSitePermission(p, action == 0
+                                ? GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY
+                                : GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT);
+                            showFeedback("Preferência enviada ao GeckoView", null, null);
+                        }).setNegativeButton("Cancelar", null).show();
+                }).setNegativeButton("Fechar", null).show();
+        }, error -> { if (!isFinishing() && !isDestroyed()) showFeedback("Não foi possível consultar as permissões do site", null, null); });
+    }
 
 	private String permissionDenialKey(String permission) {
 		return "gecko_permission_permanently_denied_" + permission.replace('.', '_');
@@ -2964,12 +3086,22 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		return a.getHost().equalsIgnoreCase(b.getHost()) && firstPort == secondPort;
 	}
 
+    private static GeckoSession.PermissionDelegate.MediaSource firstMediaSource(
+        GeckoSession.PermissionDelegate.MediaSource[] sources, int expected) {
+        if (sources != null) for (GeckoSession.PermissionDelegate.MediaSource source : sources)
+            if (source != null && source.source == expected) return source;
+        return null;
+    }
+
 	private void showGeckoMediaPermissionPrompt(String uri,
 		GeckoSession.PermissionDelegate.MediaSource[] video,
 		GeckoSession.PermissionDelegate.MediaSource[] audio,
 		final GeckoSession.PermissionDelegate.MediaCallback callback) {
-		boolean hasVideo = video != null && video.length > 0;
-		boolean hasAudio = audio != null && audio.length > 0;
+        final GeckoSession.PermissionDelegate.MediaSource camera = firstMediaSource(video, GeckoSession.PermissionDelegate.MediaSource.SOURCE_CAMERA);
+        final GeckoSession.PermissionDelegate.MediaSource microphone = firstMediaSource(audio, GeckoSession.PermissionDelegate.MediaSource.SOURCE_MICROPHONE);
+        boolean hasVideo = video != null && video.length > 0;
+        boolean hasAudio = audio != null && audio.length > 0;
+        if ((hasVideo && camera == null) || (hasAudio && microphone == null)) { callback.reject(); return; }
 		if (!hasVideo && !hasAudio) {
 			callback.reject();
 			return;
@@ -2989,7 +3121,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             host + (hasVideo && hasAudio ? " solicita acesso à câmera e ao microfone" : hasVideo ? " solicita acesso à câmera" : " solicita acesso ao microfone")
                 + ". Permita apenas se você iniciou uma chamada ou gravação.",
 			"Permitir", "Bloquear", new Runnable() {
-				@Override public void run() { callback.grant(hasVideo ? video[0] : null, hasAudio ? audio[0] : null); }
+				@Override public void run() {
+                    if (geckoEngine != null && isSameOrigin(uri, geckoEngine.getCurrentUri())) callback.grant(camera, microphone);
+                    else callback.reject();
+                }
 			}, new Runnable() {
 				@Override public void run() { callback.reject(); }
 			});
@@ -3149,8 +3284,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		}
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
             != android.content.pm.PackageManager.PERMISSION_GRANTED
-            && !Dados.getBoolean("download_notification_asked", false)) {
+            && !Dados.getBoolean("download_notification_asked", false)
+            && pendingNotificationPermission == null && pendingAndroidPermissionCallback == null) {
             Dados.edit().putBoolean("download_notification_asked", true).apply();
+            pendingDownloadNotificationPermission = true;
             requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 4106);
         }
         long length = -1;
