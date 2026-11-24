@@ -157,7 +157,10 @@ public class BrowserImprovementsTest {
             }
             assertNotNull("O arquivo deve estar disponível em Downloads", saved);
             try (java.io.InputStream in = context.getContentResolver().openInputStream(saved)) {
-                assertArrayEquals(bytes, in.readAllBytes());
+                java.io.ByteArrayOutputStream actual = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[128]; int count;
+                while ((count = in.read(buffer)) != -1) actual.write(buffer, 0, count);
+                assertArrayEquals(bytes, actual.toByteArray());
             }
         } finally {
             release.countDown();
