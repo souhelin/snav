@@ -1745,8 +1745,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                             try {
                                 Uri content = androidx.core.content.FileProvider.getUriForFile(app, app.getPackageName() + ".fileprovider", ready);
                                 Intent send = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, content)
-                                    .setClipData(ClipData.newRawUri("Imagem", content))
                                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                send.setClipData(ClipData.newRawUri("Imagem", content));
                                 activity.startActivity(Intent.createChooser(send, "Compartilhar imagem"));
                             } catch (IllegalArgumentException | ActivityNotFoundException e) {
                                 ready.delete(); activity.showFeedback("Não foi possível compartilhar a imagem", null, null);
