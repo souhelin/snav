@@ -95,10 +95,18 @@ public class BrowserImprovementsTest {
                 }
                 assertTrue("A notificação deve ser exibida", found);
                 bridge.onCloseNotification(n);
-                for (android.service.notification.StatusBarNotification item : manager.getActiveNotifications()) {
-                    assertNotEquals("https://example.com|snav-test", item.getTag());
-                }
             });
+            android.app.NotificationManager manager = (android.app.NotificationManager) context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            boolean present = true;
+            long deadline = android.os.SystemClock.uptimeMillis() + 5000;
+            while (present && android.os.SystemClock.uptimeMillis() < deadline) {
+                present = false;
+                for (android.service.notification.StatusBarNotification item : manager.getActiveNotifications()) {
+                    if ("https://example.com|snav-test".equals(item.getTag())) present = true;
+                }
+                if (present) android.os.SystemClock.sleep(50);
+            }
+            assertFalse("A notificação deve ser removida", present);
         }
         // Revoking a runtime permission kills the target process on Android,
         // aborting the remaining instrumented tests. The emulator is isolated.
