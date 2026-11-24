@@ -99,8 +99,8 @@ public class BrowserImprovementsTest {
                     assertNotEquals("https://example.com|snav-test", item.getTag());
                 }
             });
-        } finally {
-            if (grantedForTest) instrumentation.getUiAutomation().revokeRuntimePermission(context.getPackageName(), android.Manifest.permission.POST_NOTIFICATIONS);
         }
+        // Revoking a runtime permission kills the target process on Android,
+        // aborting the remaining instrumented tests. The emulator is isolated.
     }
 }
