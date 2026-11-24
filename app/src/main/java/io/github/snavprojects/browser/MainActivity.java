@@ -198,6 +198,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		startDiagnostics();
 		initialize(_savedInstanceState);
 		initializeLogic();
+        setupAdaptiveWidths();
         if (_savedInstanceState != null && _savedInstanceState.containsKey("snav_visible_screen")) {
             toolsOpenedFromBrowser = _savedInstanceState.getBoolean("snav_tools_from_browser", false);
             showScreen(_savedInstanceState.getInt("snav_visible_screen", 1));
@@ -772,6 +773,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	@Override
 	protected void onDestroy() {
 		logDiagnostic("Ciclo de vida: onDestroy; isFinishing=" + isFinishing());
+		if (activePanel != null) activePanel.dismiss();
 		wallpaperCallback = null;
 		readerRequestId++;
 		readerModePending = false;
@@ -1430,6 +1432,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             homeShortcuts.addView(hint);
         }
         if (Dados.getBoolean("home_show_recent", true) && !recent.isEmpty()) addShortcutSection("Recentes", recent, false);
+        ((View) homeShortcuts.getParent()).setVisibility(homeShortcuts.getChildCount() == 0 ? View.GONE : View.VISIBLE);
     }
 
     private void addShortcutSection(String title, List<BrowserLibraryStore.Entry> entries, final boolean pinned) {
@@ -1646,6 +1649,71 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             }
         });
         dialog.show();
+    }
+
+    private void showWebContextMenu(int x, int y, GeckoSession.ContentDelegate.ContextElement element) {
+        if (element == null || browserContentContainer == null || !hasPageForActions()) return;
+        final String link = isSecureOrigin(element.linkUri) ? element.linkUri : null;
+        final String image = element.type == GeckoSession.ContentDelegate.ContextElement.TYPE_IMAGE
+            && isSecureOrigin(element.srcUri) ? element.srcUri : null;
+        if (link == null && image == null) return;
+        View anchor = new View(this);
+        int[] location = new int[2];
+        browserContentContainer.getLocationOnScreen(location);
+        FrameLayout.LayoutParams position = new FrameLayout.LayoutParams(dp(1), dp(1));
+        position.leftMargin = Math.max(0, Math.min(browserContentContainer.getWidth() - 1, x - location[0]));
+        position.topMargin = Math.max(0, Math.min(browserContentContainer.getHeight() - 1, y - location[1]));
+        browserContentContainer.addView(anchor, position);
+        androidx.appcompat.widget.PopupMenu popup = new androidx.appcompat.widget.PopupMenu(this, anchor);
+        if (link != null) {
+            popup.getMenu().add("Abrir link em nova aba").setOnMenuItemClickListener(item -> { createBrowserTab(link); return true; });
+            popup.getMenu().add("Copiar endereço do link").setOnMenuItemClickListener(item -> { copyContextAddress(link); return true; });
+            popup.getMenu().add("Compartilhar link").setOnMenuItemClickListener(item -> { shareContextAddress(link); return true; });
+        }
+        if (image != null) {
+            popup.getMenu().add("Abrir imagem").setOnMenuItemClickListener(item -> { loadUrlWithPrivacyHeaders(image); return true; });
+            popup.getMenu().add("Salvar imagem").setOnMenuItemClickListener(item -> { downloadShortcut(image); return true; });
+            popup.getMenu().add("Compartilhar endereço da imagem").setOnMenuItemClickListener(item -> { shareContextAddress(image); return true; });
+        }
+        popup.setOnDismissListener(menu -> browserContentContainer.removeView(anchor));
+        anchor.post(popup::show);
+    }
+
+    private void copyContextAddress(String url) {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("Endereço", url));
+        showFeedback("Endereço copiado", null, null);
+    }
+
+    private void shareContextAddress(String url) {
+        Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url);
+        try { startActivity(Intent.createChooser(send, "Compartilhar")); }
+        catch (ActivityNotFoundException e) { showFeedback("Nenhum aplicativo disponível", null, null); }
+    }
+
+    private void installSelectionActions() {
+        geckoEngine.getSession().setSelectionActionDelegate(new org.mozilla.geckoview.BasicSelectionActionDelegate(this) {
+            private static final int SEARCH = 0x534e41;
+            @Override public boolean onPrepareActionMode(android.view.ActionMode mode, android.view.Menu menu) {
+                boolean changed = super.onPrepareActionMode(mode, menu);
+                boolean canSearch = mSelection != null && !mSelection.text.trim().isEmpty()
+                    && (mSelection.flags & GeckoSession.SelectionActionDelegate.FLAG_IS_PASSWORD) == 0;
+                if (canSearch && menu.findItem(SEARCH) == null) { menu.add(0, SEARCH, 1000, "Pesquisar"); changed = true; }
+                if (!canSearch && menu.findItem(SEARCH) != null) { menu.removeItem(SEARCH); changed = true; }
+                return changed;
+            }
+            @Override public boolean onActionItemClicked(android.view.ActionMode mode, android.view.MenuItem item) {
+                if (item.getItemId() == SEARCH) {
+                    if (mSelection != null && (mSelection.flags & GeckoSession.SelectionActionDelegate.FLAG_IS_PASSWORD) == 0) {
+                        String query = mSelection.text;
+                        mode.finish();
+                        loadUrlWithPrivacyHeaders("https://www.google.com/search?q=" + Uri.encode(query));
+                    }
+                    return true;
+                }
+                return super.onActionItemClicked(mode, item);
+            }
+        });
     }
 
     private void downloadShortcut(final String url) {
@@ -1992,13 +2060,124 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         parent.addView(row, new LinearLayout.LayoutParams(-1, dp(56)));
     }
 
+    private void setupAdaptiveWidths() {
+        linear1.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left <= 0) return;
+            int homeWidth = Math.max(1, Math.min(dp(600), right - left - dp(48)));
+            resizeCentered(linear_barra_pesquisa, homeWidth);
+            resizeCentered((View) homeShortcuts.getParent(), homeWidth);
+            View tools = findViewById(R.id.linear33);
+            android.view.ViewGroup.LayoutParams params = tools.getLayoutParams();
+            int toolsWidth = Math.min(dp(720), right - left);
+            if (params.width != toolsWidth) {
+                params.width = toolsWidth;
+                if (params instanceof FrameLayout.LayoutParams) ((FrameLayout.LayoutParams) params).gravity = Gravity.CENTER_HORIZONTAL;
+                tools.setLayoutParams(params);
+            }
+        });
+    }
+
+    private void resizeCentered(View view, int width) {
+        android.view.ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (params.width != width) { params.width = width; view.setLayoutParams(params); }
+    }
+
+    private void setupToolDestinations() {
+        LinearLayout tools = findViewById(R.id.linear33);
+        addToolDestination(tools, findViewById(R.id.tools_appearance), "Aparência");
+        addToolDestination(tools, findViewById(R.id.tools_privacy), "Privacidade e conteúdo");
+    }
+
+    private void addToolDestination(LinearLayout parent, LinearLayout contents, String title) {
+        int index = parent.indexOfChild(contents);
+        if (index < 0) return;
+        View oldHeading = index > 0 ? parent.getChildAt(index - 1) : null;
+        if (oldHeading instanceof TextView) oldHeading.setVisibility(View.GONE);
+        contents.setVisibility(View.GONE);
+        MaterialButton button = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(title);
+        button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        button.setMinHeight(dp(56));
+        parent.addView(button, index);
+        button.setOnClickListener(v -> {
+            int originalIndex = parent.indexOfChild(contents);
+            if (originalIndex < 0) return;
+            parent.removeView(contents);
+            contents.setVisibility(View.VISIBLE);
+            BrowserPanel panel = new BrowserPanel(title);
+            ScrollView scroll = new ScrollView(this);
+            scroll.setFillViewport(false);
+            contents.setPadding(dp(20), dp(12), dp(20), dp(24));
+            scroll.addView(contents, new ScrollView.LayoutParams(-1, -2));
+            panel.setContentView(scroll);
+            panel.setOnDismissListener(ignored -> {
+                scroll.removeView(contents);
+                contents.setVisibility(View.GONE);
+                parent.addView(contents, Math.min(originalIndex, parent.getChildCount()));
+            });
+            panel.show();
+        });
+    }
+
+    private BrowserPanel activePanel;
+
+    /** A normal in-activity destination, preserving the Gecko session beneath it. */
+    private final class BrowserPanel {
+        final LinearLayout frame = new LinearLayout(MainActivity.this);
+        Runnable onDismiss;
+        BrowserPanel(String title) {
+            frame.setOrientation(LinearLayout.VERTICAL);
+            frame.setBackgroundColor(themeColor(com.google.android.material.R.attr.colorSurface, R.color.snav_surface));
+            frame.setClickable(true);
+            com.google.android.material.appbar.MaterialToolbar toolbar = new com.google.android.material.appbar.MaterialToolbar(MainActivity.this);
+            toolbar.setTitle(title);
+            toolbar.setNavigationIcon(R.drawable.ms_arrow_back);
+            toolbar.setNavigationContentDescription("Voltar");
+            toolbar.setNavigationOnClickListener(v -> dismiss());
+            frame.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(56)));
+        }
+        void setContentView(View content) {
+            FrameLayout container = new FrameLayout(MainActivity.this);
+            FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(-1, -1, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+            container.addView(content, contentParams);
+            container.addOnLayoutChangeListener((view, l, t, r, b, ol, ot, oright, ob) -> {
+                int width = Math.min(dp(720), r - l);
+                if (width > 0 && contentParams.width != width) { contentParams.width = width; content.setLayoutParams(contentParams); }
+            });
+            frame.addView(container, new LinearLayout.LayoutParams(-1, 0, 1));
+        }
+        void setOnDismissListener(android.content.DialogInterface.OnDismissListener listener) {
+            onDismiss = () -> listener.onDismiss(null);
+        }
+        void show() {
+            if (activePanel != null) activePanel.dismiss();
+            activePanel = this;
+            android.view.ViewGroup host = findViewById(R.id.snav_snackbar_host);
+            if (host.getChildCount() > 0) host.getChildAt(0).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            host.addView(frame,
+                new android.view.ViewGroup.LayoutParams(-1, -1));
+            frame.setFocusableInTouchMode(true);
+            frame.requestFocus();
+        }
+        boolean isShowing() { return activePanel == this; }
+        void dismiss() {
+            if (activePanel != this) return;
+            activePanel = null;
+            if (frame.getParent() instanceof android.view.ViewGroup) {
+                android.view.ViewGroup host = (android.view.ViewGroup) frame.getParent();
+                host.removeView(frame);
+                if (host.getChildCount() > 0) host.getChildAt(0).setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+            }
+            if (onDismiss != null) onDismiss.run();
+        }
+    }
+
     private void showTabsBottomSheet() {
-        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        final BrowserPanel sheet = new BrowserPanel("Abas abertas");
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this); root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
         TextView heading = new TextView(this); heading.setText("Abas abertas · " + browserTabs.size()); heading.setTextSize(21); heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD); heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface)); root.addView(heading);
         addLibraryAction(root, "Nova aba", new Runnable() { @Override public void run() { sheet.dismiss(); createBrowserTab(); } });
-        ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); scroll.addView(list); root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(340)));
+        ScrollView scroll = new ScrollView(this); LinearLayout list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); scroll.addView(list); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         for (int i = 0; i < browserTabs.size(); i++) {
             final int index = i; final BrowserTab tab = browserTabs.get(i);
             LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
@@ -2017,7 +2196,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             close.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { sheet.dismiss(); closeBrowserTab(index); } });
             list.addView(row);
         }
-        sheet.setContentView(root); sheet.show(); sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED); sheet.getBehavior().setSkipCollapsed(true);
+        sheet.setContentView(root); sheet.show();
     }
 
     private void addLibraryAction(LinearLayout parent, String label, final Runnable action) {
@@ -2049,18 +2228,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
     }
 
     private void showBrowserLibraryBottomSheet(final boolean historyMode) {
-        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        final BrowserPanel sheet = new BrowserPanel("Biblioteca");
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
-        TextView heading = new TextView(this);
-        heading.setText("Biblioteca");
-        heading.setTextSize(21);
-        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
-        root.addView(heading);
         LinearLayout actions = new LinearLayout(this);
         actions.setOrientation(LinearLayout.HORIZONTAL);
         TextView favorites = new TextView(this);
@@ -2079,8 +2250,11 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         entries.setOrientation(LinearLayout.VERTICAL);
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
-        scroll.addView(entries, new ScrollView.LayoutParams(-1, -2));
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, dp(360)));
+        LinearLayout libraryContent = new LinearLayout(this);
+        libraryContent.setOrientation(LinearLayout.VERTICAL);
+        libraryContent.addView(entries);
+        scroll.addView(libraryContent, new ScrollView.LayoutParams(-1, -2));
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         final Runnable[] render = new Runnable[1];
         final boolean[] showingHistory = new boolean[] { historyMode };
         render[0] = new Runnable() {
@@ -2150,16 +2324,16 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         };
         favorites.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = false; render[0].run(); } });
         history.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { showingHistory[0] = true; render[0].run(); } });
-        addLibraryAction(root, "Gerenciador de downloads", new Runnable() {
+        addLibraryAction(libraryContent, "Gerenciador de downloads", new Runnable() {
             @Override public void run() { sheet.dismiss(); showDownloadsBottomSheet(); }
         });
-        addLibraryAction(root, "Exportar favoritos", new Runnable() {
+        addLibraryAction(libraryContent, "Exportar favoritos", new Runnable() {
             @Override public void run() { exportBookmarks(); }
         });
-        addLibraryAction(root, "Importar favoritos", new Runnable() {
+        addLibraryAction(libraryContent, "Importar favoritos", new Runnable() {
             @Override public void run() { importBookmarks(); }
         });
-        addLibraryAction(root, "Limpar histórico", new Runnable() {
+        addLibraryAction(libraryContent, "Limpar histórico", new Runnable() {
             @Override public void run() {
                 browserLibraryStore.clearHistory();
                 refreshHomeShortcuts();
@@ -2171,23 +2345,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         render[0].run();
         sheet.setContentView(root);
         sheet.show();
-        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
-        sheet.getBehavior().setSkipCollapsed(true);
     }
 
     private void showDownloadsBottomSheet() {
-        final BottomSheetDialog sheet = new BottomSheetDialog(this);
+        final BrowserPanel sheet = new BrowserPanel("Downloads");
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(22), dp(18), dp(22), dp(24));
-        BottomSheetDragHandleView handle = new BottomSheetDragHandleView(this);
-        root.addView(handle, new LinearLayout.LayoutParams(-1, dp(42)));
-        TextView heading = new TextView(this);
-        heading.setText("Downloads");
-        heading.setTextSize(21);
-        heading.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        heading.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, R.color.snav_on_surface));
-        root.addView(heading);
         final TextView progress = new TextView(this);
         progress.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
         progress.setTextSize(14);
@@ -2287,8 +2451,6 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         sheet.setContentView(root);
         sheet.show();
         updateProgress[0].run();
-        sheet.getBehavior().setState(BottomSheetBehavior.STATE_EXPANDED);
-        sheet.getBehavior().setSkipCollapsed(true);
     }
 
     private void addDownloadFileRow(final LinearLayout list, final Uri itemUri, String name, long size) {
@@ -2858,6 +3020,10 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				}
 				java.util.ArrayList<String> missing = new java.util.ArrayList<String>();
 				for (String permission : permissions) {
+                    if ((android.Manifest.permission.CAMERA.equals(permission) && !Dados.getBoolean("allow_camera", true))
+                        || (android.Manifest.permission.RECORD_AUDIO.equals(permission) && !Dados.getBoolean("allow_microphone", true))
+                        || ((android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission) || android.Manifest.permission.ACCESS_COARSE_LOCATION.equals(permission))
+                            && !Dados.getBoolean("allow_location", true))) { callback.reject(); return; }
 					if (!android.Manifest.permission.CAMERA.equals(permission)
 						&& !android.Manifest.permission.RECORD_AUDIO.equals(permission)
 						&& !android.Manifest.permission.ACCESS_FINE_LOCATION.equals(permission)
@@ -2898,6 +3064,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 if (permission.thirdPartyOrigin != null && !isSecureOrigin(permission.thirdPartyOrigin)) {
                     return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
                 }
+                if (!isContentPermissionEnabled(permission.permission)) {
+                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY);
+                }
+                // Muted autoplay is non-sensitive and occurs frequently; never prompt for it.
+                if (permission.permission == GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_INAUDIBLE) {
+                    return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW);
+                }
                 final GeckoResult<Integer> result = new GeckoResult<>();
                 pendingContentPermissions.add(result);
                 permission.notifyShown();
@@ -2926,7 +3099,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 				GeckoSession.PermissionDelegate.MediaCallback callback) {
 				boolean hasVideo = video != null && video.length > 0;
 				boolean hasAudio = audio != null && audio.length > 0;
-				if (!isSecureOrigin(uri) || (!hasVideo && !hasAudio)) {
+				if (!isSecureOrigin(uri) || (!hasVideo && !hasAudio)
+                    || (hasVideo && !Dados.getBoolean("allow_camera", true))
+                    || (hasAudio && !Dados.getBoolean("allow_microphone", true))) {
 					callback.reject();
 					return;
 				}
@@ -2973,6 +3148,61 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
             case GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS: return "mídia protegida";
             default: return null; // Do not grant capabilities without a functioning host integration.
         }
+    }
+
+    static String contentPermissionPreference(int type) {
+        switch (type) {
+            case GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION: return "allow_location";
+            case GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION: return "allow_site_notifications";
+            case GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE: return "allow_persistent_storage";
+            case GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_INAUDIBLE: return "allow_autoplay_muted";
+            case GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_AUDIBLE: return "allow_autoplay_sound";
+            case GeckoSession.PermissionDelegate.PERMISSION_STORAGE_ACCESS: return "allow_site_storage";
+            case GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS: return "allow_protected_media";
+            default: return null;
+        }
+    }
+
+    private boolean isContentPermissionEnabled(int type) {
+        String key = contentPermissionPreference(type);
+        return key != null && Dados.getBoolean(key, true);
+    }
+
+    private void addSitePermissionPreferences() {
+        LinearLayout privacy = findViewById(R.id.tools_privacy);
+        if (privacy.findViewWithTag("snav_permissions") != null) return;
+        LinearLayout group = new LinearLayout(this);
+        group.setTag("snav_permissions");
+        group.setOrientation(LinearLayout.VERTICAL);
+        TextView heading = new TextView(this);
+        heading.setText("Permissões de sites");
+        heading.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleSmall);
+        heading.setPadding(dp(8), dp(16), dp(8), dp(4));
+        group.addView(heading);
+        TextView explanation = new TextView(this);
+        explanation.setText("Controla novas solicitações. Decisões já armazenadas pelo GeckoView e capturas em andamento podem continuar; revise permissões nas informações do site.");
+        explanation.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, R.color.snav_on_surface_variant));
+        explanation.setPadding(dp(8), 0, dp(8), dp(8));
+        group.addView(explanation);
+        String[][] settings = {
+            {"Localização", "allow_location"}, {"Câmera", "allow_camera"},
+            {"Microfone", "allow_microphone"}, {"Notificações de sites", "allow_site_notifications"},
+            {"Reprodução automática sem som", "allow_autoplay_muted"},
+            {"Reprodução automática com som", "allow_autoplay_sound"},
+            {"Armazenamento persistente", "allow_persistent_storage"},
+            {"Acesso a cookies e armazenamento", "allow_site_storage"},
+            {"Mídia protegida", "allow_protected_media"}
+        };
+        for (String[] setting : settings) {
+            MaterialSwitch toggle = new MaterialSwitch(this);
+            toggle.setText(setting[0]);
+            toggle.setMinHeight(dp(48));
+            toggle.setPadding(dp(8), 0, dp(8), 0);
+            toggle.setChecked(Dados.getBoolean(setting[1], true));
+            toggle.setOnCheckedChangeListener((button, checked) -> Dados.edit().putBoolean(setting[1], checked).apply());
+            group.addView(toggle, new LinearLayout.LayoutParams(-1, -2));
+        }
+        privacy.addView(group);
     }
 
     private static String storedPermissionLabel(int type) {
@@ -3469,6 +3699,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 	
 	@Override
 	public void onBackPressed() {
+        if (activePanel != null) { activePanel.dismiss(); return; }
         if (tela3.getVisibility() == View.VISIBLE) {
             returnFromTools();
             return;
@@ -3557,6 +3788,8 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         addTrackerBlockingPreference(Dados.getBoolean("tracker_blocking", true));
         addDoNotTrackPreference(Dados.getBoolean("do_not_track", false));
         addDynamicColorPreference();
+        addSitePermissionPreferences();
+        setupToolDestinations();
         javaScriptEnabled = !"desativado".equals(Dados.getString("java", "ativado"));
         restorePersistedBrowserTabs();
         geckoView.setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -3650,6 +3883,9 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                         }
                     });
                 }
+                @Override public void onContextMenu(int x, int y, GeckoSession.ContentDelegate.ContextElement element) {
+                    showWebContextMenu(x, y, element);
+                }
                 @Override public void onExternalResponse(WebResponse response) {
                     handleGeckoDownload(response);
                 }
@@ -3698,6 +3934,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                 loadUrlWithPrivacyHeaders(activeTab.url);
         }
         pendingRestoreUri = null;
+        installSelectionActions();
         setupPullToRefresh();
     }
 	

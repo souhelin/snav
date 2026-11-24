@@ -36,6 +36,7 @@ public final class GeckoEngineController {
         default void onNewTabRequested(String uri) {}
         default void onExtensionInstallRequested(String uri) {}
         default void onExternalResponse(WebResponse response) {}
+        default void onContextMenu(int x, int y, GeckoSession.ContentDelegate.ContextElement element) {}
         default void onFullScreenChanged(boolean fullScreen) {}
         default void onContentProcessCrashed() {}
         default void onScrollChanged(int scrollY) {}
@@ -101,6 +102,12 @@ public final class GeckoEngineController {
             public void onTitleChange(GeckoSession currentSession, String title) {
                 Listener callback = GeckoEngineController.this.listener;
                 if (!closed && callback != null) callback.onTitleChanged(title);
+            }
+
+            @Override
+            public void onContextMenu(GeckoSession currentSession, int x, int y, GeckoSession.ContentDelegate.ContextElement element) {
+                Listener callback = GeckoEngineController.this.listener;
+                if (!closed && callback != null) callback.onContextMenu(x, y, element);
             }
 
             @Override
