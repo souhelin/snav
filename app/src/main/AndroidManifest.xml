@@ -32,6 +32,13 @@
             </intent-filter>
         </activity>
 
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/shared_image_paths" />
+        </provider>
+
         <activity android:name=".WebNotificationBridge$WebNotificationActivity" android:exported="false"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <receiver android:name=".WebNotificationBridge$WebNotificationDismissReceiver" android:exported="false" />

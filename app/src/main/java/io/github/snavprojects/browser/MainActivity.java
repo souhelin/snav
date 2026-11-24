@@ -1673,10 +1673,13 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         if (image != null) {
             popup.getMenu().add("Abrir imagem").setOnMenuItemClickListener(item -> { loadUrlWithPrivacyHeaders(image); return true; });
             popup.getMenu().add("Salvar imagem").setOnMenuItemClickListener(item -> { downloadShortcut(image); return true; });
-            popup.getMenu().add("Compartilhar endereço da imagem").setOnMenuItemClickListener(item -> { shareContextAddress(image); return true; });
+            popup.getMenu().add("Compartilhar imagem").setOnMenuItemClickListener(item -> { shareContextImage(image); return true; });
         }
         popup.setOnDismissListener(menu -> browserContentContainer.removeView(anchor));
-        anchor.post(popup::show);
+        anchor.post(() -> {
+            if (!isFinishing() && !isDestroyed() && anchor.isAttachedToWindow()) popup.show();
+            else browserContentContainer.removeView(anchor);
+        });
     }
 
     private void copyContextAddress(String url) {
@@ -1689,6 +1692,71 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
         Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url);
         try { startActivity(Intent.createChooser(send, "Compartilhar")); }
         catch (ActivityNotFoundException e) { showFeedback("Nenhum aplicativo disponível", null, null); }
+    }
+
+    private void shareContextImage(String url) {
+        if (!isSecureOrigin(url) || geckoEngine == null) return;
+        try {
+            new GeckoWebExecutor(GeckoEngineController.getRuntime())
+                .fetch(new WebRequest.Builder(url).build(), GeckoWebExecutor.FETCH_FLAGS_NO_REDIRECTS)
+                .accept(response -> {
+                    if (isFinishing() || isDestroyed()) { closeResponseBody(response); return; }
+                    String contentType = responseHeader(response, "Content-Type");
+                    final String mime = contentType == null ? "" : contentType.split(";")[0].trim().toLowerCase(Locale.ROOT);
+                    if (response == null || response.body == null || response.statusCode < 200 || response.statusCode >= 300
+                        || !isSecureOrigin(response.uri) || !mime.startsWith("image/")) {
+                        closeResponseBody(response); showFeedback("Não foi possível compartilhar a imagem", null, null); return;
+                    }
+                    response.setReadTimeoutMillis(30000);
+                    Context app = getApplicationContext();
+                    java.lang.ref.WeakReference<MainActivity> owner = new java.lang.ref.WeakReference<>(this);
+                    new Thread(() -> {
+                        java.io.File file = null;
+                        boolean success = false;
+                        try (java.io.InputStream in = response.body) {
+                            java.io.File directory = new java.io.File(app.getCacheDir(), "shared_images");
+                            if (!directory.exists() && !directory.mkdirs()) throw new IOException("Cache indisponível");
+                            java.io.File[] previous = directory.listFiles();
+                            if (previous != null) for (java.io.File old : previous)
+                                if (System.currentTimeMillis() - old.lastModified() > 24L * 60 * 60 * 1000) old.delete();
+                            String extension = android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime);
+                            if (extension == null || !extension.matches("[a-zA-Z0-9]{1,8}")) extension = "img";
+                            file = java.io.File.createTempFile("snav-", "." + extension, directory);
+                            try (java.io.OutputStream out = new java.io.FileOutputStream(file)) {
+                                byte[] buffer = new byte[32768]; int count; long total = 0;
+                                while ((count = in.read(buffer)) != -1) {
+                                    total += count;
+                                    if (total > 20L * 1024 * 1024) throw new IOException("Imagem muito grande");
+                                    out.write(buffer, 0, count);
+                                }
+                            }
+                            success = true;
+                        } catch (IOException | RuntimeException ignored) {
+                            if (file != null) file.delete();
+                        }
+                        final java.io.File ready = file;
+                        final boolean complete = success;
+                        new Handler(Looper.getMainLooper()).post(() -> {
+                            MainActivity activity = owner.get();
+                            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                                if (ready != null) ready.delete(); return;
+                            }
+                            if (!complete) { activity.showFeedback("Não foi possível compartilhar a imagem", null, null); return; }
+                            try {
+                                Uri content = androidx.core.content.FileProvider.getUriForFile(app, app.getPackageName() + ".fileprovider", ready);
+                                Intent send = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, content)
+                                    .setClipData(ClipData.newRawUri("Imagem", content))
+                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                                activity.startActivity(Intent.createChooser(send, "Compartilhar imagem"));
+                            } catch (IllegalArgumentException | ActivityNotFoundException e) {
+                                ready.delete(); activity.showFeedback("Não foi possível compartilhar a imagem", null, null);
+                            }
+                        });
+                    }, "SnavImageShare").start();
+                }, error -> { if (!isFinishing() && !isDestroyed()) showFeedback("Não foi possível compartilhar a imagem", null, null); });
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            showFeedback("Não foi possível compartilhar a imagem", null, null);
+        }
     }
 
     private void installSelectionActions() {
@@ -1707,7 +1775,7 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
                     if (mSelection != null && (mSelection.flags & GeckoSession.SelectionActionDelegate.FLAG_IS_PASSWORD) == 0) {
                         String query = mSelection.text;
                         mode.finish();
-                        loadUrlWithPrivacyHeaders("https://www.google.com/search?q=" + Uri.encode(query));
+                        loadUrlWithPrivacyHeaders(buildSearchUrl(query));
                     }
                     return true;
                 }

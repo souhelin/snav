@@ -16,8 +16,9 @@ decisões. Consulte Informações do site para os registros que o GeckoView perm
 alterar; armazenamento persistente concedido não pode ser revogado individualmente.
 
 Pressionar links ou imagens HTTPS usa `GeckoSession.ContentDelegate.onContextMenu`.
-O compartilhamento de imagem envia o endereço, não o arquivo. Salvar faz uma nova
-solicitação Gecko sem redirecionamento e pode falhar em imagens autenticadas ou
+Compartilhar obtém uma cópia temporária (até 20 MiB), concedendo acesso somente
+à imagem escolhida. Salvar e compartilhar fazem nova solicitação Gecko sem
+redirecionamento e podem falhar em imagens autenticadas ou
 endereços não HTTPS. Texto usa a seleção nativa do GeckoView, incluindo copiar e
 selecionar tudo, com pesquisa acrescentada ao modo contextual; senhas não são
 oferecidas para pesquisa. Conteúdo `blob:`, `data:`, imagens protegidas e páginas
