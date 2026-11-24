@@ -75,4 +75,26 @@ public class AdaptiveDestinationsTest {
         assertEquals("allow_location", MainActivity.contentPermissionPreference(org.mozilla.geckoview.GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION));
         assertNull(MainActivity.contentPermissionPreference(org.mozilla.geckoview.GeckoSession.PermissionDelegate.PERMISSION_XR));
     }
+    @Test public void imageShareProviderIsPrivateAndScopedToCache() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.content.pm.ProviderInfo provider = context.getPackageManager().resolveContentProvider(
+            context.getPackageName() + ".fileprovider", 0);
+        assertNotNull(provider);
+        assertFalse(provider.exported);
+        assertTrue(provider.grantUriPermissions);
+        java.io.File directory = new java.io.File(context.getCacheDir(), "shared_images");
+        assertTrue(directory.exists() || directory.mkdirs());
+        java.io.File image = java.io.File.createTempFile("test-", ".png", directory);
+        try {
+            android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(context,
+                context.getPackageName() + ".fileprovider", image);
+            assertEquals("content", uri.getScheme());
+            assertEquals(context.getPackageName() + ".fileprovider", uri.getAuthority());
+            try {
+                androidx.core.content.FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider",
+                    new java.io.File(context.getCacheDir(), "outside.txt"));
+                fail("O provedor não deve expor todo o cache");
+            } catch (IllegalArgumentException expected) { }
+        } finally { image.delete(); }
+    }
 }
