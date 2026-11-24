@@ -103,4 +103,65 @@ public class BrowserImprovementsTest {
         // Revoking a runtime permission kills the target process on Android,
         // aborting the remaining instrumented tests. The emulator is isolated.
     }
+    @Test public void responseStreamIsSavedAndReportsProgress() throws Exception {
+        org.junit.Assume.assumeTrue(android.os.Build.VERSION.SDK_INT >= 29);
+        android.app.Instrumentation instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation();
+        android.content.Context context = instrumentation.getTargetContext();
+        if (android.os.Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            instrumentation.getUiAutomation().grantRuntimePermission(context.getPackageName(), android.Manifest.permission.POST_NOTIFICATIONS);
+        }
+        String name = "snav-test-" + System.nanoTime() + ".txt";
+        byte[] bytes = "conteudo de teste".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        java.util.concurrent.CountDownLatch started = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        java.io.InputStream stream = new java.io.InputStream() {
+            boolean sent;
+            @Override public int read() throws java.io.IOException { throw new java.io.IOException("unexpected single-byte read"); }
+            @Override public int read(byte[] b, int off, int len) throws java.io.IOException {
+                if (!sent) { sent = true; System.arraycopy(bytes, 0, b, off, bytes.length); return bytes.length; }
+                started.countDown();
+                try { if (!release.await(15, java.util.concurrent.TimeUnit.SECONDS)) throw new java.io.IOException("timed out"); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new java.io.IOException(e); }
+                return -1;
+            }
+        };
+        android.net.Uri saved = null;
+        try (androidx.test.core.app.ActivityScenario<MainActivity> scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                org.mozilla.geckoview.WebResponse response = new org.mozilla.geckoview.WebResponse.Builder("https://example.com/test.txt")
+                    .isSecure(true).statusCode(200).header("Content-Length", Integer.toString(bytes.length))
+                    .header("Content-Type", "text/plain").body(stream).build();
+                try {
+                    java.lang.reflect.Method save = MainActivity.class.getDeclaredMethod("saveGeckoDownload", org.mozilla.geckoview.WebResponse.class, String.class);
+                    save.setAccessible(true); save.invoke(activity, response, name);
+                } catch (Exception e) { throw new AssertionError(e); }
+            });
+            assertTrue("O download deve começar", started.await(15, java.util.concurrent.TimeUnit.SECONDS));
+            android.app.NotificationManager manager = (android.app.NotificationManager) context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            boolean found = false;
+            for (android.service.notification.StatusBarNotification item : manager.getActiveNotifications()) {
+                if (name.contentEquals(item.getNotification().extras.getCharSequence(android.app.Notification.EXTRA_TEXT, ""))) found = true;
+            }
+            assertTrue("O download em andamento deve ter uma notificação", found);
+            release.countDown();
+            long deadline = android.os.SystemClock.uptimeMillis() + 15000;
+            while (saved == null && android.os.SystemClock.uptimeMillis() < deadline) {
+                try (android.database.Cursor cursor = context.getContentResolver().query(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                        new String[]{android.provider.MediaStore.MediaColumns._ID},
+                        android.provider.MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + android.provider.MediaStore.MediaColumns.IS_PENDING + "=0",
+                        new String[]{name}, null)) {
+                    if (cursor != null && cursor.moveToFirst()) saved = android.content.ContentUris.withAppendedId(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cursor.getLong(0));
+                }
+                if (saved == null) android.os.SystemClock.sleep(100);
+            }
+            assertNotNull("O arquivo deve estar disponível em Downloads", saved);
+            try (java.io.InputStream in = context.getContentResolver().openInputStream(saved)) {
+                assertArrayEquals(bytes, in.readAllBytes());
+            }
+        } finally {
+            release.countDown();
+            if (saved != null) context.getContentResolver().delete(saved, null, null);
+        }
+    }
 }
