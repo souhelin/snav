@@ -75,6 +75,8 @@ public class BrowserImprovementsTest {
             && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED;
         if (grantedForTest) instrumentation.getUiAutomation().grantRuntimePermission(context.getPackageName(), android.Manifest.permission.POST_NOTIFICATIONS);
         try (androidx.test.core.app.ActivityScenario<MainActivity> scenario = androidx.test.core.app.ActivityScenario.launch(MainActivity.class)) {
+            final org.mozilla.geckoview.WebNotification[] notification = new org.mozilla.geckoview.WebNotification[1];
+            final WebNotificationBridge[] notificationBridge = new WebNotificationBridge[1];
             scenario.onActivity(activity -> {
                 android.os.Parcel parcel = android.os.Parcel.obtain();
                 parcel.writeInt(3); parcel.writeString("Aviso de teste"); parcel.writeString("snav-test");
@@ -87,16 +89,21 @@ public class BrowserImprovementsTest {
                 parcel.recycle();
                 WebNotificationBridge bridge = new WebNotificationBridge(activity);
                 assertTrue("As notificações do teste devem estar habilitadas", WebNotificationBridge.areEnabled(activity));
+                notification[0] = n;
+                notificationBridge[0] = bridge;
                 bridge.onShowNotification(n);
-                android.app.NotificationManager manager = (android.app.NotificationManager) activity.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
-                boolean found = false;
+            });
+            android.app.NotificationManager manager = (android.app.NotificationManager) context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            boolean found = false;
+            long showDeadline = android.os.SystemClock.uptimeMillis() + 5000;
+            while (!found && android.os.SystemClock.uptimeMillis() < showDeadline) {
                 for (android.service.notification.StatusBarNotification item : manager.getActiveNotifications()) {
                     if ("https://example.com|snav-test".equals(item.getTag())) found = true;
                 }
-                assertTrue("A notificação deve ser exibida", found);
-                bridge.onCloseNotification(n);
-            });
-            android.app.NotificationManager manager = (android.app.NotificationManager) context.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+                if (!found) android.os.SystemClock.sleep(50);
+            }
+            assertTrue("A notificação deve ser exibida", found);
+            scenario.onActivity(activity -> notificationBridge[0].onCloseNotification(notification[0]));
             boolean present = true;
             long deadline = android.os.SystemClock.uptimeMillis() + 5000;
             while (present && android.os.SystemClock.uptimeMillis() < deadline) {
