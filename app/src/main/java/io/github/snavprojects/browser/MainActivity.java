@@ -3383,13 +3383,14 @@ public class MainActivity extends androidx.appcompat.app.AppCompatActivity {
 		wallpaperCallback = new UnsplashWallpaperManager.Callback() {
 			@Override
 			public void onWallpaperReady(Bitmap bitmap, UnsplashWallpaperManager.Photo photo) {
-				if (isFinishing() || isDestroyed() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()) {
+                TextView credit = findViewById(R.id.wallpaper_credit);
+				if (isFinishing() || isDestroyed() || checkbox_wallpaper == null || !checkbox_wallpaper.isChecked()
+                    || credit == null || tela1 == null || !tela1.isAttachedToWindow()) {
 					if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
 					return;
 				}
 				tela1.setBackground(new UnsplashWallpaperDrawable(bitmap));
 				text_icon.setTextColor(Color.WHITE);
-                TextView credit = findViewById(R.id.wallpaper_credit);
                 credit.setText("Foto: " + photo.author + " / Unsplash");
                 credit.setContentDescription("Abrir foto de " + photo.author + " no Unsplash");
                 credit.setOnClickListener(view -> {
