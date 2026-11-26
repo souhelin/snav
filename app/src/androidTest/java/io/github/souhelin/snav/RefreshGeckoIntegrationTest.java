@@ -27,6 +27,9 @@ public class RefreshGeckoIntegrationTest {
         final ActivityScenario<MainActivity> scenario;
         final AtomicInteger scroll = new AtomicInteger();
         final AtomicInteger refreshes = new AtomicInteger();
+        final AtomicInteger pageStarts = new AtomicInteger();
+        private CountDownLatch reloadCompleted;
+        private int startsBeforeReload;
         final CountDownLatch loaded = new CountDownLatch(1);
         final CountDownLatch painted = new CountDownLatch(1);
         final AtomicBoolean started = new AtomicBoolean();
@@ -48,10 +51,15 @@ public class RefreshGeckoIntegrationTest {
                 frame.addView(browser, new FrameLayout.LayoutParams(-1, -1));
                 session = new GeckoSession();
                 session.setProgressDelegate(new GeckoSession.ProgressDelegate() {
-                    @Override public void onPageStart(GeckoSession current, String url) { started.set(true); }
+                    @Override public void onPageStart(GeckoSession current, String url) {
+                        started.set(true);
+                        pageStarts.incrementAndGet();
+                    }
                     @Override public void onPageStop(GeckoSession current, boolean success) {
                         loadSuccess.set(success); loaded.countDown();
                         if (host != null) host.setRefreshing(false);
+                        if (reloadCompleted != null && pageStarts.get() > startsBeforeReload)
+                            reloadCompleted.countDown();
                     }
                 });
                 session.setContentDelegate(new GeckoSession.ContentDelegate() {
@@ -116,6 +124,22 @@ public class RefreshGeckoIntegrationTest {
             INSTRUMENTATION.waitForIdleSync();
         }
 
+        void reloadAndAwaitCompletion() throws Exception {
+            CountDownLatch completed = new CountDownLatch(1);
+            int before = pageStarts.get();
+            scenario.onActivity(activity -> {
+                startsBeforeReload = pageStarts.get();
+                reloadCompleted = completed;
+                loadSuccess.set(false);
+                // Same Gecko operation used by the app's explicit reload action.
+                session.reload();
+            });
+            assertTrue("O recarregamento explícito não terminou", completed.await(45, TimeUnit.SECONDS));
+            assertTrue("O Gecko recusou o recarregamento explícito", loadSuccess.get());
+            assertEquals("Deve haver exatamente uma nova navegação", before + 1, pageStarts.get());
+            assertEquals("Recarregar explicitamente não é um gesto de refresh", 0, refreshes.get());
+        }
+
         private void send(long down, long time, int action, float x, float y) {
             MotionEvent event = MotionEvent.obtain(down, time, action, x, y, 0);
             INSTRUMENTATION.sendPointerSync(event);
@@ -144,9 +168,16 @@ public class RefreshGeckoIntegrationTest {
         }
     }
 
-    @Test public void shortPageCanRefreshAtTop() throws Exception {
+    @Test public void shortPageRejectsAmbiguousPullAndCanReloadExplicitly() throws Exception {
+        // With the pinned GeckoView, this page and touch-action:none both return
+        // UNHANDLED. The documented contract is to fail closed, not to assume
+        // that the absence of a scroll range authorizes a browser gesture.
         try (Harness h = new Harness(page(false))) {
-            h.drag(0, 160); assertEquals(1, h.refreshes.get());
+            int initialLoads = h.pageStarts.get();
+            h.drag(0, 160);
+            assertEquals("Um gesto UNHANDLED não deve atualizar a página", 0, h.refreshes.get());
+            assertEquals("O gesto recusado não deve iniciar navegação", initialLoads, h.pageStarts.get());
+            h.reloadAndAwaitCompletion();
         }
     }
 

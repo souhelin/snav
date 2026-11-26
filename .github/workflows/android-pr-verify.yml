@@ -12,6 +12,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Test CI report summary
+        run: python3 -m unittest discover -s .github/scripts/tests -v
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -72,16 +74,23 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/android-emulator-tests.sh
-      - name: Summarize Android test failures
-        if: failure() && steps.android_tests.outcome == 'failure'
+      - name: Summarize Android test results
+        if: always() && (steps.android_tests.outcome == 'success' || steps.android_tests.outcome == 'failure')
         shell: bash
+        env:
+          ANDROID_TEST_OUTCOME: ${{ steps.android_tests.outcome }}
         run: |
           python3 .github/scripts/summarize-android-tests.py
       - name: Save Android test reports
-        if: always()
+        if: failure() && steps.android_tests.outcome == 'failure'
+        # Report storage is best-effort. The emulator step and summary still fail
+        # the job on test errors, even if GitHub's artifact quota is exhausted.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: android-test-reports
+          retention-days: 3
+          compression-level: 9
           path: |
             app/build/outputs/androidTest-results/
             app/build/reports/androidTests/

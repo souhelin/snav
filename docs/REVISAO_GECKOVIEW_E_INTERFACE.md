@@ -92,7 +92,7 @@ não de certificação de compatibilidade com todos os sites.
 | Downloads longos | O executor pertence à Activity; não há serviço de download resiliente à morte do processo. |
 | Dados por site | A limpeza do Gecko por host não cobre automaticamente dados de origens de terceiros. |
 
-## Verificação desta revisão
+## Verificação local inicial desta revisão
 
 - `git diff --check`: sem erros.
 - Análise sintática de todos os Java com Tree-sitter e parse de todos os XML:
@@ -105,6 +105,34 @@ não de certificação de compatibilidade com todos os sites.
   ambiente. Nenhum APK foi compilado ou assinado aqui.
 - Testes instrumentados e validação visual não executados: sem emulador ou
   dispositivo conectado. As mudanças precisam passar pelo workflow Android.
+
+### Diagnóstico e correção do CI do PR #13
+
+As execuções [45808002707](https://github.com/souhelin/snav/actions/runs/45808002707)
+e [45807961156](https://github.com/souhelin/snav/actions/runs/45807961156),
+no commit `a91e6a0`, aprovaram `verify` (build debug e testes unitários) e
+`material-legacy` (Android 10/API 29). As anotações do job `emulator` registraram
+uma falha de teste, `shortPageCanRefreshAtTop`, e uma falha independente no
+upload de relatórios por cota de armazenamento de artefatos esgotada.
+
+O teste de página curta exigia atualização por um gesto `UNHANDLED`, contrário
+à política conservadora já descrita na branch de origem. Foi substituído por
+um teste ativo que exige ausência de atualização/navegação acidental e
+recarregamento explícito bem-sucedido. A implementação de gestos não foi
+relaxada: pull-to-refresh em página curta continua sendo uma limitação, não
+uma funcionalidade corrigida. Veja [os detalhes](PULL_TO_REFRESH.md).
+
+O CI agora publica contagens de testes no resumo do job e falhas detalhadas
+nas anotações, sem depender de artefatos. Somente o upload de relatórios é
+best-effort, restrito a falhas e com retenção de três dias. A execução dos
+testes, ausência de relatórios válidos e falhas de Gradle/emulador continuam
+bloqueantes. Seis testes Python do publicador de resumos foram executados
+localmente e passaram. A cota da conta GitHub não foi alterada nem foram
+apagados artefatos existentes.
+
+Essa correção não muda cores, ícones, componentes MD3, permissões ou políticas
+de segurança do aplicativo. A nova execução Android do commit de correção
+precisa ser conferida no PR; os resultados acima pertencem ao commit anterior.
 
 ### Roteiro obrigatório em dispositivo/CI
 
