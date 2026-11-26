@@ -130,9 +130,23 @@ bloqueantes. Seis testes Python do publicador de resumos foram executados
 localmente e passaram. A cota da conta GitHub não foi alterada nem foram
 apagados artefatos existentes.
 
-Essa correção não muda cores, ícones, componentes MD3, permissões ou políticas
-de segurança do aplicativo. A nova execução Android do commit de correção
-precisa ser conferida no PR; os resultados acima pertencem ao commit anterior.
+O commit `970ca88` passou em todos os jobs na execução de push
+[45812185675](https://github.com/souhelin/snav/actions/runs/45812185675).
+Na execução duplicada do PR
+[45812196986](https://github.com/souhelin/snav/actions/runs/45812196986), os
+seis testes de gesto falharam porque a janela não recebeu foco, antes das
+asserções de atualização. A preparação do dispositivo agora mantém o
+emulador acordado e dispensa o keyguard antes de executar Gradle; a fixture
+também mantém a tela acesa. Em caso de falha, o log registra foco e energia
+para distinguir bloqueio da tela de outras janelas que tomem o foco.
+A asserção de foco continua obrigatória. Três testes adicionais do script
+confirmam a preparação do dispositivo e a preservação dos códigos de saída,
+totalizando nove testes Python locais aprovados.
+
+Essas correções não mudam cores, ícones, componentes MD3, permissões ou
+políticas de segurança do aplicativo. A nova execução Android após o ajuste
+de foco ainda precisa ser conferida no PR; resultados anteriores não
+certificam o commit mais recente.
 
 ### Roteiro obrigatório em dispositivo/CI
 

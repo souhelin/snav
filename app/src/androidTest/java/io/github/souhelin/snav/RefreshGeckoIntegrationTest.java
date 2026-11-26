@@ -46,6 +46,7 @@ public class RefreshGeckoIntegrationTest {
             scenario.onActivity(activity -> {
                 density = activity.getResources().getDisplayMetrics().density;
                 FrameLayout frame = new FrameLayout(activity);
+                frame.setKeepScreenOn(true);
                 activity.setContentView(frame);
                 browser = new RefreshAwareGeckoView(activity, null);
                 frame.addView(browser, new FrameLayout.LayoutParams(-1, -1));
