@@ -6,8 +6,13 @@ por nested scroll somente o arrasto vertical elegível e entrega todos os evento
 originais ao Gecko, sem enviá-los duas vezes. A consulta inicial a
 `onTouchEventForDetailResult` segue a abordagem do
 [NestedGeckoView da Mozilla](https://github.com/mozilla-firefox/firefox/blob/2887d9de1f69/mobile/android/android-components/components/browser/engine-gecko/src/main/java/mozilla/components/browser/engine/gecko/NestedGeckoView.kt).
-Ela rejeita gestos tratados pelo conteúdo, rolagem disponível para cima,
-overscroll vertical proibido e resposta tardia após movimento significativo.
+Ela rejeita gestos tratados pelo conteúdo ou não tratados pelo controlador de
+rolagem do Gecko, rolagem disponível para cima, overscroll vertical proibido e
+resposta tardia após movimento significativo. A API do GeckoView documenta os
+campos de direção como úteis apenas para eventos tratados pelo controlador.
+Em testes, uma página curta comum e outra com `touch-action: none` produziram
+o mesmo resultado não tratado e as mesmas direções. Aceitar ambos provoca uma
+atualização mesmo quando a página tenta impedir o gesto.
 
 O classificador exige um dedo, arrasto predominantemente vertical, limite de
 110 dp e soltura. O Material 3 usado aqui tem limite posicional padrão de 80 dp
@@ -22,7 +27,9 @@ gestos próprios, é indispensável validar em dispositivo a interação complet
 páginas curtas e longas, topo e meio, elementos com rolagem própria,
 `overscroll-behavior`, gestos horizontais/diagonais, pinça e seleção. Uma
 resposta tardia pode rejeitar um gesto legítimo para evitar uma atualização
-acidental. O botão de recarregar do menu continua disponível.
+acidental. No emulador Android 35, a regra conservadora impede também a
+atualização por arrasto em uma página curta sem rolagem. O teste correspondente
+permanece ativo e falhando. O botão de recarregar do menu continua disponível.
 
 `RefreshGeckoIntegrationTest` executa gestos com uma sessão Gecko real e
 páginas de teste no emulador; `PullGestureTrackerTest` cobre o classificador de

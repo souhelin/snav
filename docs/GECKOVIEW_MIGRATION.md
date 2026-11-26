@@ -1,5 +1,12 @@
 # GeckoView migration — implementation and validation
 
+> **Historical record:** the implementation and validation details below
+> describe the migration branch at the time stated in this document. Subsequent
+> changes added tab management, extensions and automated tests; see the current
+> [README](../README.md), [extension documentation](EXTENSOES_GECKOVIEW.md) and
+> [pull-to-refresh documentation](PULL_TO_REFRESH.md). Historical test results
+> do not validate the current revision.
+
 ## Current implementation
 
 The browser surface in `app/src/main/res/layout/main.xml` is now

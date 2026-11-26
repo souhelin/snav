@@ -1,0 +1,237 @@
+package io.github.snavprojects.browser;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/** Small bounded local store for browser bookmarks and visit history. */
+public final class BrowserLibraryStore {
+    private static final String PREFS = "snav_browser_library_v1";
+    private static final String BOOKMARKS = "bookmarks";
+    private static final String HISTORY = "history";
+    private static final String PINNED = "pinned";
+    private static final int MAX_PINNED = 4;
+    private static final int MAX_HISTORY = 1000;
+    private static final int MAX_BOOKMARKS = 1000;
+    private static final int MAX_URL_LENGTH = 8192;
+    private static final int MAX_TITLE_LENGTH = 512;
+    private final SharedPreferences prefs;
+
+    public static final class Entry {
+        public final String title;
+        public final String url;
+        public final long visitedAt;
+        Entry(String title, String url, long visitedAt) {
+            this.title = title;
+            this.url = url;
+            this.visitedAt = visitedAt;
+        }
+    }
+
+    public BrowserLibraryStore(Context context) {
+        prefs = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    private JSONArray read(String key) {
+        try { return new JSONArray(prefs.getString(key, "[]")); }
+        catch (JSONException error) { return new JSONArray(); }
+    }
+
+    private void write(String key, JSONArray values) {
+        prefs.edit().putString(key, values.toString()).apply();
+    }
+
+    private static String clean(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public synchronized boolean addBookmark(String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
+        JSONArray values = read(BOOKMARKS);
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item != null && safeUrl.equals(item.optString("url"))) return true;
+        }
+        if (values.length() >= MAX_BOOKMARKS) return false;
+        JSONObject item = new JSONObject();
+        try {
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            item.put("title", safeTitle.isEmpty() ? safeUrl : safeTitle);
+            item.put("url", safeUrl);
+            item.put("createdAt", System.currentTimeMillis());
+            values.put(item);
+            write(BOOKMARKS, values);
+            return true;
+        } catch (JSONException error) { return false; }
+    }
+
+    public synchronized boolean removeBookmark(String url) {
+        JSONArray source = read(BOOKMARKS), result = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < source.length(); i++) {
+            JSONObject item = source.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(url).equals(item.optString("url"))) removed = true;
+            else result.put(item);
+        }
+        if (removed) write(BOOKMARKS, result);
+        return removed;
+    }
+
+    public synchronized void addVisit(String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return;
+        JSONArray source = read(HISTORY), result = new JSONArray();
+        JSONObject item = new JSONObject();
+        try {
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            item.put("title", safeTitle.isEmpty() ? safeUrl : safeTitle);
+            item.put("url", safeUrl);
+            item.put("visitedAt", System.currentTimeMillis());
+            // JSONArray.put(index, value) replaces an element; prepend explicitly
+            // so updating the newest page never discards the previous visit.
+            result.put(item);
+            for (int i = 0; i < source.length() && result.length() < MAX_HISTORY; i++) {
+                JSONObject previous = source.optJSONObject(i);
+                if (previous != null && !safeUrl.equals(previous.optString("url"))) result.put(previous);
+            }
+            write(HISTORY, result);
+        } catch (JSONException ignored) {}
+    }
+
+    private List<Entry> entries(String key, String timeKey) {
+        JSONArray values = read(key);
+        List<Entry> result = new ArrayList<>();
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item == null) continue;
+            result.add(new Entry(item.optString("title"), item.optString("url"),
+                item.optLong(timeKey, 0L)));
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    public synchronized List<Entry> getBookmarks() { return entries(BOOKMARKS, "createdAt"); }
+    public synchronized List<Entry> getHistory() { return entries(HISTORY, "visitedAt"); }
+    public synchronized boolean removeHistory(String url) {
+        JSONArray source = read(HISTORY), result = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < source.length(); i++) {
+            JSONObject item = source.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(url).equals(item.optString("url"))) removed = true;
+            else result.put(item);
+        }
+        if (removed) write(HISTORY, result);
+        return removed;
+    }
+
+    public synchronized void clearHistory() { write(HISTORY, new JSONArray()); }
+
+    public synchronized List<Entry> getPinned() { return entries(PINNED, "createdAt"); }
+
+    public synchronized boolean pin(String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
+        JSONArray values = read(PINNED);
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item != null && safeUrl.equals(item.optString("url"))) return true;
+        }
+        if (values.length() >= MAX_PINNED) return false;
+        try {
+            String safeTitle = clean(title);
+            if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+            JSONObject item = new JSONObject();
+            item.put("title", safeTitle.isEmpty() ? parsed.getHost() : safeTitle);
+            item.put("url", safeUrl);
+            item.put("createdAt", System.currentTimeMillis());
+            values.put(item);
+            write(PINNED, values);
+            return true;
+        } catch (JSONException ignored) { return false; }
+    }
+
+    /** Updates an existing shortcut in place, without replacing another shortcut. */
+    public synchronized boolean updatePinned(String oldUrl, String title, String url) {
+        String safeUrl = clean(url);
+        Uri parsed = Uri.parse(safeUrl);
+        if (safeUrl.length() > MAX_URL_LENGTH || !"https".equalsIgnoreCase(parsed.getScheme())
+            || parsed.getHost() == null || parsed.getUserInfo() != null) return false;
+        JSONArray values = read(PINNED);
+        JSONObject target = null;
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(oldUrl).equals(item.optString("url"))) target = item;
+            else if (safeUrl.equals(item.optString("url"))) return false;
+        }
+        if (target == null) return false;
+        String safeTitle = clean(title);
+        if (safeTitle.length() > MAX_TITLE_LENGTH) safeTitle = safeTitle.substring(0, MAX_TITLE_LENGTH);
+        try {
+            target.put("title", safeTitle.isEmpty() ? parsed.getHost() : safeTitle);
+            target.put("url", safeUrl);
+            write(PINNED, values);
+            return true;
+        } catch (JSONException error) { return false; }
+    }
+
+    public synchronized boolean unpin(String url) {
+        JSONArray values = read(PINNED), result = new JSONArray();
+        boolean removed = false;
+        for (int i = 0; i < values.length(); i++) {
+            JSONObject item = values.optJSONObject(i);
+            if (item == null) continue;
+            if (clean(url).equals(item.optString("url"))) removed = true;
+            else result.put(item);
+        }
+        if (removed) write(PINNED, result);
+        return removed;
+    }
+
+    /** Validates and replaces bookmarks from a Netscape bookmark HTML import. */
+    public synchronized int importBookmarks(String html) {
+        if (html == null || html.length() > 2_000_000) return 0;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile(
+            "(?is)<A[^>]*HREF\\s*=\\s*[\"'](https://[^\"']+)[\"'][^>]*>(.*?)</A>"
+        ).matcher(html);
+        int imported = 0;
+        while (matcher.find()) {
+            String url = android.text.Html.fromHtml(matcher.group(1)).toString().trim();
+            String title = android.text.Html.fromHtml(matcher.group(2)).toString().trim();
+            if (addBookmark(title, url)) imported++;
+        }
+        return imported;
+    }
+
+    public synchronized String exportBookmarksHtml() {
+        StringBuilder html = new StringBuilder(
+            "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n<TITLE>Snav Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n");
+        for (Entry entry : getBookmarks()) {
+            html.append("<DT><A HREF=\"").append(escape(entry.url)).append("\">")
+                .append(escape(entry.title)).append("</A>\n");
+        }
+        return html.append("</DL><p>\n").toString();
+    }
+
+    private static String escape(String value) {
+        return value.replace("&", "&amp;").replace("\"", "&quot;")
+            .replace("<", "&lt;").replace(">", "&gt;");
+    }
+}
