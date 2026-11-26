@@ -7,6 +7,11 @@
 > [pull-to-refresh documentation](PULL_TO_REFRESH.md). Historical test results
 > do not validate the current revision.
 
+> **Correção em 26/11/2026:** as referências abaixo a uma UI de prompts
+> embutida no GeckoView estavam incorretas. Um `PromptDelegate` nulo não
+> fornece diálogos/seletor prontos. Veja o delegate implementado nesta revisão
+> e as limitações restantes em [Revisão do GeckoView](REVISAO_GECKOVIEW_E_INTERFACE.md).
+
 ## Current implementation
 
 The browser surface in `app/src/main/res/layout/main.xml` is now

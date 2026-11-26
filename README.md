@@ -21,6 +21,9 @@ uma opção de desfazer ao desafixar uma página. Veja
 
 ## Navegação
 
+As correções de interface e permissões e as lacunas atuais da integração estão
+na [revisão do GeckoView](docs/REVISAO_GECKOVIEW_E_INTERFACE.md).
+
 - Pesquise ou abra endereços pela tela de pesquisa.
 - Use as abas, os favoritos, o histórico e os downloads pelo menu. As abas compartilham uma sessão Gecko; isso limita o isolamento e a integração com extensões.
 - A tela inicial mostra até quatro atalhos fixados e quatro páginas recentes. Os atalhos têm opções de edição e gerenciamento.
@@ -51,7 +54,7 @@ Essas medidas não impedem todo rastreamento nem eliminam todos os riscos. A [po
 | Java | 17 |
 | Android Gradle Plugin / Gradle | 9.1.1 / 9.3.1 |
 | GeckoView | 160.0.20261116130455 |
-| Identificador do aplicativo | `io.github.snavprojects.browser` |
+| Identificador do aplicativo | `io.github.souhelin.snav` |
 | Interface | Android Views/XML e Compose Material 3 para atualização por arrasto |
 | ABIs de distribuição | ARM64 e ARMv7 |
 
