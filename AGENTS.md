@@ -1,16 +1,16 @@
 # AGENTS.md — SNAV BROWSER
-## Regras obrigatórias de desenvolvimento, arquitetura, identidade visual e desempenho
+
+## Regras obrigatórias para agentes de IA e desenvolvimento
 
 **Projeto:** Snav Browser  
-**Repositório oficial:** https://github.com/souhelin/Snav-Browser  
 **Plataforma:** Android  
+**Linguagem principal:** Java 17  
+**Motor de navegação:** Mozilla GeckoView  
 **Idioma principal:** Português (Brasil)
 
-Este documento estabelece as regras obrigatórias para qualquer inteligência artificial, agente de programação ou desenvolvedor que trabalhe no Snav Browser.
+Este documento define as regras para qualquer agente de IA ou pessoa que altere o Snav. As instruções devem ser aplicadas à branch em uso, respeitando o código e a documentação atuais.
 
-As regras devem ser respeitadas em todas as alterações, independentemente da ferramenta utilizada.
-
-**NENHUMA IA ESTÁ AUTORIZADA A IGNORAR ESTAS REGRAS POR PREFERÊNCIA PESSOAL.**
+A implementação real é a fonte de verdade. Não declare recursos como concluídos apenas porque existem APIs no GeckoView, documentação, planos ou código parcial.
 
 ---
 
@@ -18,533 +18,498 @@ As regras devem ser respeitadas em todas as alterações, independentemente da f
 
 O Snav é um navegador Android com identidade visual própria.
 
-Sua filosofia é:
+Princípios:
 
-- Minimalismo.
-- Simplicidade.
-- Leveza.
-- Rapidez.
-- Organização.
-- Interface limpa.
-- Facilidade de utilização.
-- Baixo consumo de recursos.
+- Minimalismo e simplicidade.
+- Rapidez e estabilidade.
+- Organização e facilidade de uso.
+- Privacidade e segurança por padrão.
+- Baixo consumo de recursos, medido em dispositivos reais.
 
-O Snav não deve parecer uma cópia do Chrome, Firefox, Safari ou qualquer outro navegador.
+O Snav não deve parecer uma cópia de outro navegador.
 
-### Regras inegociáveis
+## Regras visuais
 
-1. Preservar a identidade visual original.
-2. Não modificar o conceito visual sem autorização.
-3. Não adicionar elementos decorativos desnecessários.
-4. Não transformar funcionalidades simples em interfaces complexas.
-5. Não adicionar componentes apenas para preencher espaço.
-6. Não exagerar em animações, sombras, gradientes ou efeitos.
-7. Não comprometer a área disponível para navegação.
-8. Toda funcionalidade nova deve respeitar o design existente.
+1. Preserve a identidade visual existente.
+2. Não altere cores, ícones ou estrutura visual sem necessidade técnica ou solicitação explícita.
+3. Não adicione elementos decorativos ou componentes sem função clara.
+4. Não reduza desnecessariamente a área de navegação.
+5. Mantenha acessibilidade, contraste e adaptação a telas menores.
+6. Não introduza animações, sombras ou efeitos que prejudiquem desempenho ou legibilidade.
+7. Antes de alterar um componente, inspecione os recursos e estilos da branch atual. Não trate uma paleta histórica deste documento como substituta dos recursos reais.
 
-**Princípio fundamental: menos elementos, melhor organização e maior eficiência.**
+**Princípio:** cada elemento deve melhorar a navegação, a compreensão ou o uso do navegador.
 
 ---
 
-# 2. SISTEMA VISUAL E CORES
+# 2. ÍCONES E IDENTIDADE VISUAL
 
-As cores fazem parte da identidade do Snav e não podem ser modificadas arbitrariamente.
+Os recursos próprios do Snav devem ser preservados. Entre os nomes já utilizados estão:
 
-## Paleta de referência
+- `ic_snav_search`
+- `ic_snav_refresh`
+- `ic_snav_more`
+- `ic_snav_back`
+- `ic_snav_forward`
+- `ic_snav_home`
+- `ic_snav_tabs`
 
-| Elemento | Cor |
-|---|---|
-| Fundo principal da interface | #34495E |
-| Ícones neutros | #757575 |
-| Texto principal sobre fundo escuro | #ECF0F1 |
-| Texto secundário | #9E9E9E |
-| Destaque existente | #E67E22 |
-| Superfície de navegação | #FFFFFF |
+Regras:
 
-### Regras obrigatórias
+1. Não substituir ícones originais por emojis, caracteres Unicode ou desenhos genéricos.
+2. Não misturar bibliotecas ou estilos de ícones sem justificativa e autorização.
+3. Não alterar proporções, espessuras ou formatos arbitrariamente.
+4. Verifique os recursos realmente presentes antes de referenciá-los.
+5. Mantenha consistência de tamanho, alinhamento, tint e descrição de acessibilidade.
 
-1. Não inventar novas paletas.
-2. Não substituir as cores principais por cores da moda.
-3. Não utilizar cores vibrantes indiscriminadamente.
-4. Não aplicar cores diferentes aos ícones sem justificativa.
-5. Não modificar a identidade cromática durante uma implementação funcional.
-6. Manter contraste e legibilidade.
-7. Evitar fundos desnecessariamente diferentes entre componentes relacionados.
-
-### Regra de precedência
-
-A paleta acima é a referência para novas implementações.
-
-Antes de alterar componentes existentes, verificar os recursos e estilos reais da branch utilizada.
-
-Se houver divergência entre arquivos, identificar a origem da inconsistência antes de realizar uma correção global.
-
-Não realizar mudanças de cor em massa sem autorização.
+O Snav utiliza princípios do Material Design 3, mas não deve adicionar componentes MD3 sem necessidade. Prefira superfícies discretas, hierarquia clara, espaçamento consistente e estados de interação compreensíveis.
 
 ---
 
-# 3. ÍCONES — PRESERVAÇÃO OBRIGATÓRIA
+# 3. ARQUITETURA ATUAL — GECKOVIEW
 
-Os ícones são parte fundamental da identidade visual do Snav.
+**GeckoView é o único motor de navegação do Snav. WebView não é o motor atual e não deve ser reintroduzido.**
 
-O projeto já possui recursos próprios, incluindo:
+A superfície de navegação é `org.mozilla.geckoview.GeckoView`. A navegação, o histórico, o carregamento de páginas, as permissões web, os downloads e o armazenamento do navegador devem utilizar as APIs GeckoView correspondentes.
 
-- ic_snav_search
-- ic_snav_refresh
-- ic_snav_more
-- ic_snav_back
-- ic_snav_forward
-- ic_snav_home
-- ic_snav_tabs
+## Componentes centrais
 
-Também existem ícones utilizados nas funcionalidades do menu.
+- `MainActivity`: Activity principal e integração da interface com o navegador.
+- `GeckoEngineController`: encapsula o `GeckoRuntime`, a `GeckoSession`, os delegates, navegação, estado da sessão e operações de armazenamento.
+- `ExtensionManager`: gerenciamento de WebExtensions por meio do `WebExtensionController`.
+- `GeckoPromptController`: interface nativa para prompts web implementados pelo aplicativo.
+- `GeckoView`: view que apresenta o conteúdo da sessão.
+- `BrowserTab` e estruturas associadas: estado das abas da interface.
 
-### Regras rígidas
+Esses nomes descrevem a estrutura observada. Antes de alterar qualquer componente, confirme sua implementação atual, seus chamadores e suas responsabilidades.
 
-1. Preservar os ícones originais.
-2. Não substituir os ícones por emojis.
-3. Não utilizar caracteres Unicode como substitutos de ícones.
-4. Não trocar os desenhos por ícones genéricos.
-5. Não utilizar conjuntos diferentes de ícones na mesma interface.
-6. Não alterar proporções, espessuras ou formatos arbitrariamente.
-7. Não distorcer os recursos existentes.
-8. Não remover ícones sem autorização.
-9. Manter consistência entre ícones de navegação, endereço e menu.
+## Regras obrigatórias
 
-### Estilo
+1. Não introduza `android.webkit.WebView`, `WebViewClient`, `WebChromeClient`, `CookieManager` ou `WebStorage` no caminho de navegação.
+2. Não implemente funcionalidades web por injeção JavaScript ou interceptação manual quando houver API GeckoView apropriada.
+3. Não crie um segundo motor de navegação.
+4. Não substitua o `GeckoRuntime` ou a gestão de sessões por singletons paralelos.
+5. Não acesse diretamente o runtime em telas e componentes sem avaliar se a operação pertence ao `GeckoEngineController`.
+6. Não suponha que uma API disponível no GeckoView já esteja integrada à interface do Snav.
+7. Não atualize a versão do GeckoView isoladamente sem revisar compatibilidade, notas da versão, dependências, R8, CI e testes.
+8. Não remova delegates ou callbacks sem rastrear todos os fluxos que dependem deles.
 
-- Material Design 3 Rounded.
-- Aparência minimalista.
-- Formas simples.
-- Espessuras consistentes.
-- Tamanhos proporcionais.
-- Alinhamento preciso.
+## GeckoRuntime e GeckoSession
 
-**É proibido redesenhar a identidade dos ícones simplesmente porque outra biblioteca oferece desenhos diferentes.**
+- O `GeckoRuntime` é compartilhado no processo e inicializado pelo controlador.
+- O controlador mantém uma `GeckoSession` associada ao `GeckoView` ativo.
+- O estado da sessão utiliza `GeckoSession.SessionState` e os mecanismos de salvar/restaurar do Gecko.
+- O estado atual das abas da interface não equivale a sessões Gecko independentes: a implementação documentada reutiliza uma sessão ao alternar abas. Não prometa isolamento por aba, execução simultânea independente ou contêineres separados.
+- Alterações no modelo de abas exigem projeto explícito de ciclo de vida, persistência, armazenamento, permissões, extensões, memória e restauração. Não basta criar mais objetos de interface.
 
-Uma substituição somente poderá acontecer quando houver autorização explícita.
+Antes de mudar o modelo de sessão, leia a documentação GeckoView da versão efetivamente usada e verifique o código de `MainActivity`, `GeckoEngineController` e `BrowserTab`.
 
 ---
 
-# 4. INTERFACE — MATERIAL DESIGN 3
+# 4. NAVEGAÇÃO, DELEGATES E CICLO DE VIDA
 
-O Snav deve seguir os princípios visuais do Material Design 3 (MD3), mantendo sua própria identidade.
+A navegação deve passar pelo controlador Gecko e pelos delegates apropriados.
 
-MD3 não significa adicionar componentes indiscriminadamente.
+Verifique, conforme o fluxo alterado:
 
-### Características obrigatórias
+- `NavigationDelegate`: decisões de navegação, novas janelas, esquemas externos e erros.
+- `ProgressDelegate`: início/fim de carregamento, progresso e estado da sessão.
+- `ContentDelegate`: título, menu de contexto, resposta externa, tela cheia e falha do processo de conteúdo.
+- `PermissionDelegate`: permissões web e callbacks associados.
+- `ScrollDelegate`: posição e comportamento de rolagem.
+- `MediaSession.Delegate`: estado de reprodução e pausa.
+- `PromptDelegate`: diálogos, seleção de arquivos e demais prompts suportados.
+- `WebExtensionController`: instalação e ciclo de vida das extensões.
 
-- Layout organizado.
-- Hierarquia visual clara.
-- Espaçamento consistente.
-- Superfícies discretas.
-- Cantos arredondados moderados.
-- Ícones Rounded.
-- Estados de interação claros.
-- Boa acessibilidade.
-- Tipografia legível.
+Nem todos os delegates ou tipos de prompt estão necessariamente implementados. Consulte a implementação atual antes de adicionar uma funcionalidade.
 
-### Proibições
+## Ciclo de vida
 
-Não utilizar:
+1. Ative e foque a sessão apenas quando a tela de navegação estiver em primeiro plano e visível.
+2. Ao ocultar a navegação ou pausar a Activity, atualize o estado ativo da sessão e das extensões conforme o fluxo existente.
+3. Não feche a sessão apenas para ocultar uma tela ou abrir um painel interno.
+4. Ao encerrar a Activity, finalize delegates, prompts pendentes, downloads pertencentes à Activity, executores e controladores na ordem correta.
+5. Não mantenha callbacks que referenciem uma Activity destruída.
+6. Não reutilize callbacks de permissões ou prompts para solicitações de outra origem.
+7. Ao salvar estado, use as APIs de sessão Gecko e valide o comportamento em recriação da Activity e morte do processo.
+8. Uma notificação de crash do processo de conteúdo não prova que a recuperação automática está implementada. Não prometa recuperação sem testar o fluxo completo.
 
-- Glassmorphism exagerado.
-- Neumorphism.
-- Gradientes decorativos.
-- Sombras pesadas.
-- Bordas excessivas.
-- Cartões desnecessários.
-- Botões gigantes.
-- Elementos flutuantes sem necessidade.
-- Animações constantes.
-- Efeitos que prejudiquem o desempenho.
-
-### Regra de simplicidade
-
-Se um elemento não melhora a navegação, a compreensão ou a utilização de uma funcionalidade, ele provavelmente não precisa existir.
+A pausa da sessão e de mídia não garante suspensão total de JavaScript, rede, WebRTC ou captura. Descreva apenas o comportamento efetivamente implementado.
 
 ---
 
-# 5. BARRAS DE ENDEREÇO E NAVEGAÇÃO
+# 5. ABAS E ISOLAMENTO
 
-As barras de endereço são elementos centrais do Snav.
+A implementação atual alterna abas da interface reutilizando uma sessão Gecko. Isso é uma limitação arquitetural conhecida.
 
-Qualquer alteração deve preservar sua função, identidade e organização.
+Regras:
 
-### Regras
-
-1. Preservar a integração com o WebView.
-2. Não duplicar funcionalidades existentes.
-3. Não adicionar controles desnecessários.
-4. Manter ícones consistentes.
-5. Garantir boa utilização do espaço horizontal.
-6. Evitar sobreposição com teclado e conteúdo.
-7. Preservar os comportamentos de pesquisa e navegação.
-8. Manter a interface responsiva.
-9. Não modificar o fluxo de carregamento de páginas sem necessidade.
-10. Não provocar fechamento do aplicativo ao enviar pesquisas.
-
-Qualquer alteração na barra de endereço exige testes específicos de digitação, pesquisa, carregamento, teclado e navegação.
+- Não afirme que cada aba possui cookies, armazenamento, histórico ou permissões isolados.
+- Não apresente abas como sessões simultâneas independentes.
+- Não tente simular isolamento apenas limpando histórico ou dados entre trocas.
+- Qualquer evolução para sessões independentes deve especificar como runtime, sessão, view, estado, downloads, permissões, extensões e memória serão gerenciados.
+- Teste alternância rápida, restauração, fechamento, abertura, rotação e retorno do segundo plano.
+- Preserve o conteúdo e o estado da aba ativa quando uma operação de interface não exigir navegação.
 
 ---
 
-# 6. ARQUITETURA E CÓDIGO-BASE
+# 6. WEBEXTENSIONS
 
-O código existente é a referência obrigatória.
+O Snav integra WebExtensions por meio do `WebExtensionController` do GeckoView.
 
-A IA deve analisar a implementação real antes de escrever qualquer código.
+O `ExtensionManager` atual oferece fluxos de catálogo Mozilla, instalação por arquivo XPI ou HTTPS, listagem, ativação/desativação, atualização, remoção e gerenciamento de permissões, conforme os métodos existentes.
 
-### Estrutura identificada
+## Segurança da instalação
 
-- Android nativo.
-- Java.
-- XML para layouts.
-- Activity principal em MainActivity.java.
-- WebView como mecanismo de navegação.
-- Recursos visuais em res.
-- Configurações de tema em values.
-- Recursos de interface em drawable.
+Ao alterar instalação ou atualização:
 
-### Regras obrigatórias
+1. Exija ação e confirmação explícitas do usuário.
+2. Aceite somente HTTPS em downloads remotos, valide host e redirecionamentos e rejeite credenciais na URL.
+3. Preserve limites de tamanho compactado e descompactado.
+4. Preserve a validação estrutural e a verificação SHA-256 quando fornecida pelo catálogo.
+5. Não substitua a validação de assinatura e compatibilidade feita pelo Gecko.
+6. Não confunda a inspeção local do manifesto com uma auditoria completa das APIs usadas pela extensão.
+7. Remova arquivos temporários após sucesso, falha ou cancelamento.
+8. Não conceda permissões opcionais sem consentimento.
+9. Não conceda navegação privada automaticamente.
+10. Se a tela de consentimento não estiver ativa, negue a solicitação conforme a política implementada.
 
-1. Não presumir que o projeto utiliza Kotlin.
-2. Não migrar para Jetpack Compose sem autorização.
-3. Não substituir a arquitetura existente por preferência pessoal.
-4. Não reescrever MainActivity sem necessidade técnica comprovada.
-5. Não remover métodos existentes sem analisar suas dependências.
-6. Não duplicar listeners.
-7. Não duplicar lógica de navegação.
-8. Não criar classes desnecessárias.
-9. Não introduzir dependências sem justificativa.
-10. Preservar compatibilidade com a estrutura atual do projeto.
+## Limitações que devem ser comunicadas
 
-### Antes de modificar qualquer arquivo
+A instalação aceita não garante funcionamento completo. A implementação documentada possui limitações na integração de abas, menus de contexto e canal genérico de mensagens nativas. A compatibilidade depende da versão do GeckoView, das APIs usadas pela extensão e dos delegates que o Snav realmente implementa.
 
-A IA deve:
+Não prometa compatibilidade universal com extensões do Firefox Desktop ou Chrome. Teste individualmente instalação, reinicialização, atualização, permissões, desinstalação e comportamento funcional.
 
-1. Identificar a branch atual.
-2. Ler o arquivo original.
-3. Identificar métodos relacionados.
-4. Identificar dependências entre componentes.
-5. Verificar possíveis efeitos colaterais.
-6. Planejar a alteração mínima necessária.
-
-**Nunca substituir um arquivo inteiro quando uma alteração localizada resolve o problema.**
+Leia `docs/EXTENSOES_GECKOVIEW.md` antes de alterar esse subsistema.
 
 ---
 
-# 7. DESEMPENHO E LEVEZA
+# 7. PROMPTS, FORMULÁRIOS E ARQUIVOS
 
-Desempenho é uma prioridade absoluta.
+A existência de um `PromptDelegate` não significa que todos os prompts tenham interface pronta.
 
-O Snav precisa funcionar adequadamente em dispositivos com recursos limitados.
+A implementação atual possui `GeckoPromptController` para os tipos explicitamente tratados no código. Consulte a implementação antes de presumir suporte a:
 
-### Regras obrigatórias
+- Diálogos JavaScript.
+- Confirmação de saída com alterações não salvas.
+- Reenvio de formulários POST.
+- Seleção de arquivos simples ou múltiplos.
+- Seleção HTML de opções.
+- Data, hora e cor.
+- Autenticação HTTP.
+- Identidade/FedCM e outros fluxos avançados.
 
-- Evitar processamento desnecessário na Main Thread.
-- Evitar operações repetitivas.
-- Evitar listeners duplicados.
-- Evitar criação desnecessária de objetos.
-- Evitar carregamento desnecessário de imagens.
-- Evitar dependências pesadas.
-- Evitar operações excessivas de layout.
-- Evitar vazamentos de memória.
-- Respeitar o ciclo de vida das Activities.
-- Evitar tarefas desnecessárias em segundo plano.
+Regras:
 
-### Interface
-
-Não implementar animações complexas quando uma transição simples resolve o problema.
-
-Não utilizar bibliotecas pesadas para reproduzir componentes que podem ser implementados com os recursos já existentes.
-
-### WebView
-
-Preservar:
-
-- Estabilidade.
-- Gerenciamento correto de navegação.
-- Ciclo de vida.
-- Tratamento de erros.
-- Configurações necessárias para funcionamento dos sites.
-- Comportamento correto do teclado.
-
-Não desativar recursos de segurança para melhorar artificialmente a velocidade.
+1. Conclua cada callback exatamente uma vez.
+2. Trate cancelamento, Activity destruída, origem alterada e prompt substituído.
+3. Não conceda permissões por ausência de UI.
+4. Para arquivos, prefira seletor do sistema e URIs `content://` com concessões mínimas.
+5. Não solicite acesso amplo ao armazenamento para resolver seleção de arquivos.
+6. Não declare suporte a captura direta por câmera, seleção de pastas ou provedores específicos sem implementação e testes.
 
 ---
 
 # 8. SEGURANÇA E PRIVACIDADE
 
-Toda implementação deve considerar segurança.
+Segurança não pode ser reduzida para facilitar uma implementação.
 
-### Regras obrigatórias
+## Regras obrigatórias
 
-1. Não desativar validação HTTPS.
-2. Não ignorar erros de certificados.
-3. Não habilitar tráfego HTTP indiscriminadamente.
-4. Não expor dados privados em logs.
-5. Não armazenar informações sensíveis sem necessidade.
-6. Validar URLs antes de processá-las.
-7. Evitar exposição desnecessária de interfaces JavaScript.
-8. Não adicionar permissões sem justificativa.
-9. Preservar o isolamento adequado do WebView.
-10. Não introduzir código remoto executável sem necessidade e avaliação de segurança.
+- Nunca ignorar erros de certificado TLS.
+- Nunca permitir navegação HTTP como fallback silencioso.
+- Preservar o modo HTTPS-only e a política de cleartext do aplicativo.
+- Validar esquemas, hosts, credenciais e destinos antes de navegar, baixar ou abrir intents.
+- Não expor interfaces JavaScript privilegiadas a páginas ou extensões de terceiros.
+- Não habilitar depuração remota em builds de produção.
+- Não registrar conteúdo de páginas, tokens, cookies, credenciais, cabeçalhos sensíveis ou dados pessoais.
+- Não conceder permissões sem gesto/contexto válido e consentimento.
+- Negar classes de permissões não suportadas explicitamente.
+- Revalidar a origem antes de concluir callbacks assíncronos de permissão.
+- Não armazenar dados sensíveis sem necessidade.
+- Não enfraquecer proteções Gecko para corrigir incompatibilidade de um site.
+- Não afirmar proteção total contra rastreamento.
 
-Qualquer alteração em configurações do WebView exige análise de segurança.
+## Permissões de sites
 
----
+Localização, câmera e microfone devem passar pelo fluxo de consentimento do Snav e pelas permissões Android correspondentes quando exigidas.
 
-# 9. FUNCIONALIDADES EXISTENTES
+- Solicitações simultâneas não podem substituir callbacks pendentes.
+- A origem deve ser conferida antes de concluir a solicitação.
+- Negação, cancelamento e encerramento devem concluir o callback de forma segura.
+- Permissões não suportadas devem continuar negadas.
+- Não confunda permissão Android global do aplicativo com permissão web por origem.
 
-Uma nova implementação não pode destruir funcionalidades anteriores.
+## Cookies, rastreamento e Do Not Track
 
-Antes de modificar qualquer componente, verificar se ele participa de:
+A política atual usa configurações de proteção contra rastreamento e isolamento de cookies do GeckoView, incluindo os ajustes presentes em `GeckoEngineController`. Não reintroduza controles específicos de WebView, como `CookieManager.setAcceptThirdPartyCookies`.
 
-- Pesquisa.
-- Navegação.
-- Histórico.
-- Downloads.
-- Menu.
-- Configurações.
-- Limpeza de dados.
-- Indicadores de segurança.
-- Barra de endereço.
-- Controles de navegação.
-- Diagnóstico e registros de erros.
+O Do Not Track é um sinal opcional e limitado aos fluxos em que o Snav anexa o cabeçalho. Sites podem ignorá-lo. Não o descreva como bloqueio de rastreamento.
 
-### Regra
+## Limpeza de dados
 
-Não remover funcionalidades, mesmo que pareçam desnecessárias, sem autorização.
+Use `StorageController` e as flags suportadas pelo GeckoView. Operações de limpeza podem exigir desanexar/fechar e reabrir a sessão para evitar recriação imediata de dados.
 
-Se uma funcionalidade apresentar problemas, corrigir sua implementação preservando seu propósito.
-
----
-
-# 10. COMPATIBILIDADE ANDROID
-
-Todas as implementações precisam respeitar o ambiente Android do projeto.
-
-Verificar:
-
-- Android SDK.
-- Versões mínimas suportadas.
-- Compatibilidade das APIs.
-- Permissões.
-- Ciclo de vida.
-- Teclado.
-- Orientação.
-- Gerenciamento de arquivos.
-- Comportamento do WebView.
-
-Não utilizar APIs incompatíveis com a configuração real do projeto.
+- Diferencie limpeza por host de limpeza global.
+- A limpeza por host não garante remover dados de todas as origens de terceiros incorporadas.
+- Não apresente limpeza por site como apagamento integral quando a API não oferece essa garantia.
+- Preserve o estado de erro e reanexe a sessão mesmo quando a operação falhar, conforme o controlador.
+- Não execute operações de armazenamento concorrentes se o controlador as serializar ou bloquear.
 
 ---
 
-# 11. GRADLE, COMPILAÇÃO E APK
+# 9. DOWNLOADS E CONTEÚDO EXTERNO
 
-Uma implementação não está concluída apenas porque o código foi escrito.
+Downloads devem usar os dados de resposta fornecidos pelo GeckoView e o fluxo nativo do Android já existente.
 
-### Regras obrigatórias
+1. Exija confirmação explícita antes de iniciar.
+2. Valide esquema HTTPS, host, redirecionamentos e nome do arquivo.
+3. Não execute arquivos baixados automaticamente.
+4. Feche o corpo de respostas quando o fluxo for cancelado ou não puder ser processado.
+5. Não bloqueie a Main Thread com operações de rede ou disco.
+6. Trate cancelamento, falha, falta de espaço e encerramento da Activity.
+7. Não prometa continuidade após morte do processo: o executor atual pertence à Activity e precisa ser avaliado antes de qualquer afirmação de resiliência.
+8. Não registre URLs completas quando puderem conter tokens ou dados privados.
 
-1. Verificar as configurações Gradle existentes.
-2. Preservar as configurações de assinatura.
-3. Não remover configurações de keystore.
-4. Não substituir secrets existentes.
-5. Não expor senhas ou chaves privadas.
-6. Não modificar configurações de build sem justificativa.
-7. Executar os testes disponíveis.
-8. Executar a compilação correspondente.
-9. Verificar o resultado da compilação.
-10. Confirmar a assinatura do APK quando se tratar de uma build de release.
+Para esquemas externos, abra somente destinos permitidos e após ação do usuário. Nunca encaminhe URLs arbitrárias a intents sem validação.
 
-### Comandos de referência
+---
+
+# 10. DESEMPENHO E RECURSOS
+
+GeckoView é um motor de navegador completo e tem custos de memória e inicialização próprios. Não estime desempenho apenas pelo tamanho do AAR ou por uma build bem-sucedida.
+
+Regras:
+
+- Evite trabalho de rede, disco, parsing pesado ou processamento de arquivos na Main Thread.
+- Use executores e threads com ciclo de vida definido.
+- Evite múltiplas cópias de arquivos e buffers sem necessidade.
+- Feche streams, respostas, sessões e recursos nativos.
+- Evite delegates duplicados e listeners que retenham Activities.
+- Limite caches e tarefas em segundo plano.
+- Não mantenha sessões ativas sem necessidade.
+- Meça memória, tempo de inicialização, consumo em repouso e comportamento com muitas abas em dispositivos representativos.
+- Não sacrifique segurança para obter ganhos artificiais.
+
+---
+
+# 11. ANDROID E DEPENDÊNCIAS
+
+Consulte sempre `app/build.gradle` e os arquivos Gradle reais da branch antes de alterar versões.
+
+Configuração observada nesta linha de desenvolvimento:
+
+| Configuração | Valor |
+|---|---|
+| Android mínimo | API 26 |
+| Compile SDK | API 37 |
+| Target SDK | API 35 |
+| Java | 17 |
+| GeckoView | 160.0.20261116130455 |
+| Interface | Android Views/XML e Compose Material 3 em integração específica |
+
+Esses valores podem mudar. O arquivo Gradle é a fonte de verdade.
+
+Regras:
+
+1. Não presumir Kotlin como linguagem principal da aplicação.
+2. Não migrar a interface inteira para Compose sem solicitação e análise.
+3. Não alterar minSdk, targetSdk, AGP, Gradle ou GeckoView sem avaliar impacto e CI.
+4. Não adicionar dependências redundantes.
+5. Não adicionar permissões ao manifesto sem necessidade comprovada.
+6. Não alterar assinatura, keystore ou secrets.
+7. Não introduzir APIs incompatíveis com minSdk sem proteção adequada.
+8. Preserve os ABIs e as propriedades de build existentes, salvo quando a tarefa exigir mudança.
+
+---
+
+# 12. DOCUMENTAÇÃO E FONTES DE VERDADE
+
+Antes de alterar um subsistema, leia a documentação relacionada e compare com o código atual.
+
+Referências do projeto:
+
+- `README.md`: arquitetura, requisitos e comandos atuais.
+- `docs/REVISAO_GECKOVIEW_E_INTERFACE.md`: limitações e roteiro de validação da integração atual.
+- `docs/GECKOVIEW_MIGRATION.md`: histórico da migração; resultados históricos não validam commits posteriores.
+- `docs/EXTENSOES_GECKOVIEW.md`: implementação e limites de WebExtensions.
+- `docs/PRIVACY_SECURITY_POLICY.md`: requisitos de segurança, mas contém trechos históricos escritos para WebView.
+
+**Atenção à documentação legada:** qualquer trecho que descreva Android WebView, `WebViewClient`, `CookieManager`, `WebStorage` ou limitações específicas de WebView não descreve automaticamente o comportamento atual. Não copie essas instruções para código GeckoView. Corrija a documentação obsoleta quando a tarefa incluir documentação; não esconda divergências.
+
+Use a documentação oficial da versão GeckoView efetivamente utilizada para confirmar assinatura, disponibilidade e semântica das APIs. Não baseie decisões apenas em exemplos de outra versão.
+
+---
+
+# 13. PROCESSO OBRIGATÓRIO DE DESENVOLVIMENTO
+
+Siga esta sequência em toda alteração:
+
+## 1 — Inspeção
+
+- Confirme repositório, branch e estado atual.
+- Leia o arquivo que será alterado.
+- Leia os componentes relacionados e suas dependências.
+- Consulte as instruções aplicáveis em `AGENTS.md` e documentação do subsistema.
+- Verifique se há mudanças pré-existentes que não podem ser sobrescritas.
+
+## 2 — Diagnóstico
+
+- Identifique o problema real.
+- Diferencie bug, limitação da API, ausência de integração e falta de teste.
+- Não presuma que uma funcionalidade está ausente ou completa sem evidência.
+
+## 3 — Planejamento
+
+- Defina a menor alteração segura.
+- Identifique riscos de regressão, ciclo de vida, sessão, segurança e compatibilidade.
+- Não amplie o escopo com refatorações não solicitadas.
+
+## 4 — Implementação
+
+- Modifique somente os arquivos necessários.
+- Preserve APIs e comportamentos utilizados por outros componentes.
+- Não substitua arquivos inteiros quando uma mudança localizada for suficiente.
+- Não adicione dependências ou permissões sem justificativa.
+
+## 5 — Verificação
+
+- Revise o diff.
+- Execute testes relevantes.
+- Verifique regressões de navegação, abas, permissões, prompts, downloads e extensões conforme o escopo.
+- Faça build debug e, quando pertinente, release/R8.
+- Não confunda compilação com validação funcional.
+
+## 6 — Relatório
+
+Informe arquivos alterados, decisões, testes executados, resultados reais, limitações e pendências. Nunca invente testes ou resultados.
+
+---
+
+# 14. BUILD E TESTES
+
+O repositório pode não conter Gradle Wrapper. Confira a disponibilidade de Gradle, JDK e Android SDK no ambiente antes de executar comandos.
+
+Comandos documentados no README atual:
 
 ```bash
-./gradlew test
-./gradlew assembleDebug
-./gradlew assembleRelease
+gradle :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Os comandos devem ser adaptados às tarefas realmente existentes no projeto.
+Para testes instrumentados em emulador x86_64:
 
-Nunca afirmar que o APK foi gerado ou assinado sem verificar os resultados.
+```bash
+gradle -PsnavEmulatorTest=true :app:connectedDebugAndroidTest
+```
+
+Para release:
+
+```bash
+gradle :app:assembleRelease
+```
+
+Para AAB:
+
+```bash
+gradle -PsnavBuildBundle=true :app:bundleRelease
+```
+
+Adapte os comandos apenas após verificar as tarefas reais. Não afirme que uma tarefa foi executada quando o ambiente não possui as ferramentas ou o dispositivo necessários.
+
+## Cobertura mínima conforme a alteração
+
+- Pesquisa, endereço, teclado e navegação HTTPS.
+- Voltar, avançar, recarregar, parar e erros de carregamento.
+- Alternância e restauração de abas.
+- Rotação, recriação da Activity e retorno do segundo plano.
+- Permissões por origem, negação e callbacks concorrentes.
+- Prompts JavaScript, beforeunload e formulários.
+- Upload de arquivos e cancelamento.
+- Downloads, redirecionamentos e falhas.
+- Instalação, atualização, remoção e permissões de extensões.
+- Limpeza de dados por host e global.
+- Crash do processo de conteúdo e comportamento de recuperação.
+- Build release com R8 e assinatura quando aplicável.
+
+Testes instrumentados devem rodar em instalação isolada quando instalarem ou removerem extensões de teste.
+
+Uma build bem-sucedida comprova compilação e empacotamento, não compatibilidade com sites, segurança completa, desempenho ou estabilidade em dispositivos físicos.
 
 ---
 
-# 12. CONTROLE DE ALTERAÇÕES
+# 15. CONTROLE DE ALTERAÇÕES
 
-Toda alteração deve ser específica e justificada.
+Não faça:
 
-### Proibido
-
-- Refatoração global não solicitada.
-- Mudanças visuais não autorizadas.
 - Migração de arquitetura não solicitada.
-- Remoção de funcionalidades.
-- Substituição de bibliotecas sem justificativa.
+- Reintrodução de WebView como motor.
+- Refatoração global sem necessidade.
+- Mudanças visuais arbitrárias.
+- Remoção de funcionalidades sem análise.
+- Redução de proteções de segurança para contornar bugs.
+- Atualizações de dependências sem validação.
 - Alterações em arquivos não relacionados.
-- Modificação de recursos visuais por preferência pessoal.
 
-### Obrigatório
+Faça:
 
-- Preservar código funcional.
-- Evitar duplicações.
-- Manter compatibilidade.
-- Identificar riscos.
-- Documentar mudanças importantes.
-- Informar arquivos modificados.
-- Informar testes executados.
-- Informar problemas ainda existentes.
+- Preserve o comportamento funcional.
+- Identifique e corrija a causa raiz.
+- Mantenha consistência com a arquitetura GeckoView.
+- Documente limitações reais.
+- Mantenha o diff focado.
+- Informe os arquivos modificados e os testes realizados.
 
-Se uma solicitação exigir uma alteração que possa comprometer a estabilidade, explicar o risco antes de prosseguir.
+Se uma solicitação exigir uma decisão arquitetural que altere isolamento, armazenamento ou segurança, explique o impacto e apresente a alternativa tecnicamente segura antes de aplicar uma mudança irreversível.
 
 ---
 
-# 13. REGRAS DE EXPERIÊNCIA VISUAL
+# 16. RELATÓRIO FINAL OBRIGATÓRIO
 
-Toda nova tela ou componente deve responder positivamente às seguintes perguntas:
+Ao concluir uma tarefa, informe:
 
-1. Mantém a identidade do Snav?
-2. Segue o minimalismo?
-3. Respeita as cores existentes?
-4. Utiliza os ícones corretos?
-5. Segue os princípios MD3?
-6. Evita poluição visual?
-7. Utiliza o espaço adequadamente?
-8. Funciona em telas menores?
-9. É acessível?
-10. Não prejudica o desempenho?
-
-Se alguma resposta for negativa, revisar a implementação.
-
----
-
-# 14. PROCESSO OBRIGATÓRIO DE DESENVOLVIMENTO
-
-Toda IA deve seguir esta sequência:
-
-**ETAPA 1 — INSPEÇÃO**
-
-Analisar branch, arquivos, arquitetura e dependências.
-
-**ETAPA 2 — DIAGNÓSTICO**
-
-Identificar o problema real e os componentes envolvidos.
-
-**ETAPA 3 — PLANEJAMENTO**
-
-Definir a menor alteração capaz de resolver o problema.
-
-**ETAPA 4 — IMPLEMENTAÇÃO**
-
-Modificar somente os arquivos necessários.
-
-**ETAPA 5 — VERIFICAÇÃO**
-
-Verificar erros, compatibilidade, segurança e funcionalidades anteriores.
-
-**ETAPA 6 — COMPILAÇÃO**
-
-Executar os testes e a build disponíveis.
-
-**ETAPA 7 — RELATÓRIO**
-
-Apresentar o que foi alterado, os resultados e o que ainda falta.
-
-Não pular etapas para acelerar artificialmente o desenvolvimento.
-
----
-
-# 15. RELATÓRIO FINAL OBRIGATÓRIO
-
-Ao concluir qualquer tarefa, apresentar:
-
-**Alterações realizadas**
+**Alterações**
 - Arquivos modificados.
-- Funcionalidades implementadas.
-- Correções realizadas.
+- Comportamentos implementados ou corrigidos.
+- Decisões técnicas relevantes.
 
-**Interface**
-- Confirmar preservação das cores.
-- Confirmar preservação dos ícones.
-- Confirmar consistência MD3.
-- Confirmar ausência de elementos desnecessários.
+**Arquitetura**
+- Como a alteração se integra ao GeckoView.
+- Impactos em runtime, sessão, abas, delegates e ciclo de vida.
 
-**Desempenho e segurança**
-- Informar impactos identificados.
+**Segurança e desempenho**
+- Proteções preservadas.
+- Riscos ou impactos identificados.
+- Limitações conhecidas.
 
-**Testes**
-- Testes executados.
-- Resultado da compilação.
-- Resultado da assinatura, quando aplicável.
+**Verificação**
+- Testes executados e seus resultados.
+- Build executada e resultado.
+- Dispositivo/emulador utilizado, quando aplicável.
+- Assinatura confirmada somente quando realmente verificada.
 
 **Pendências**
-- Problemas não resolvidos.
-- Testes que não puderam ser realizados.
+- Testes não executados.
+- Limitações ainda existentes.
+- Riscos que exigem acompanhamento.
 
-Nunca inventar resultados.
-
----
-
-# 16. REGRA SUPREMA — PRESERVAÇÃO DO SNAV
-
-O Snav não deve perder sua identidade a cada atualização.
-
-Nenhuma inteligência artificial está autorizada a:
-
-- Transformar seu visual em outro produto.
-- Substituir seus ícones originais arbitrariamente.
-- Modificar sua paleta sem autorização.
-- Adicionar componentes exagerados.
-- Reescrever sua arquitetura sem necessidade.
-- Sacrificar desempenho por estética.
-- Sacrificar segurança por conveniência.
-- Remover funcionalidades existentes.
-
-A prioridade é construir um navegador Android:
-
-- Minimalista.
-- Moderno.
-- Leve.
-- Rápido.
-- Seguro.
-- Estável.
-- Consistente.
-- Fácil de manter.
-
-**O Snav deve evoluir sem perder sua identidade.**
-
-Estas regras são obrigatórias para todos os agentes de inteligência artificial que trabalham neste repositório.
-
+Nunca invente resultados, cobertura ou compatibilidade.
 
 ---
 
-# 17. POLÍTICA OBRIGATÓRIA DE PRIVACIDADE E PERMISSÕES
+# 17. REGRA FINAL — EVOLUIR SEM REGREDIR
 
-A especificação normativa completa está em `docs/PRIVACY_SECURITY_POLICY.md`. Toda alteração relacionada a cookies, rastreamento, HTTPS, permissões, armazenamento, notificações ou downloads deve respeitá-la.
+O Snav deve evoluir como navegador Android baseado em GeckoView, mantendo sua identidade visual e seus princípios de simplicidade.
 
-## Padrões obrigatórios para novas implementações
+Prioridades:
 
-- Cookies first-party permitidos; cookies de terceiros bloqueados por padrão, com controle separado.
-- Notificações bloqueadas por padrão e ativadas manualmente por origem.
-- Downloads exigem confirmação explícita e controle do usuário.
-- Localização, câmera e microfone negados por padrão; solicitar somente no contexto de uso e após consentimento.
-- Erros de certificado TLS sempre cancelam a navegação; nunca oferecer bypass inseguro.
-- HTTP deve ser bloqueado: oferecer somente tentativa de upgrade para HTTPS; não habilitar cleartext global.
-- Do Not Track é opcional e deve explicar que sites podem ignorar o sinal.
-- Limpeza por site deve remover somente os dados da origem selecionada; nunca simular limpeza por site usando limpeza global. Documentar limites das APIs WebView.
-- Não afirmar bloqueio total de rastreadores nem remoção completa de dados sem cobertura comprovada.
+1. Segurança e privacidade.
+2. Estabilidade e integridade dos dados.
+3. Correção funcional.
+4. Desempenho medido.
+5. Acessibilidade e clareza.
+6. Manutenibilidade.
+7. Consistência visual.
 
-## Interface de privacidade — MD3
+**GeckoView é a arquitetura atual. WebView é legado e não deve orientar novas implementações.**
 
-- Lista enxuta com Material Symbols Rounded oficiais.
-- Texto secundário que descreva o efeito real da configuração.
-- Badge discreto para Permitido, Bloqueado ou Perguntar.
-- Switch MD3 para preferências persistentes binárias.
-- Dialog MD3 para solicitações de permissão, avisos HTTP e confirmações destrutivas.
-- Snackbar para feedback breve.
-- Preservar cores, ícones e minimalismo existentes do Snav.
-
-## Regra de evidência
-
-Documentação, roadmap e interface não provam implementação. Marcar qualquer item como concluído somente após inspecionar o código, executar testes relevantes e registrar limitações. Se uma API WebView não oferecer controle por origem ou cobertura universal, explicar a limitação em vez de prometer comportamento inexistente.
+Estas regras são obrigatórias para agentes de IA e contribuidores deste repositório.
