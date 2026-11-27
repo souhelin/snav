@@ -9,6 +9,16 @@ on:
       - feature/unsplash-wallpaper-pull-refresh
       - feature/geckoview-engine
       - feature/md3-browser-management
+    paths-ignore:
+      - '**/*.md'
+      - 'README*'
+      - 'docs/**'
+      - 'LICENSE*'
+      - 'NOTICE*'
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
