@@ -1,29 +1,11 @@
 name: Android PR verification
 on:
   pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'README*'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'NOTICE*'
   push:
     branches:
       - 'arena/**'
-    paths-ignore:
-      - '**/*.md'
-      - 'README*'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'NOTICE*'
-
-concurrency:
-  group: android-pr-verify-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-
 jobs:
   verify:
     runs-on: ubuntu-latest
