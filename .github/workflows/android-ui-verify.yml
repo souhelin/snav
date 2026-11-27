@@ -5,17 +5,7 @@ on:
     branches:
       - feature/md3-full-ui-redesign
       - feature/privacy-protection-and-policies
-    paths-ignore:
-      - '**/*.md'
-      - 'README*'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'NOTICE*'
   workflow_dispatch:
-
-concurrency:
-  group: android-ui-verify-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
