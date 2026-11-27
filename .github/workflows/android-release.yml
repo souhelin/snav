@@ -9,16 +9,6 @@ on:
       - feature/unsplash-wallpaper-pull-refresh
       - feature/geckoview-engine
       - feature/md3-browser-management
-    paths-ignore:
-      - '**/*.md'
-      - 'README*'
-      - 'docs/**'
-      - 'LICENSE*'
-      - 'NOTICE*'
-
-concurrency:
-  group: android-release-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -59,6 +49,7 @@ jobs:
             fi
           done
 
+          # Use a fixed temporary filename; no separate filename secret is needed.
           KEYSTORE_PATH="$RUNNER_TEMP/snav-release-v2.jks"
           if ! printf '%s' "$NEW_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"; then
             echo "::error::NEW_KEYSTORE_BASE64 is not valid base64."
