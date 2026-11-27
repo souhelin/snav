@@ -127,6 +127,4 @@ Sem todas as variáveis, o projeto pode gerar uma release não assinada para val
 
 Antes de contribuir, leia [AGENTS.md](AGENTS.md) e [WRITING_STYLE.md](WRITING_STYLE.md). Consulte também o [histórico de alterações](CHANGELOG.md). Resultados registrados no changelog se referem às versões e aos testes indicados em cada entrada.
 
-## Licença
-
 O código do Snav está sob a [licença MIT](LICENSE). A documentação dos recursos e as dependências podem ter licenças próprias.
