@@ -173,7 +173,7 @@ Qualquer alteração deve preservar sua função, identidade e organização.
 
 ### Regras
 
-1. Preservar a integração com o WebView.
+1. Preservar a integração com o GeckoView.
 2. Não duplicar funcionalidades existentes.
 3. Não adicionar controles desnecessários.
 4. Manter ícones consistentes.
@@ -200,7 +200,9 @@ A IA deve analisar a implementação real antes de escrever qualquer código.
 - Java.
 - XML para layouts.
 - Activity principal em MainActivity.java.
-- WebView como mecanismo de navegação.
+- GeckoView como mecanismo de navegação.
+- GeckoRuntime compartilhado e gerenciamento de GeckoSession por meio de GeckoEngineController.
+- Gerenciamento de extensões por meio de ExtensionManager e WebExtensionController.
 - Recursos visuais em res.
 - Configurações de tema em values.
 - Recursos de interface em drawable.
@@ -258,16 +260,17 @@ Não implementar animações complexas quando uma transição simples resolve o 
 
 Não utilizar bibliotecas pesadas para reproduzir componentes que podem ser implementados com os recursos já existentes.
 
-### WebView
+### GeckoView
 
 Preservar:
 
 - Estabilidade.
 - Gerenciamento correto de navegação.
-- Ciclo de vida.
-- Tratamento de erros.
+- Ciclo de vida do GeckoRuntime e das GeckoSessions.
+- Tratamento de erros e falhas do processo de conteúdo.
 - Configurações necessárias para funcionamento dos sites.
 - Comportamento correto do teclado.
+- Integração dos delegates e permissões do GeckoView.
 
 Não desativar recursos de segurança para melhorar artificialmente a velocidade.
 
@@ -287,10 +290,10 @@ Toda implementação deve considerar segurança.
 6. Validar URLs antes de processá-las.
 7. Evitar exposição desnecessária de interfaces JavaScript.
 8. Não adicionar permissões sem justificativa.
-9. Preservar o isolamento adequado do WebView.
+9. Preservar as políticas de isolamento, cookies e armazenamento do GeckoView.
 10. Não introduzir código remoto executável sem necessidade e avaliação de segurança.
 
-Qualquer alteração em configurações do WebView exige análise de segurança.
+Qualquer alteração em configurações do GeckoView exige análise de segurança.
 
 ---
 
@@ -334,7 +337,7 @@ Verificar:
 - Teclado.
 - Orientação.
 - Gerenciamento de arquivos.
-- Comportamento do WebView.
+- Comportamento do GeckoView.
 
 Não utilizar APIs incompatíveis com a configuração real do projeto.
 
@@ -532,7 +535,7 @@ A especificação normativa completa está em `docs/PRIVACY_SECURITY_POLICY.md`.
 - Erros de certificado TLS sempre cancelam a navegação; nunca oferecer bypass inseguro.
 - HTTP deve ser bloqueado: oferecer somente tentativa de upgrade para HTTPS; não habilitar cleartext global.
 - Do Not Track é opcional e deve explicar que sites podem ignorar o sinal.
-- Limpeza por site deve remover somente os dados da origem selecionada; nunca simular limpeza por site usando limpeza global. Documentar limites das APIs WebView.
+- Limpeza por site deve remover somente os dados da origem selecionada; nunca simular limpeza por site usando limpeza global. Documentar limites das APIs GeckoView.
 - Não afirmar bloqueio total de rastreadores nem remoção completa de dados sem cobertura comprovada.
 
 ## Interface de privacidade — MD3
@@ -547,4 +550,4 @@ A especificação normativa completa está em `docs/PRIVACY_SECURITY_POLICY.md`.
 
 ## Regra de evidência
 
-Documentação, roadmap e interface não provam implementação. Marcar qualquer item como concluído somente após inspecionar o código, executar testes relevantes e registrar limitações. Se uma API WebView não oferecer controle por origem ou cobertura universal, explicar a limitação em vez de prometer comportamento inexistente.
+Documentação, roadmap e interface não provam implementação. Marcar qualquer item como concluído somente após inspecionar o código, executar testes relevantes e registrar limitações. Se uma API GeckoView não oferecer controle por origem ou cobertura universal, explicar a limitação em vez de prometer comportamento inexistente.

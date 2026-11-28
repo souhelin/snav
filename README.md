@@ -1,82 +1,140 @@
 # Snav Browser
 
-O Snav Browser é um navegador para Android. O projeto prioriza uma interface simples e controles de navegação, privacidade e dados acessíveis no aplicativo.
+Um navegador para Android com foco em navegação simples, privacidade e uma interface própria. O Snav usa **GeckoView**, componente da Mozilla para exibir conteúdo da web.
 
 ![Logo do Snav](image/logo.png)
 
-O navegador usa o GeckoView, componente da Mozilla para exibir conteúdo da web. Esta documentação descreve o código do repositório; ela não garante que todos os recursos estejam disponíveis em uma versão distribuída do aplicativo.
 
-## Ícone do aplicativo
+## Aviso sobre o desenvolvimento
 
-No Android 13 ou posterior, o ícone pode acompanhar as cores do tema do dispositivo quando a opção de ícones temáticos está ativada e o launcher oferece suporte. Caso contrário, o Snav usa o ícone colorido. Consulte [os detalhes do ícone temático](docs/THEMED_APP_ICON.md).
+O Snav ainda está em desenvolvimento. O projeto não está concluído e algumas partes podem estar incompletas, mudar ou apresentar problemas. Por isso, podem ocorrer erros e comportamentos inesperados durante o uso.
 
-## Aparência e feedback
+Este projeto começou a partir de uma versão que desenvolvi há alguns anos e que estou retomando agora. Atualmente, uso ferramentas de inteligência artificial como auxílio no desenvolvimento. Ainda reviso as alterações e verifico se fazem sentido e se estão corretas, mas isso não garante que tudo esteja livre de erros.
 
-O Snav acompanha o modo claro ou escuro do dispositivo. Em dispositivos
-compatíveis, **Cores dinâmicas** usa a paleta do sistema; a preferência pode
-ser desativada para usar as cores do Snav. Em versões sem suporte, a paleta do
-aplicativo é usada automaticamente. Mensagens breves usam Snackbar, incluindo
-uma opção de desfazer ao desafixar uma página. Veja
-[cores e mensagens](docs/MATERIAL_COLOR_E_SNACKBAR.md).
+A manutenção é feita somente por mim, como hobby e no meu tempo livre. Por isso, a frequência das atualizações pode variar: em alguns períodos haverá mudanças frequentes; em outros, elas podem demorar ou não acontecer, inclusive por limitações de tempo e recursos.
+
+
+> A documentação descreve o código desta branch. Isso não significa que todos os recursos estejam disponíveis em uma versão distribuída do aplicativo.
+
+## Visão geral
+
+O Snav mantém uma interface enxuta e controles acessíveis no próprio aplicativo. A organização visual segue os princípios do **Material Design 3 tradicional**, adaptados à identidade do navegador:
+
+- Hierarquia clara de títulos e informações.
+- Cores organizadas por funções semânticas, com suporte aos temas claro e escuro.
+- Tipografia legível e níveis de ênfase consistentes.
+- Superfícies e cantos moderados, sem decoração desnecessária.
+- Estados de interação perceptíveis e feedback breve.
+- Componentes usados quando ajudam na navegação, sem ocupar espaço à toa.
+
+A aparência acompanha o tema do dispositivo. Em aparelhos compatíveis, **Cores dinâmicas** pode usar a paleta do sistema; a opção também pode ser desativada para manter as cores do Snav. Quando o recurso não está disponível, o aplicativo usa sua própria paleta. As mensagens breves usam Snackbar, incluindo a opção de desfazer ao desafixar uma página.
+
+Veja [cores e mensagens](docs/MATERIAL_COLOR_E_SNACKBAR.md) para os detalhes da implementação visual.
 
 ## Navegação
 
 - Pesquise ou abra endereços pela tela de pesquisa.
-- Use as abas, os favoritos, o histórico e os downloads pelo menu. As abas compartilham uma sessão Gecko; isso limita o isolamento e a integração com extensões.
-- A tela inicial mostra até quatro atalhos fixados e quatro páginas recentes. Os atalhos têm opções de edição e gerenciamento.
-- Arraste a página para baixo a partir do topo para atualizá-la. O gesto depende da resposta do Gecko e pode ser rejeitado para evitar atualizações acidentais. No emulador, a atualização por arrasto não funcionou em uma página curta sem rolagem; use a opção de recarregar do menu nesse caso. Consulte [a documentação de atualização por arrasto](docs/PULL_TO_REFRESH.md).
-- Acesse informações do site, modo de leitura e tradução quando disponíveis. O funcionamento depende da página e dos serviços envolvidos.
+- Acesse abas, favoritos, histórico e downloads pelo menu. As abas compartilham uma sessão Gecko, o que limita o isolamento entre elas e a integração com extensões.
+- A tela inicial exibe até quatro atalhos fixados e quatro páginas recentes. Os atalhos podem ser editados e gerenciados.
+- Puxe a página para baixo a partir do topo para tentar atualizá-la. O gesto depende da resposta do Gecko e pode ser rejeitado para evitar atualizações acidentais. Em páginas curtas, sem rolagem, o gesto não funcionou no emulador testado; nesse caso, use a opção de recarregar no menu. Consulte [atualização por arrasto](docs/PULL_TO_REFRESH.md).
+- Consulte informações do site e use o modo de leitura ou a tradução quando estiverem disponíveis. O resultado depende da página e dos serviços envolvidos.
+
+As correções de interface, permissões e lacunas conhecidas da integração estão registradas na [revisão do GeckoView](docs/REVISAO_GECKOVIEW_E_INTERFACE.md).
 
 ## Extensões
 
-O gerenciador em **Ferramentas > Extensões** oferece pesquisa no catálogo da Mozilla e instalação de arquivos XPI por HTTPS ou pelo seletor de arquivos. O download e a instalação exigem confirmação, e o GeckoView verifica o pacote e sua assinatura. A tela também oferece controles de ativação, desativação, atualização, remoção e revogação de permissões opcionais.
+Em **Ferramentas > Extensões**, o gerenciador permite pesquisar no catálogo da Mozilla e instalar arquivos XPI por HTTPS ou pelo seletor de arquivos. O download e a instalação pedem confirmação. O GeckoView verifica o pacote e sua assinatura.
 
-A instalação não garante compatibilidade. A integração de abas e menus de contexto de extensões é limitada, e não há canal genérico de mensagens nativas para extensões de terceiros. A compatibilidade de cada extensão e de suas APIs depende do GeckoView e das capacidades implementadas pelo Snav. Consulte [a documentação de extensões](docs/EXTENSOES_GECKOVIEW.md) para detalhes, limites e orientações de desenvolvimento.
+A tela também oferece controles para ativar, desativar, atualizar e remover extensões, além de revogar permissões opcionais.
+
+A instalação de uma extensão não garante compatibilidade. A integração com abas e menus de contexto é limitada, e o Snav não oferece um canal genérico de mensagens nativas para extensões de terceiros. O suporte a cada extensão e às suas APIs depende do GeckoView e do que o aplicativo implementa.
+
+Consulte [extensões no GeckoView](docs/EXTENSOES_GECKOVIEW.md) para conhecer os detalhes, limites e orientações de desenvolvimento.
 
 ## Privacidade e segurança
 
-O Snav usa as configurações de proteção contra rastreamento do GeckoView e isolamento dinâmico de cookies de terceiros. A navegação por HTTP é bloqueada e o aplicativo oferece uma tentativa de acesso por HTTPS. O aplicativo não ignora erros de certificados.
+O Snav usa as configurações de proteção contra rastreamento do GeckoView e o isolamento dinâmico de cookies de terceiros. A navegação por HTTP é bloqueada; quando possível, o aplicativo tenta acessar a versão HTTPS do endereço. Erros de certificado não são ignorados.
 
-Downloads exigem confirmação. As solicitações de localização, câmera e microfone passam por confirmação no aplicativo e pelas permissões do Android quando necessário. A limpeza de dados por site usa a API do GeckoView e não garante a remoção de dados de origens de terceiros. A opção Do Not Track se aplica às navegações iniciadas pelo Snav que usam esse cabeçalho; sites podem ignorá-lo.
+Outros controles:
 
-Essas medidas não impedem todo rastreamento nem eliminam todos os riscos. A [política de privacidade e segurança](docs/PRIVACY_SECURITY_POLICY.md) contém requisitos e limitações; partes escritas para o antigo WebView devem ser interpretadas junto à [documentação da migração para GeckoView](docs/GECKOVIEW_MIGRATION.md).
+- Downloads exigem confirmação antes de iniciar.
+- Solicitações de localização, câmera e microfone passam pela confirmação no aplicativo e pelas permissões do Android, quando necessárias.
+- A limpeza de dados por site usa a API do GeckoView. Ela não garante a remoção de dados pertencentes a origens de terceiros.
+- Do Not Track é enviado nas navegações iniciadas pelo Snav que usam esse cabeçalho. Os sites podem ignorar o sinal.
+
+Essas medidas não bloqueiam todo rastreamento nem eliminam todos os riscos. A [política de privacidade e segurança](docs/PRIVACY_SECURITY_POLICY.md) descreve os requisitos e as limitações. Trechos escritos para o antigo WebView devem ser lidos junto à [documentação da migração para GeckoView](docs/GECKOVIEW_MIGRATION.md).
+
+## Ícone do aplicativo
+
+No Android 13 ou posterior, o ícone pode acompanhar as cores do tema do dispositivo quando os ícones temáticos estão ativados e o launcher oferece suporte. Nos demais casos, o Snav usa o ícone colorido.
+
+Veja [detalhes do ícone temático](docs/THEMED_APP_ICON.md).
 
 ## Desenvolvimento
 
-| Configuração | Valor |
+| Item | Configuração |
 |---|---|
+| Plataforma | Android |
 | Android mínimo | API 26 (Android 8.0) |
 | SDK de compilação | API 37 |
 | SDK de destino | API 35 |
-| Java | 17 |
-| Android Gradle Plugin / Gradle | 9.1.1 / 9.3.1 |
+| Linguagem principal | Java 17 |
+| Interface | Android Views/XML e Compose Material 3 na atualização por arrasto |
+| Android Gradle Plugin | 9.1.1 |
+| Gradle | 9.3.1 |
 | GeckoView | 160.0.20261116130455 |
-| Identificador do aplicativo | `io.github.snavprojects.browser` |
-| Interface | Android Views/XML e Compose Material 3 para atualização por arrasto |
+| Identificador do aplicativo | `io.github.souhelin.snav` |
 | ABIs de distribuição | ARM64 e ARMv7 |
 
-A mudança do identificador faz o Android tratar esta versão como um aplicativo separado da versão anterior. Ela não atualiza a instalação antiga e não transfere automaticamente dados, extensões ou permissões. A publicação também exige um cadastro correspondente na loja e a configuração adequada de assinatura.
+A mudança do identificador faz o Android tratar esta versão como um aplicativo separado da versão anterior. Ela não atualiza a instalação antiga nem transfere automaticamente dados, extensões ou permissões. A publicação também exige um cadastro correspondente na loja e uma configuração de assinatura adequada.
 
-O repositório não inclui Gradle Wrapper. Instale o Gradle 9.3.1, o JDK 17, o SDK Android 37 e o Build Tools 36.0.0 antes de executar:
+### Ambiente
+
+O repositório não inclui Gradle Wrapper. Antes de compilar, instale:
+
+- JDK 17.
+- Gradle 9.3.1.
+- Android SDK 37.
+- Android Build Tools 36.0.0.
+
+### Build e testes
+
+Para executar os testes unitários e gerar uma build de depuração:
 
 ```bash
 gradle :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Para executar os testes instrumentados em um emulador x86_64 conectado, use:
+Para executar os testes instrumentados em um emulador x86_64 conectado:
 
 ```bash
 gradle -PsnavEmulatorTest=true :app:connectedDebugAndroidTest
 ```
 
-A propriedade de teste seleciona x86_64 para o emulador; as compilações normais mantêm as ABIs de distribuição. Execute os testes instrumentados em uma instalação isolada: os testes de extensões instalam e removem pacotes de teste. O workflow [Android PR verification](.github/workflows/android-pr-verify.yml) executa build, testes unitários e testes em emulador. Testes em emulador não substituem a validação em dispositivos físicos.
+A propriedade seleciona x86_64 para o emulador. As compilações normais continuam usando as ABIs de distribuição. Execute os testes instrumentados em uma instalação isolada: os testes de extensões instalam e removem pacotes de teste.
 
-Para gerar um Android App Bundle (AAB) com as ABIs de distribuição, use `gradle -PsnavBuildBundle=true :app:bundleRelease`. A propriedade separa os arquivos intermediários do AAB dos APKs por arquitetura.
+O workflow [Android PR verification](.github/workflows/android-pr-verify.yml) executa build, testes unitários e testes em emulador. Os testes no emulador não substituem a validação em dispositivos físicos.
 
-Para gerar uma release assinada, configure `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD` no ambiente e execute `gradle :app:assembleRelease`. Sem todas as variáveis, o projeto pode gerar uma release não assinada para validar o build. Não compartilhe chaves ou senhas. O [workflow de release](.github/workflows/android-release.yml) descreve a configuração de CI, quando disponível.
+### Release
 
-Antes de contribuir, leia [as regras de desenvolvimento](AGENTS.md) e [o padrão de escrita](WRITING_STYLE.md). Consulte também o [histórico de alterações](CHANGELOG.md), observando que resultados históricos se referem às versões e aos testes indicados em cada registro.
+Para gerar um Android App Bundle (AAB) com as ABIs de distribuição:
 
-## Licença
+```bash
+gradle -PsnavBuildBundle=true :app:bundleRelease
+```
 
-O código do Snav está sob a [licença MIT](LICENSE). Consulte a documentação dos recursos e dependências para suas respectivas licenças.
+Essa propriedade mantém os arquivos intermediários do AAB separados dos APKs por arquitetura.
+
+Para gerar uma release assinada, configure as variáveis de ambiente `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD`, e execute:
+
+```bash
+gradle :app:assembleRelease
+```
+
+Sem todas as variáveis, o projeto pode gerar uma release não assinada para validar o build. Não compartilhe chaves ou senhas. O [workflow de release](.github/workflows/android-release.yml) descreve a configuração de CI, quando disponível.
+
+## Documentação do projeto
+
+Antes de contribuir, leia [AGENTS.md](AGENTS.md) e [WRITING_STYLE.md](WRITING_STYLE.md). Consulte também o [histórico de alterações](CHANGELOG.md). Resultados registrados no changelog se referem às versões e aos testes indicados em cada entrada.
+
+O código do Snav está sob a [licença MIT](LICENSE). A documentação dos recursos e as dependências podem ter licenças próprias.

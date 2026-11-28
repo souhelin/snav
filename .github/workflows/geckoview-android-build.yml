@@ -5,11 +5,27 @@ on:
     branches:
       - feature/geckoview-engine
       - feature/md3-browser-management
+    paths-ignore:
+      - '**/*.md'
+      - 'README*'
+      - 'docs/**'
+      - 'LICENSE*'
+      - 'NOTICE*'
   pull_request:
     branches:
       - main
       - feature/geckoview-engine
       - feature/md3-modal-translation-reader
+    paths-ignore:
+      - '**/*.md'
+      - 'README*'
+      - 'docs/**'
+      - 'LICENSE*'
+      - 'NOTICE*'
+
+concurrency:
+  group: geckoview-android-build-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -45,16 +61,15 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Run unit tests
-        run: gradle --no-daemon :app:testDebugUnitTest
-
-      - name: Assemble debug APK
-        run: gradle --no-daemon :app:assembleDebug
+      - name: Run unit tests and assemble debug APK
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
 
       - name: Assemble release APK with R8
+        if: github.event_name == 'workflow_dispatch'
         run: gradle --no-daemon :app:assembleRelease
 
       - name: Assemble release Android App Bundle
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           set +e
@@ -70,9 +85,7 @@ jobs:
       - name: Upload APK and AAB artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: snav-geckoview-apks
+          name: snav-geckoview-debug-apk
           path: |
             app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
-            app/build/bundleOnly/outputs/bundle/release/*.aab
           if-no-files-found: error

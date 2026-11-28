@@ -28,8 +28,19 @@ páginas curtas e longas, topo e meio, elementos com rolagem própria,
 `overscroll-behavior`, gestos horizontais/diagonais, pinça e seleção. Uma
 resposta tardia pode rejeitar um gesto legítimo para evitar uma atualização
 acidental. No emulador Android 35, a regra conservadora impede também a
-atualização por arrasto em uma página curta sem rolagem. O teste correspondente
-permanece ativo e falhando. O botão de recarregar do menu continua disponível.
+atualização por arrasto em uma página curta sem rolagem. Esse caso não tem
+suporte seguro com os sinais atuais do GeckoView: o botão de recarregar do
+menu continua sendo a alternativa explícita.
+
+O antigo teste `shortPageCanRefreshAtTop` exigia um comportamento contrário a
+essa política já documentada e falhava também na branch de origem. Ele foi
+substituído por `shortPageRejectsAmbiguousPullAndCanReloadExplicitly`, que
+continua executando o gesto real, exige que não haja atualização/navegação
+acidental e depois verifica o início e a conclusão de um recarregamento
+explícito da sessão. Isso **não implementa** pull-to-refresh em página curta.
+O teste positivo de página longa e os testes de `touch-action: none`,
+`preventDefault`, toque longo e página fora do topo continuam ativos; não
+foram adicionados `Ignore`, exclusões de testes nem aprovação incondicional.
 
 `RefreshGeckoIntegrationTest` executa gestos com uma sessão Gecko real e
 páginas de teste no emulador; `PullGestureTrackerTest` cobre o classificador de
