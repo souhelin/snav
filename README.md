@@ -4,6 +4,15 @@ Snav é um navegador Android construído para navegação simples, interface min
 
 ![Logo do Snav](image/logo.png)
 
+> [!WARNING]
+> **O Snav ainda está em desenvolvimento.** O projeto não está concluído e nem todas as funcionalidades estão prontas. Por isso, podem existir bugs, falhas e comportamentos inesperados. Use sabendo que ainda é uma versão em desenvolvimento.
+
+## Sobre o desenvolvimento
+
+O Snav parte de um projeto que comecei há alguns anos e que estou retomando e desenvolvendo novamente. Atualmente, utilizo ferramentas de inteligência artificial como apoio no desenvolvimento. Ainda assim, reviso as alterações e verifico o que foi produzido para avaliar se está correto e se faz sentido para o projeto.
+
+A manutenção é feita somente por mim, como um projeto pessoal e de hobby. Tento manter o projeto em evolução, mas a frequência das atualizações pode variar: algumas podem sair em intervalos curtos, enquanto outras podem demorar ou não acontecer por um período, dependendo do tempo e das limitações que tenho.
+
 ## Princípios do projeto
 
 - Preservar a identidade visual original do Snav.
