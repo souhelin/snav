@@ -4,6 +4,16 @@ Um navegador para Android com foco em navegação simples, privacidade e uma int
 
 ![Logo do Snav](image/logo.png)
 
+
+## Aviso sobre o desenvolvimento
+
+O Snav ainda está em desenvolvimento. O projeto não está concluído e algumas partes podem estar incompletas, mudar ou apresentar problemas. Por isso, podem ocorrer erros e comportamentos inesperados durante o uso.
+
+Este projeto começou a partir de uma versão que desenvolvi há alguns anos e que estou retomando agora. Atualmente, uso ferramentas de inteligência artificial como auxílio no desenvolvimento. Ainda reviso as alterações e verifico se fazem sentido e se estão corretas, mas isso não garante que tudo esteja livre de erros.
+
+A manutenção é feita somente por mim, como hobby e no meu tempo livre. Por isso, a frequência das atualizações pode variar: em alguns períodos haverá mudanças frequentes; em outros, elas podem demorar ou não acontecer, inclusive por limitações de tempo e recursos.
+
+
 > A documentação descreve o código desta branch. Isso não significa que todos os recursos estejam disponíveis em uma versão distribuída do aplicativo.
 
 ## Visão geral
